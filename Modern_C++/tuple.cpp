@@ -22,11 +22,11 @@ int main()
 
     cout << ch << ' ' << iVal << ' ' << fVal << '\n';
 
-    // C++14
     ch = 'A';
     iVal = 0;
     fVal = 0.0f;
 
+    // C++14
     std::tie(ch, iVal, fVal) = myTuple;
 
     cout << ch << ' ' << iVal << ' ' << fVal << '\n';
