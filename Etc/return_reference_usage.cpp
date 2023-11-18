@@ -40,7 +40,5 @@ int main()
         std::cout << idx << " : " << arrB[idx] << '\n';
     }
     
-    
-
     return 0;
 }
