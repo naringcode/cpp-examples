@@ -1,5 +1,4 @@
 #include <iostream>
-#include <cstdarg> // ellipsis
 
 class MyClass
 {
