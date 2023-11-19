@@ -112,7 +112,7 @@ int main()
     }
     else
     {
-        // _vfptr이 가리키는 대상은 Derived의 것과 동일하다.
+        // _vfptr이 가리키는 대상은 Base의 것과 동일하다.
         vBase = new Base();
     }
 
