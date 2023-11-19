@@ -33,6 +33,5 @@ int main()
     std::cout << (float)point << '\n';
     std::cout << static_cast<float>(point) << '\n';
 
-
     return 0;
 }
