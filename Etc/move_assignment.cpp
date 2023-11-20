@@ -2,6 +2,7 @@
 
 // move sementics는 r-value를 대상으로 한다.
 // l-value는 지속성(?)이 있지만 r-value는 바로 사라진다.
+// l-value는 유지될 수 있는 것, r-value는 휘발성이 강한 것.
 
 class MyClass
 {
