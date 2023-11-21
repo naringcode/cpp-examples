@@ -5,6 +5,11 @@
 // https://cplusplus.com/reference/regex/ECMAScript/
 // https://en.cppreference.com/w/cpp/regex/regex_iterator
 // https://cs.lmu.edu/~ray/notes/regex/
+// https://www.websense.com/content/support/library/web/hosted/dsc_admin/standard_regex.aspx
+
+// 기본은 ECMAScript 사양
+// https://en.cppreference.com/w/cpp/regex/ecmascript
+// https://cplusplus.com/reference/regex/ECMAScript/
 
 int main()
 {
