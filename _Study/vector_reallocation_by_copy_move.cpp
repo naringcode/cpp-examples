@@ -97,7 +97,7 @@ int main()
     {
         // 둘 다 && 연산이 일어남(r-value)
         // vec.push_back(std::move(MyClass{ i }));
-        vec.push_back(std::move(MyClass{ i }));
+        vec.push_back(MyClass{ i });
     }
 
     return 0;
