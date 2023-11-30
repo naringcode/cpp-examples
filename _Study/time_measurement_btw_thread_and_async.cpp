@@ -13,7 +13,7 @@ using namespace std;
 atomic<int> g_ThreadAtom;
 atomic<int> g_AsyncAtom;
 
-// main() 안에 있으면 스택 오버플로우가 일어나서 여기에 만든다.
+// main() 안에 있으면 조절하는 양에 따라 스택 오버플로우가 일어날 수도 있어서 여기에 만든다.
 constexpr int kMax    = 100;
 constexpr int kMaxLog = 10;
 
@@ -43,6 +43,8 @@ double asyncLog[kMaxLog];
 //   - 데이터 병렬성 : 동일한 작업을 여러 곳에 분산해서 처리.
 //   - 작업 병렬성 : 여러 작업을 독립적으로 실행.
 // - 비동기 : 나는 할 거 하러 갈테니 나중에 결과만 알려줘.
+
+// 주의 : std::async()는 클래스가 아닌 함수임.
 
 void RunThread()
 {
