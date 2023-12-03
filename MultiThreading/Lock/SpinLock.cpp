@@ -33,6 +33,7 @@ public:
         // 자원 획득 시도
         while (false == _locked.compare_exchange_strong(expected, true))
         {
+            // 이 부분을 빼먹지 않게 조심해야 한다.
             expected = false;
         }
     }
