@@ -43,6 +43,13 @@ void Consumer()
 
         std::unique_lock<std::mutex> guard(mtx);
 
+        // 실제로는 while을 돌면서 뽑아와야 한다.
+        // 1. push()
+        // 2. SetEvent()
+        // 3. push()
+        // 4. SetEvent()
+        // 5. WaitForSingleObject() 반응
+        // 6. 하나만 뽑아서 처리하면 queue에 데이터가 쌓일 수 있다.
         if (false == q.empty())
         {
             int data = q.front();
