@@ -8,8 +8,14 @@
 // condition_variable을 사용하면서 들었던 의문점을 정리한 파일.
 //
 // !!!중요!!!
-// 조건 변수가 wait()에 반응한 이후 lock을 거는 것과 조건 구문을 체크하는 것은 원자적이지 않음.
+// 조건 변수에 notify를 거는 것과 공유 자원을 대상으로 lock을 잡고 푸는 것은 원자적이지 않음.
 // Spurious Wakeup을 주의할 것! // https://en.wikipedia.org/wiki/Spurious_wakeup
+// 
+// 1. 대기 상태
+// 2. wakeup
+// <<-- 다른 쪽에서 먼저 lock을 잡고 사용할 수도 있음
+// 3. lock 걸기
+// 4. 조건 체크
 
 // 결론 정리
 // ** 조건이 있는 wait()를 사용했을 경우
