@@ -12,7 +12,7 @@ using namespace std;
 // 3. 스레드를 생성하는 데 비용이 듦
 // 4. 작업의 병렬성에 초점
 
-// std::async는 Task-Based로 작업한다.
+// std::async는 Task-Based로 작업한다(std::launch::async).
 // 1. 고수준
 // 2. 일감을 던지고 그 결과를 받고자 할 때 사용
 // 3. 스레드 풀을 사용하기 때문에 상대적으로 저비용
