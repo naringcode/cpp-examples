@@ -14,6 +14,7 @@ int main()
     using second_t = std::chrono::duration<double>;
 
     // 캐시 메모리에 올리기(L1, L2, L3 캐시의 용량이 다르다는 것에 유의)
+    // Temporal Locality
     for (int y = 0; y < kCol; y++)
     {
         for (int x = 0; x < kRow; x++)
@@ -23,6 +24,7 @@ int main()
     }
 
     // Row 먼저
+    // Spatial Locality
     {
         auto tpStart = clock_t::now();
 
