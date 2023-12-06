@@ -6,7 +6,7 @@ constexpr int kCol = 10000;
 
 int arr[kCol][kRow];
 
-// x 쪽에 접근하는 방식으로 설계하는 것이 훨씬 빠르게 동작한다.
+// x -> y 순으로 접근하는 방식으로 설계하는 것이 훨씬 빠르게 동작한다.
 
 int main() 
 {
