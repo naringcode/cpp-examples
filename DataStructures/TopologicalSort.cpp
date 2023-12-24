@@ -24,37 +24,34 @@ using namespace std;
 // 3. 더 이상 탐색할 수 없는 정점에 도달했다면 해당 정점을 리스트의 새로운 헤더로 등록
 // 4. 2번과 3번을 반복해서 정점이 남지 않을 때까지 수행
 
-// 응용 문제) 백준 1005 : ACM Craft
+// 응용 문제) 백준 2252 : 줄 세우기
 
-int t;
-int n; // 건물의 개수
-int k; // 건물간의 건설순서 규칙 개수
-int d[1004]; // 건물 건설 비용
+int n;
+int m;
 
 int a;
 int b;
-int w; // 목표 건물
 
-vector<int> adj[1004];
-// int indegrees[1004];
+vector<int> adj[32004];
+int indegrees[32004];
 
-int dp[1004];
+bool visited[32004];
 
-int go(int from)
+list<int> res;
+
+void go(int from)
 {
-    if (-1 != dp[from])
-        return dp[from];
-
-    int ret = d[from];
-
-    dp[from] = d[from];
+    visited[from] = true;
 
     for (int to : adj[from])
     {
-        dp[from] = max(dp[from], go(to) + d[from]);
+        if (true == visited[to])
+            continue;
+
+        go(to);
     }
 
-    return dp[from];
+    res.push_front(from);
 }
 
 int main()
@@ -63,41 +60,29 @@ int main()
     cin.tie(nullptr);
     cout.tie(nullptr);
 
-    cin >> t;
+    cin >> n >> m;
 
-    while (t--)
+    for (int i = 0; i < m; i++)
     {
-        // 초기화
-        for (int i = 0; i < 1004; i++)
+        cin >> a >> b;
+        a--;
+        b--;
+
+        adj[a].push_back(b);
+        indegrees[b]++;
+    }
+
+    for (int i = 0; i < n; i++)
+    {
+        if (0 == indegrees[i])
         {
-            adj[i].clear();
-            // indegrees[i] = 0;
-
-            dp[i] = -1;
+            go(i);
         }
+    }
 
-        cin >> n >> k;
-
-        for (int i = 0; i < n; i++)
-        {
-            cin >> d[i];
-        }
-
-        for (int i = 0; i < k; i++)
-        {
-            cin >> a >> b;
-            a--;
-            b--;
-
-            // 역으로 연결(w를 기준으로 탐색해서 결과를 얻게 하기 위함)
-            adj[b].push_back(a);
-            // indegrees[a]++;
-        }
-
-        cin >> w;
-        w--;
-
-        cout << go(w) << '\n';
+    for (int elem : res)
+    {
+        cout << elem + 1 << ' ';
     }
 
     return 0;
