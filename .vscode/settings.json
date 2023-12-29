@@ -90,5 +90,6 @@
         "xtree": "cpp",
         "xutility": "cpp",
         "future": "cpp"
-    }
+    },
+    "C_Cpp.errorSquiggles": "disabled"
 }
