@@ -208,9 +208,6 @@ int main()
 
         for (int i = 0; i < 5; i++)
         {
-            // 아래 두 코드는 같은 동작을 한다.
-            // 명시적으로 std::move()를 타이핑하지 않아도 push_back() 차원에서 &&(RValue Reference)로 받는다.
-            //
             // 이 부분도 Return Value Optimization이 적용된다.
             // 1. make_my_class() -> MyClass myClass(new int{ data }) -> "Constructor"
             // 2. make_my_class() -> "~~RAII Test~~"
@@ -224,6 +221,10 @@ int main()
             // 4. make_my_class() -> "~~RAII Test~~"
             // 5. main - push_back() -> RValue Reference -> forward() -> "Move Constructor"
             // 6. main - make_my_class()가 반환한 MyClass -> "Destructor"
+            //
+            // 아래 두 코드는 같은 동작을 한다.
+            // 명시적으로 std::move()를 타이핑하지 않아도 push_back() 차원에서 &&(RValue Reference)로 받는다.
+            //
             vec.push_back(std::move(make_my_class(10 + i)));
             vec.push_back(make_my_class(100 + i));
         }
