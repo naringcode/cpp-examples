@@ -64,15 +64,17 @@ public:
     }
 
 public:
-    MyClass(MyClass&& myClass)
+    // noexcept를 주석처리하면 vector reallocation 작업이 일어날 때 Copy Constructor가 호출됨.
+    MyClass(MyClass&& myClass) // noexcept
         : _data(myClass._data)
     {
         std::cout << "Move Constructor : MyClass(MyClass&& myClass)" << '\n';
-    
+
         myClass._data = nullptr;
     }
 
-    MyClass& operator=(MyClass&& myClass)
+    // noexcept를 주석처리하면 vector reallocation 작업이 일어날 때 Copy Constructor가 호출됨.
+    MyClass& operator=(MyClass&& myClass) // noexcept
     {
         std::cout << "Move Assignment : MyClass& operator=(MyClass&& myClass)" << '\n';
 
@@ -200,13 +202,23 @@ int main()
         cout << "----\n";
     }
 
+    std::cout << "--------------------\n";
+
     {
         std::vector<MyClass> vec;
 
-        // vec.reserve(10)를 주석처리하면 재밌는 현상을 볼 수 있음
-        vec.reserve(10);
+        // vec.reserve(20)를 주석처리하면 재밌는 현상을 볼 수 있음
+        vec.reserve(20);
 
-        for (int i = 0; i < 5; i++)
+        // LValue Reference 버전 확인 용도
+        auto myClass = make_my_class(10000);
+
+        cout << "----\n";
+
+        // LValue Reference -> forward() -> "Copy Constructor"
+        vec.push_back(myClass); 
+
+        for (int i = 0; i < 9; i++)
         {
             // 이 부분도 Return Value Optimization이 적용된다.
             // 1. make_my_class() -> MyClass myClass(new int{ data }) -> "Constructor"
@@ -222,11 +234,62 @@ int main()
             // 5. main - push_back() -> RValue Reference -> forward() -> "Move Constructor"
             // 6. main - make_my_class()가 반환한 MyClass -> "Destructor"
             //
-            // 아래 두 코드는 같은 동작을 한다.
-            // 명시적으로 std::move()를 타이핑하지 않아도 push_back() 차원에서 &&(RValue Reference)로 받는다.
+            cout << "---\n";
+
+            vec.push_back(make_my_class(10 + i));
+
+            cout << "---\n";
+
+            vec.push_back(std::move(make_my_class(100 + i)));
+
+            // 위 두 코드는 같은 동작을 한다.
+            // 명시적으로 std::move()를 타이핑하지 않아도 RValue Reference를 받는 push_back()를 호출하기 때문이다.
+            // 
+            // push_back()은 LValue Reference와 RValue Reference를 받는 것을 구분하고 있다.
+            // 다음 코드의 경우엔 LValue Reference로 받아서 Copy Constructor가 호출된다.
+            // ----------------------------------------
+            // auto myClass = make_my_class(100);
+            // vec.push_back(myClass); // LValue Reference -> forward() -> "Copy Constructor"
+            // ----------------------------------------
+            // 
+            // ##### vec.push_back(make_my_class(10 + i)); #####
+            // 
+            // Case A) 2015_Debug, 2019_Debug
+            // 1. Constructor : MyClass(int* data)
+            // 2. Move Constructor : MyClass(MyClass&& myClass)
+            // 3. Destructor : ~MyClass() : nullptr
+            // 4. ~~RAII Test~~
+            // 5. Move Constructor : MyClass(MyClass&& myClass)
+            // 6. Destructor : ~MyClass() : nullptr
+            // 
+            // Case B) 2015_Release, 2019_Release, 2022_Debug, 2022_Release
+            // 1. Constructor : MyClass(int* data)
+            // 2. ~~RAII Test~~
+            // 3. Move Constructor : MyClass(MyClass&& myClass)
+            // 4. Destructor : ~MyClass() : nullptr
             //
-            vec.push_back(std::move(make_my_class(10 + i)));
-            vec.push_back(make_my_class(100 + i));
+            // ##### vec.push_back(std::move(make_my_class(100 + i))); #####
+            // 
+            // Case A) 2015_Debug, 2019_Debug
+            // 1. Constructor : MyClass(int* data)
+            // 2. Move Constructor : MyClass(MyClass&& myClass)
+            // 3. Destructor : ~MyClass() : nullptr
+            // 4. ~~RAII Test~~
+            // 5. Move Constructor : MyClass(MyClass&& myClass)
+            // 6. Destructor : ~MyClass() : nullptr
+            //
+            // Case B) 2015_Release, 2019_Release, 2022_Debug, 2022_Release
+            // 1. Constructor : MyClass(int* data)
+            // 2. ~~RAII Test~~
+            // 3. Move Constructor : MyClass(MyClass&& myClass)
+            // 4. Destructor : ~MyClass() : nullptr
+
+            // 컴파일러 버전에 따라 다르지만 보통은 std::move()를 쓰지 않고 그냥 넘겼을 때가 훨씬 나은 성능을 보인다.
+            // RVO가 적용되지 않는다면 반환에 따른 추가적인 생성자가 호출되긴 하지만 보통은 적용되니 이 부분은 크게 신경쓸 부분이 아니다.
+            //
+            // 프로젝트의 기본 속성에 맞춰서 진행한 것이다.
+            // 최적화 수준에 따라 다르게 동작할 수 있으니 이 부분은 주의하자.
+            //
         }
 
         cout << "----\n";
