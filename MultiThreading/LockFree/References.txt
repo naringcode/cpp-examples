@@ -1,0 +1,19 @@
+Books
+
+C++ Concurrency in Action # Anthony Williams
+
+C++ Reactive Programming # Praseed Pai , Peter Abraham
+
+C++ High Performance - Second Edition # Björn Andrist , Viktor Sehr
+
+Concurrent Patterns and Best Practices # Atul S. Khot
+
+--------------------------------------------------
+
+Videos
+
+https://www.udemy.com/course/modern-cpp-concurrency-in-depth/
+# Lock free data structures and algorithms
+
+https://www.udemy.com/course/learn-modern-cplusplus-concurrency/
+# Atomic Types

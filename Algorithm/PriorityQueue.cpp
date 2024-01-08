@@ -103,27 +103,27 @@ private:
             int leftChild  = (parent * 2) + 1;
             int rightChild = leftChild + 1;
 
-            int smallChild = parent;
+            int nextChild = parent;
 
             // 왼쪽으로 내려갈 수 있는 상황
-            if (leftChild <= lastIdx && _heap[leftChild] < _heap[smallChild])
+            if (leftChild <= lastIdx && _heap[leftChild] < _heap[nextChild])
             {
-                smallChild = leftChild;
+                nextChild = leftChild;
             }
 
             // 오른쪽으로 내려갈 수 있는 상황
-            if (rightChild <= lastIdx && _heap[rightChild] < _heap[smallChild])
+            if (rightChild <= lastIdx && _heap[rightChild] < _heap[nextChild])
             {
-                smallChild = rightChild;
+                nextChild = rightChild;
             }
 
             // 현재 노드의 값보다 자식 노드의 값이 큰 상황
-            if (parent == smallChild)
+            if (parent == nextChild)
                 break;
 
-            std::swap(_heap[parent], _heap[smallChild]);
+            std::swap(_heap[parent], _heap[nextChild]);
 
-            parent = leftChild;
+            parent = nextChild;
         }
     }
 
