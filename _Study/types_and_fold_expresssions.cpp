@@ -25,6 +25,16 @@
 // 일단은 args와 ...을 op와 결합해서 사용하는 것이 핵심이라는 것만 알고 가도 된다.
 //
 
+// decltype(x + y)와 같은 방식은 직접적으로 표현 타입을 사용한다.
+// 반면에 std::common_type은 타입을 결정하기 위한 작업을 필요로 한다.
+//
+// 특별한 결정 규칙이 필요하거나 혹은 정교한 무언가를 처리해야 하는 상황이 아니라면?
+// decltype(x + y)와 같은 방식을 사용하도록 한다.
+//
+// decltype(x + y)는 간단하며 std::common_type은 처리 방식이 조금 복잡하다.
+// 이는 컴파일 타임에 영향을 미칠 수 있는 요소다.
+//
+
 template <typename T, typename U>
 auto Max(const T& x, const U& y) -> decltype(x + y)
 {
