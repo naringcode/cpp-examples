@@ -52,7 +52,7 @@ auto Add(const T& x, const U& y) -> decltype(x + y)
 }
 
 template <typename T, typename... Args>
-auto MaxElement(const T& first, const Args&... args) -> typename std::common_type<Args...>::type
+auto MaxElement(const T& first, const Args&... args) -> typename std::common_type<T, Args...>::type
 {
     /** 
      * C++17 : fold expressions(폴드 표현식)
