@@ -35,6 +35,12 @@
 // ** 옵저버 패턴처럼 동작한다고 숙지하자.
 // 
 
+// 조건 변수는 다음 3가지가 함께 묶여서 동작한다고 생각하자.
+// 1. std::unique_lock<std::mutex> lock(mtx); // std::mutex mtx
+// 2. std::condition_variable
+// 3. cv 내 조건 확인용 변수
+//
+
 std::mutex mtx;
 std::condition_variable cv;
 
