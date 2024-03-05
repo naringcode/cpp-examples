@@ -1,5 +1,3 @@
-#include <iostream>
-
 #include <thread>
 #include <mutex>
 
@@ -36,10 +34,38 @@
 // 
 
 // 조건 변수는 다음 3가지가 함께 묶여서 동작한다고 생각하자.
-// 1. std::unique_lock<std::mutex> lock(mtx); // std::mutex mtx
+// 1. std::mutex mtx // std::unique_lock<std::mutex> lock(mtx) // std::lock_guard<std::mutex> lock(mtx);
 // 2. std::condition_variable
 // 3. cv 내 조건 확인용 변수
-//
+/**
+ * struct Context
+ * {
+ *     std::mutex mtx;
+ *     std::condition_variable cv;
+ *     bool ready = false;
+ * } context;
+ * 
+ * void ThreadA()
+ * {
+ *     std::unique_lock<std::mutex> lock(context.mtx);
+ * 
+ *     // Do Something...
+ *     //
+ * 
+ *     context.ready = true;
+ * 
+ *     // 대기 중인 스레드가 있으면 깨우고 조건 다시 확인하게 하기
+ *     context.cv.notify_one();
+ * }
+ * 
+ * void ThreadB()
+ * {
+ *     std::unique_lock<std::mutex> lock(context.mtx);
+ * 
+ *     // lock을 소유한 쪽이 있으면 실행이 끝날 때까지 대기
+ *     context.cv.wait(lock, [&]{ return context; });
+ * }
+ */
 
 std::mutex mtx;
 std::condition_variable cv;
@@ -64,9 +90,45 @@ void RunCase01()
 void RunCase02()
 {
     // Test Case
+    // 조건에 해당하는 값을 충족시키지 않은 상태에서 notify를 한다면?
+
+    bool chk = false;
+
+    // 2초 뒤에 notify_one() 호출
+    std::thread([]() {
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+
+        cv.notify_one();
+
+        std::cout << "Thread 01\n";
+    }).detach();
+    
+    // 4초 뒤에 notify_one() 호출
+    std::thread([&]() {
+        std::this_thread::sleep_for(std::chrono::seconds(4));
+
+        chk = true;
+
+        cv.notify_one();
+        
+        std::cout << "Thread 02\n";
+    }).detach();
+
+    std::unique_lock<std::mutex> lock(mtx);
+
+    // Thread 01 -> Thread 02 -> Main OK
+    // 결론 : notify로 깨워도 조건을 확인한 다음 lock을 잡을 것인지 판단함.
+    cv.wait(lock, [&]() { return true == chk; });
+    
+    std::cout << "Main OK\n";
+}
+
+void RunCase03()
+{
+    // Test Case
     // notify_one()을 한 다음에 wait()를 걸면 반응하는가?
     //
-    cv.notify_one();
+    cv.notify_one(); // 미리 한 번 호출
 
     // 2초 뒤에 다시 notify_one() 호출
     std::thread([]() {
@@ -84,7 +146,7 @@ void RunCase02()
     std::cout << "OK\n";
 }
 
-void RunCase03()
+void RunCase04()
 {
     // Test Case
     // 조건 없는 wait()를 사용했으면 lock에 대한 소유권의 행방은?
@@ -110,7 +172,7 @@ void RunCase03()
     std::cout << "Main OK\n";
 }
 
-void RunCase04()
+void RunCase05()
 {
     // Test Case
     // Lock을 획득하지 못 하면 대기 상태에 진입하는가?
@@ -136,7 +198,7 @@ void RunCase04()
     std::cout << "OK\n";
 }
 
-void RunCase05()
+void RunCase06()
 {
     bool chk = false;
 
@@ -196,10 +258,11 @@ void RunCase05()
 int main()
 {
     // RunCase01();
-    // RunCase02();
-    RunCase03();
+    RunCase02();
+    // RunCase03();
     // RunCase04();
     // RunCase05();
+    // RunCase06();
 
     return 0;
 }
