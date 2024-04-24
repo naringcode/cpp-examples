@@ -78,7 +78,7 @@ int main()
             //
             // break;
 
-            iter++;
+            iter++; // skips ';'
         }
     }
 
