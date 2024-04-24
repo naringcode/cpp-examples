@@ -26,11 +26,13 @@ int main()
     {
         // Access capture groups
 #if MODE == 0
+        std::cout << "Full match: "    << matches.str() << std::endl;
         std::cout << "Email address: " << matches[0] << std::endl; // Full match
         std::cout << "Username: "      << matches[1] << std::endl; // First capture group
         std::cout << "Domain: "        << matches[2] << std::endl; // Second capture group
         std::cout << "TLD: "           << matches[3] << std::endl; // Third capture group
 #elif MODE == 1
+        std::cout << "Full match: "    << matches.str() << std::endl;
         std::cout << "Email address: " << matches[0] << std::endl; // Full match
         std::cout << "Full Username: " << matches[1] << std::endl; // First capture group
         std::cout << "Username: "      << matches[2] << std::endl; // First capture group
