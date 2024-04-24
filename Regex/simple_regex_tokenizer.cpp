@@ -21,7 +21,7 @@ int main()
     // Multi-line comments : ^\/\*[\s\S]*?\*\/
     // Number : ^\d+
     // String : ^"[^"]*", ^'[^']*'
-    // Keyword : ^var
+    // Keyword : ^(var|let)
     // Identifier : ^\w+
 
     vector<RegUnit> regUnits;
@@ -32,7 +32,7 @@ int main()
     regUnits.push_back({ std::regex(R"(\/\*[\s\S]*?\*\/)"), "Multi-line comments" });
     regUnits.push_back({ std::regex(R"(\d+)"), "Number" });
     regUnits.push_back({ std::regex(R"("[^"]*")"), "String" });
-    regUnits.push_back({ std::regex(R"(var)"), "Keyword" });
+    regUnits.push_back({ std::regex(R"(var|let)"), "Keyword" });
     regUnits.push_back({ std::regex(R"(\w+)"), "Identifier" });
 
     string str = R"(
@@ -41,7 +41,7 @@ int main()
          * this is multi-line comments
          */
         var num = 10;
-        var str = "string";
+        let str = "string";
     )";
 
     // cout << str;
