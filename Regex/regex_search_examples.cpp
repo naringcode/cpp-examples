@@ -69,6 +69,12 @@ int main()
 
     // if (std::regex_search(..., std::regex_constants::match_continuous))
     // while로 순회하지 않고 이렇게 쓰는 방식이라면 match_continuous는 메타기호 ^와 동일한 역할을 수행한다고 봐도 됨.
+    // 
+    // 엄밀하게 말하자면 ^와 match_continuous는 기능의 차이가 있긴 함.
+    // ^는 전체 패턴을 문자열의 시작부터 일치시키고자 할 때 사용하는 메타기호이며 정규 표현식의 시작 위치를 의미.
+    // match_continuous는 패턴이 이전에 일치한 항목 뒤에서 연속해서 나타나는 경우만 매치되도록 하며
+    // 이는 문자열의 시작 위치에만 국한되지 않고 이전 일치 항목 뒤에서도 연속하여 일치해야 함.
+    // ex) str = "abcabcabc", pattern = "abc" -> 반복문 순회 -> "abc", "abc", "abc"
 
 #elif MODE == 3
     std::smatch smResult;
