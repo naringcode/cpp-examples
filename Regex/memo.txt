@@ -1,0 +1,16 @@
+차이점(std::regex_match(), std::regex_search(), std::sregex_iterator, std::cregex_iterator)
+
+std::regex_match()
+전체 문자열에 대해서 정확히 일치하는지 확인.
+문자열의 처음부터 끝까지 정확히 패턴이 일치해야 함.
+이메일이나 전화번호 등과 같이 짧은 문자열을 대상으로 유용함.
+
+std::regex_search()
+문자열에서 첫 번째로 매칭되는 부분을 찾음.
+매칭되는 부분을 찾으면 탐색을 중단함.
+통상적으로 정규 표현식을 사용한다고 하면 이 함수를 사용함.
+
+std::sregex_iterator, std::cregex_iterator
+패턴과 일치하는 모든 부분을 반복적으로 찾아냄.
+이터레이터를 증가시키는 방식으로 다음 일치 항목으로 이동 가능.
+일치하는 모든 패턴을 찾은 다음 순회하는 방식.
