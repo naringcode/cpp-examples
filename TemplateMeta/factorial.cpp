@@ -2,10 +2,10 @@
 
 using namespace std;
 
-template <int N>
+template <int tN>
 struct Factorial
 {
-    static constexpr int val = N * Factorial<N - 1>::val;
+    static constexpr int val = tN * Factorial<tN - 1>::val;
 };
 
 // 템플릿 특수화
