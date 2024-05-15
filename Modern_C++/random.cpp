@@ -1,6 +1,42 @@
 #include <iostream>
 #include <random>
 
+// C++은 균등 분포(uniform distribution) 외에 다양한 분포를 지원한다.
+// https://cplusplus.com/reference/random/
+// https://en.cppreference.com/w/cpp/numeric/random/
+//
+// 자주 사용될 것 같은 건 ##으로 표시함
+//
+// Uniform
+// 1. uniform_int_distribution : 균등 정수 분포(##)
+// 2. uniform_real_distribution : 균등 실수 분포(##)
+//
+// Bernoulli
+// 3. bernoulli_distribution : 베르누이 분포
+// 4. binomial_distribution : 이항 분포(##)
+// 5. negative_binomial_distribution : 음이항 분포
+// 6. geometric_distribution : 기하 분포
+//
+// Poisson
+// 7. poisson_distribution : 푸아송 분포(##)
+// 8. exponential_distribution : 지수 분포
+// 9. gamma_distribution : 감마 분포
+// 10. weibull_distribution : 베이불 분포
+// 11. extreme_value_distribution : 극값 분포
+//
+// Normal
+// 12. normal_distribution : 정규 분포(##)
+// 13. lognormal_distribution : 로그 정규 분포
+// 14. chi_squared_distribution : 카이제곱 분포
+// 15. cauchy_distribution : 코시 분포
+// 16. fisher_f_distribution : F 분포
+// 17. student_t_distribution : 스튜던트 t 분포
+//
+// Sampling
+// 18. discrete_distribution : 이산 분포(##)
+// 19. piecewise_constant_distribution
+// 20. piecewise_linear_distribution
+
 int main()
 {
     using namespace std;
