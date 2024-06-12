@@ -22,6 +22,7 @@ enum class Color
     #define X(value) value, // 마지막에 ','를 붙이는 것이 핵심
         FOREACH_COLORS
     #undef X
+    MAX
 };
 
 // 함수로 받아오는 방식

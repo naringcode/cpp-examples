@@ -23,6 +23,7 @@ enum class Color
     #define X(value) value, // 마지막에 ','를 붙이는 것이 핵심
         FOREACH_COLORS(X)   // X로 정의된 기능을 수행하도록 확장(DO는 X로 치환되는 것이지, X(value)로 치환되는 것이 아님을 주의)
     #undef X
+    MAX
 
     /*
     DO는 X로 치환되고 곧 "value,"로 확장됨.
