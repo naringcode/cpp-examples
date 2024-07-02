@@ -137,8 +137,8 @@ public:
 
         Expr* left = prefixFn(this);
 
-        while ((int)precedence < (int)GetPrecedence(NextToken().type))
-        // while ((int)precedence <= (int)GetPrecedence(NextToken().type))
+        // while ((int)precedence <= (int)GetPrecedence(NextToken().type)) // 이걸로 AST를 계산해보니 이건 문제가 있음(Not Working).
+        while ((int)precedence < (int)GetPrecedence(NextToken().type)) // 이걸 쓰면 문제 없음(Good Working).
         {
             auto infixFn = GetInfixFn(NextToken().type);
 
@@ -207,8 +207,14 @@ int main()
     // A + B - C
     // tokens = { { TokenType::Char, "A" }, { TokenType::Plus, "+" }, { TokenType::Char, "B" }, { TokenType::Minus, "-" }, { TokenType::Char, "C" }, { TokenType::End, "" } };
 
+    // A + B * C
+    // tokens = { { TokenType::Char, "A" }, { TokenType::Plus, "+" }, { TokenType::Char, "B" }, { TokenType::Star, "*" }, { TokenType::Char, "C" }, { TokenType::End, "" } };
+
+    // A * B + C
+    // tokens = { { TokenType::Char, "A" }, { TokenType::Star, "*" }, { TokenType::Char, "B" }, { TokenType::Plus, "+" }, { TokenType::Char, "C" }, { TokenType::End, "" } };
+
     // A + B - C * D + E
-    tokens = { { TokenType::Char, "A" }, { TokenType::Plus, "+" }, { TokenType::Char, "B" }, { TokenType::Minus, "-" }, { TokenType::Char, "C" }, { TokenType::Minus, "*" }, { TokenType::Char, "D" }, { TokenType::Minus, "+" }, { TokenType::Char, "E" }, { TokenType::End, "" } };
+    tokens = { { TokenType::Char, "A" }, { TokenType::Plus, "+" }, { TokenType::Char, "B" }, { TokenType::Minus, "-" }, { TokenType::Char, "C" }, { TokenType::Star, "*" }, { TokenType::Char, "D" }, { TokenType::Plus, "+" }, { TokenType::Char, "E" }, { TokenType::End, "" } };
 
     Parser parser{ tokens };
 
