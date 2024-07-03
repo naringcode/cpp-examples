@@ -137,7 +137,7 @@ public:
 
         Expr* left = prefixFn(this);
 
-        // while ((int)precedence <= (int)GetPrecedence(NextToken().type)) // 이걸로 AST를 계산해보니 이건 문제가 있음(Not Working).
+        // while ((int)precedence <= (int)GetPrecedence(NextToken().type)) // 이걸로 AST를 계산해보니 이건 문제가 있음(Bad Working).
         while ((int)precedence < (int)GetPrecedence(NextToken().type)) // 이걸 쓰면 문제 없음(Good Working).
         {
             auto infixFn = GetInfixFn(NextToken().type);
