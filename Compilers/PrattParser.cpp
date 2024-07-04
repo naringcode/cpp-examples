@@ -10,6 +10,7 @@ using std::string;
 
 /**
  * https://en.m.wikipedia.org/w/index.php?title=Operator-precedence_parser&diffonly=true#Pratt_parsing
+ * https://journal.stuffwithstuff.com/2011/03/19/pratt-parsers-expression-parsing-made-easy/
  * 
  * 메모리 누수는 신경쓰지 않고 작성한 코드니 주의.
  */
