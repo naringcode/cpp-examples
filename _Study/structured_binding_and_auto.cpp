@@ -11,7 +11,7 @@
 // int&& 이런 건 RValue Reference 형태로 받지 Universal Reference 형태로 받는 것이 아니다.
 // auto&&가 Universal Reference 형태로 받아서 참으로 헷갈리는 부분.
 //
-// 보편 참조는 왼쪽값 참조와 오른값 참조를 동시에 처리하기 위한 문법이다.
+// 보편 참조는 왼쪽값 참조(LValue Refefence)와 오른값 참조(RValue Reference)를 동시에 처리하기 위한 문법이다.
 // 보편 참조는 템플릿에서도 유용하게 활용된다(이 경우에는 std::move()가 아닌 std::forward()로 완벽한 전달이 필요).
 // 자세한 사항은 "Modern Effective C++"의 "5장 오른값 참조, 이동 의미론, 완벽 전달" 참고.
 
