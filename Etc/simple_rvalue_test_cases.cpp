@@ -51,14 +51,14 @@ SomeClass MakeFunc()
     return someClass;
 }
 
-void ReadFunc(SomeClass& func)
+void ReadFunc(SomeClass& aClass)
 {
-    std::cout << "ReadFunc(SomeClass& func)\n";
+    std::cout << "ReadFunc(SomeClass& aClass)\n";
 }
 
-void ReadFunc(SomeClass&& func)
+void ReadFunc(SomeClass&& aClass)
 {
-    std::cout << "ReadFunc(SomeClass&& func)\n";
+    std::cout << "ReadFunc(SomeClass&& aClass)\n";
 }
 
 int main()
