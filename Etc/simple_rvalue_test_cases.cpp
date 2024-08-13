@@ -1,5 +1,8 @@
 #include <iostream>
 
+// explicit을 적용한 코드는 rvalue_and_move_semantics.cpp에 있으니 참고할 것.
+// 어렵지 않으니 충분히 분석할 수 있다.
+
 class SomeClass
 {
 public:
