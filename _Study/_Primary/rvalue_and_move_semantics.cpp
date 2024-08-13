@@ -3,7 +3,7 @@
 // https://en.cppreference.com/w/cpp/utility/move
 
 // 보편 참조에 대한 내용은 structured_binding_with_auto.cpp를 참고할 것
-// RValue에 대한 전반적인 테스트 코드는 simple_rvalue_test_cases.cpp를 참고할 것
+// RValue에 대한 기본적인 테스트 코드는 simple_rvalue_test_cases.cpp를 참고할 것
 
 // 1. LValue와 LValue Reference는 다른 개념이다.
 // 2. RValue와 RValue Reference는 다른 개념이다.
