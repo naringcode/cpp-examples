@@ -8,6 +8,16 @@
 // https://stackoverflow.com/questions/72237427/move-elements-while-reallocation-elements-in-vector
 // noexcept, reserve()
 
+/**
+ * 이동 연산(Move Semantics)에 noexcept를 적용하는 것은 권장 사항이지만 가능하면 붙여주는 것이 좋다.
+ * 이건 함수가 예외를 던지지 않는다는 일종의 키워드로 컴파일러에게 알려주는 역할을 한다.
+ * 
+ * C++의 STL에서 많은 컨테이너 자료구조는 예외 안정성을 보장한 경우에만 Move Semantics를 적용한다.
+ * 이 말은 객체의 Move Semantics에 예외를 던지지 않는 noexcept가 적용되어 있어야 한다는 의미이다.
+ * 
+ * 예를 들어 std::vector에 저장된 객체의 Move Semantics에 noexcept가 적용되어 있지 않다면
+ * Reallocation과 같은 원소 재배치 과정이 일어났을 때 "COPY" 연산을 사용한다.
+ */
 // Reallocation 테스트 진행해본 결과
 // Case 1)
 //     복사 연산 제거
@@ -24,23 +34,23 @@
 //     이동 연산 추가(without noexcept)
 //     -> 복사 연산이 수행됨
 // 
-// Case 4)
+// Case 4) ★
 //     복사 연산 추가(without noexcept)
 //     이동 연산 추가(with noexcept)
 //     -> 이동 연산이 수행됨
 // 
-// Case 5)
+// Case 5) ★
 //     복사 연산 추가(with noexcept)
 //     이동 연산 추가(with noexcept)
 //     -> 이동 연산이 수행됨
 //
-// -결론-
-// 1. 복사 연산을 만들지 않고 이동 연산만 정의하면 이동 연산이 수행됨
-// 2. 이동 연산에 noexcept를 걸면 복사 연산을 정의했어도 이동 연산이 수행됨
+// ## 결론 ##
+// 1. Copy Semantics를 만들지 않고 Move Semantics만 정의했으면 Move 연산이 수행됨.
+// 2. Move Semantics에 noexcept를 적용하면 Reallocation 과정에서 Copy Semantics가 아닌 Move 연산을 수행함.
 //
-// - 사라질 객체는 소유권을 위임하는 방식으로 가도 충분함
-// - 보편 참조가 일어날 때는 Perfect Forwarding 방식을 적용해서 이동 연산이 일어나게 유도
-
+// - 사라질 객체, 임시 객체가 속하는 RValue 유형은 소유권을 위임하는 Move Semantics을 적용하도록 할 것.
+// - 보편 참조를 적용하여 완벽한 전달(Perfert Forwarding) 방식을 적용하여 Move Semantics를 구현해도 됨.
+//
 class MyClass
 {
 public:
