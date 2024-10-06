@@ -1,9 +1,6 @@
 #include <iostream>
 #include <memory>
 
-// 동일한 내용이 _Study/enable_shared_from_this_with_refCnt.cpp에 있음.
-// 일종의 북마크 용도...
-
 using namespace std;
 
 class TestClassA : public enable_shared_from_this<TestClassA>
