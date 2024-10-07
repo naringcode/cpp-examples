@@ -192,5 +192,8 @@ int main()
     // _Uses(strong refs)가 0에 도달하여 객체를 소멸시키는 과정을 거치면 enable_shared_from_this<T>가 가진 weak_ptr의 소멸자도 호출된다.
     // 따라서 [0 strong refs, 0 weak ref]에 도달하여 정상적으로 객체와 레퍼런스 카운팅 블록을 해제할 수 있다.
 
+    // !! enable_shared_from_this<T>를 적용해도 분석할 때 [1 strong refs, 1 weak ref]로 나올 수 있다. !!
+    // !! 하지만 조사식을 통해 sptr._Rep->_Uses와 sptr._Rep->_Weaks를 관찰하면 각각 1과 2로 나오는 것을 볼 수 있다. !!
+
     return 0;
 }
