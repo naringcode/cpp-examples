@@ -195,7 +195,10 @@ int main()
     // !! 어떤 _Destroy()와 _Delete_this()를 호출하느냐에 있다. !!
     // !! 특히 _Destroy()를 유심히 봐야 한다. !!
     // 
-    // 메모리 블록과 레퍼런스 카운팅 블록은 같은 의미니까 다르게 보면 안 된다.
+    // 메모리 블록, 레퍼런스 카운팅 블록, 컨트롤 블록은 같은 의미니까 다르게 보면 안 된다.
+    //
+    // _Ref_count_base는 위 3가지 의미를 전부 내포하니까 명칭은 좋을대로 쓰면 된다.
+    // Visual Studio의 Inspector에서는 이걸 [control block]라고 칭한다.
     // 
 
     // MyMakeShared<TestObjectEx>()로 shared_ptr 생성
