@@ -1,11 +1,13 @@
 #include <iostream>
-// #include <tuple>
+#include <tuple>
+
+#include <string>
 
 // 동일한 내용이 _Study/enable_shared_from_this_with_refCnt.cpp에 있음.
 // 이건 북마크 용도임.
 
-// !! 컴파일러에 따라 C++11을 사용할 때 MyTuple에 있는 constexpr 반환 함수에서 에러가 날 수 있음. !!
-// !! 이 경우 멤버 함수 앞에 붙은 constexpr을 제거하면 되긴 함(온라인 컴파일러로 확인함). !!
+// !! 컴파일러에 따라 C++11을 사용할 때 MyTuple의 함수 GetHead()와 GetRest()에 붙은 constexpr 때문에 에러가 날 수 있음. !!
+// !! 이 경우 해당 멤버 함수 앞에 붙은 constexpr을 제거하면 되긴 함(온라인 컴파일러로 확인함). !!
 
 /*************************
 *      Size(Length)      *
@@ -72,7 +74,15 @@ public:
     //     return kSize;
     // }
 
-    constexpr int32_t GetSize() noexcept
+    // Internal Use
+    // C++20에 consteval이 있긴 한데 이것도 함수 오버로딩을 지원하지는 않음(키워드일 뿐).
+    // 따라서 내부 사용 용도로 별도의 함수를 만들어야 함.
+    constexpr static int32_t GetConstexprSize() noexcept
+    {
+        return ContainerSize<T, Rest...>::kSize;
+    }
+
+    static int32_t GetSize() noexcept
     {
         return ContainerSize<T, Rest...>::kSize;
     }
@@ -124,7 +134,7 @@ struct MyTupleElement<Index, MyTuple<T, Rest...>>
 // template <int32_t Index, typename... Args>
 // constexpr MyTupleElement<Index, MyTuple<Args...>>::HeadType& MyGet(MyTuple<Args...>& tuple) noexcept
 // {
-//     // 탈출 조건 2에 의해사 자식 클래스로부터 상속받은 재정의
+//     // 탈출 조건 2에 의해서 자식 클래스로부터 상속받은 재정의
 //     using ThisType = MyTupleElement<Index, MyTuple<Args...>>::ThisType;
 // 
 //     // 자식 클래스로 캐스팅하여 값을 가져옴.
@@ -136,7 +146,7 @@ struct MyTupleElement<Index, MyTuple<T, Rest...>>
 template <int32_t Index, typename... Args>
 constexpr MyTupleElementHead<Index, MyTuple<Args...>>& MyGet(MyTuple<Args...>& tuple) noexcept
 {
-    // 탈출 조건 2에 의해사 자식 클래스로부터 상속받은 재정의
+    // 탈출 조건 2에 의해서 자식 클래스로부터 상속받은 재정의
     // C++20 이전 버전에서 종속 타입 앞에는 typename을 붙여줘야 함.
     using ThisType = typename MyTupleElement<Index, MyTuple<Args...>>::ThisType;
 
@@ -184,9 +194,10 @@ struct MyMakeIndexSequence<0, Indices...> : MyIndexSequence<Indices...>
 //     ← MyMakeIndexSequence<0, 0, 1, 2, 3>
 //      ← MyIndexSequence<0, 1, 2, 3>
 
+#pragma region C++14 non-forward
 // // decltype(auto)를 반환형으로 쓰는 건 C++14부터 지원함(decltype은 생략해도 됨).
 // template <typename Callable, typename Tuple, int32_t... Indices>
-// decltype(auto) MyApplyImpl(Callable callable, Tuple tuple, MyIndexSequence<Indices...> /* seq */)
+// constexpr decltype(auto) MyApplyImpl(Callable callable, Tuple tuple, MyIndexSequence<Indices...> /* seq */)
 // {
 //     // https://en.cppreference.com/w/cpp/language/parameter_pack
 //     // Indices는 매개변수 이름이 아니라 그냥 템플릿 매개변수 타입이 묶인 가변 타입이다.
@@ -194,22 +205,80 @@ struct MyMakeIndexSequence<0, Indices...> : MyIndexSequence<Indices...>
 //     // MyIndexSequence<0, 1, 2, 3>일 경우 Get<N> 구문은 이렇게 언팩됨.
 //     // MyGet<0>(tuple), MyGet<1>(tuple), MyGet<2>(tuple), MyGet<3>(tuple)
 // 
-//     // 편의상 forward() 생략
 //     return callable(MyGet<Indices>(tuple)...);
 // }
 // 
 // // decltype(auto)를 반환형으로 쓰는 건 C++14부터 지원함(decltype은 생략해도 됨)..
 // template <typename Callable, typename... Args>
-// decltype(auto) MyApply(Callable callable, MyTuple<Args...> tup)
+// constexpr decltype(auto) MyApply(Callable callable, MyTuple<Args...> tuple)
 // {
-//     // 편의상 forward() 생략
-//     return MyApplyImpl(callable, tup, MyMakeIndexSequence<sizeof...(Args)>{ });
+//     return MyApplyImpl(callable, tuple, MyMakeIndexSequence<sizeof...(Args)>{ });
 // }
+#pragma endregion
 
+#pragma region C++14 forward
+// // decltype(auto)를 반환형으로 쓰는 건 C++14부터 지원함(decltype은 생략해도 됨).
+// template <typename Callable, typename Tuple, int32_t... Indices>
+// constexpr decltype(auto) MyApplyImpl(Callable&& callable, Tuple&& tuple, MyIndexSequence<Indices...> /* seq */)
+// {
+//     // https://en.cppreference.com/w/cpp/language/parameter_pack
+//     // Indices는 매개변수 이름이 아니라 그냥 템플릿 매개변수 타입이 묶인 가변 타입이다.
+// 
+//     // MyIndexSequence<0, 1, 2, 3>일 경우 Get<N> 구문은 이렇게 언팩됨.
+//     // MyGet<0>(tuple), MyGet<1>(tuple), MyGet<2>(tuple), MyGet<3>(tuple)
+// 
+//     // MyGet<N>()은 템플릿 함수이다(인자 아님).
+//     // std::forward(MyGet<Indices>(tuple)); // 못 씀.
+//     return std::forward<Callable>(callable)(MyGet<Indices>(std::forward<Tuple>(tuple))...);
+// }
+// 
+// // decltype(auto)를 반환형으로 쓰는 건 C++14부터 지원함(decltype은 생략해도 됨)..
+// // template <typename Callable, typename... Args>
+// // constexpr decltype(auto) MyApply(Callable&& callable, MyTuple<Args...>&& tuple) // MyTuple<Args...>&&에서 문제가 생김(&만 쓰면 인식하는데 참조를 인식해도 보편 참조는 인식하지 못 하는 듯)
+// template <typename Callable, typename Tuple>
+// constexpr decltype(auto) MyApply(Callable&& callable, Tuple&& tuple)
+// {
+//     // 보편 참조 인식 문제(?)
+//     // 가변 팩 전개 문제(?)
+//     // return MyApplyImpl(std::forward<Callable>(callable),
+//     //                    std::forward<MyTuple<Args...>(tuple),
+//     //                    MyMakeIndexSequence<sizeof...(Args)>{ });
+// 
+//     return MyApplyImpl(std::forward<Callable>(callable),
+//                        std::forward<Tuple>(tuple),
+//                        MyMakeIndexSequence<std::remove_reference_t<Tuple>::GetConstexprSize()>{ });
+// }
+#pragma endregion
+
+#pragma region C++11 non-forward
+// // C++11 호환 버전(반환 타입 명시)
+// template <typename Callable, typename Tuple, int32_t... Indices>
+// constexpr auto MyApplyImpl(Callable callable, Tuple tuple, MyIndexSequence<Indices...> /* seq */)
+//     -> decltype(callable(MyGet<Indices>(tuple)...))
+// {
+//     // https://en.cppreference.com/w/cpp/language/parameter_pack
+//     // Indices는 매개변수 이름이 아니라 그냥 템플릿 매개변수 타입이 묶인 가변 타입이다.
+// 
+//     // MyIndexSequence<0, 1, 2, 3>일 경우 Get<N> 구문은 이렇게 언팩됨.
+//     // MyGet<0>(tuple), MyGet<1>(tuple), MyGet<2>(tuple), MyGet<3>(tuple)
+// 
+//     return callable(MyGet<Indices>(tuple)...);
+// }
+// 
+// // C++11 호환 버전(반환 타입 명시)
+// template <typename Callable, typename... Args>
+// constexpr auto MyApply(Callable callable, MyTuple<Args...> tuple)
+//     -> decltype(MyApplyImpl(callable, tuple, MyMakeIndexSequence<sizeof...(Args)>{ }))
+// {
+//     return MyApplyImpl(callable, tuple, MyMakeIndexSequence<sizeof...(Args)>{ });
+// }
+#pragma endregion
+
+#pragma region C++11 forward
 // C++11 호환 버전(반환 타입 명시)
 template <typename Callable, typename Tuple, int32_t... Indices>
-auto MyApplyImpl(Callable callable, Tuple tuple, MyIndexSequence<Indices...> /* seq */) 
-    -> decltype(callable(MyGet<Indices>(tuple)...))
+auto MyApplyImpl(Callable&& callable, Tuple&& tuple, MyIndexSequence<Indices...> /* seq */)
+    -> decltype(std::forward<Callable>(callable)(MyGet<Indices>(std::forward<Tuple>(tuple))...))
 {
     // https://en.cppreference.com/w/cpp/language/parameter_pack
     // Indices는 매개변수 이름이 아니라 그냥 템플릿 매개변수 타입이 묶인 가변 타입이다.
@@ -217,18 +286,33 @@ auto MyApplyImpl(Callable callable, Tuple tuple, MyIndexSequence<Indices...> /* 
     // MyIndexSequence<0, 1, 2, 3>일 경우 Get<N> 구문은 이렇게 언팩됨.
     // MyGet<0>(tuple), MyGet<1>(tuple), MyGet<2>(tuple), MyGet<3>(tuple)
 
-    // 편의상 forward() 생략
-    return callable(MyGet<Indices>(tuple)...);
+    // MyGet<N>()은 템플릿 함수이다(인자 아님).
+    // std::forward(MyGet<Indices>(tuple)); // 못 씀.
+    return std::forward<Callable>(callable)(MyGet<Indices>(std::forward<Tuple>(tuple))...);
 }
 
 // C++11 호환 버전(반환 타입 명시)
-template <typename Callable, typename... Args>
-auto MyApply(Callable callable, MyTuple<Args...> tup)
-    -> decltype(MyApplyImpl(callable, tup, MyMakeIndexSequence<sizeof...(Args)>{ }))
+// template <typename Callable, typename... Args>
+// auto MyApply(Callable&& callable, MyTuple<Args...>&& tuple) // MyTuple<Args...>&&에서 문제가 생김(&만 쓰면 인식하는데 참조를 인식해도 보편 참조는 인식하지 못 하는 듯)
+template <typename Callable, typename Tuple>
+constexpr auto MyApply(Callable&& callable, Tuple&& tuple)
+    -> decltype(MyApplyImpl(std::forward<Callable>(callable),
+                            std::forward<Tuple>(tuple),
+                            MyMakeIndexSequence<std::remove_reference<Tuple>::type::GetConstexprSize()>{ }))
 {
-    // 편의상 forward() 생략
-    return MyApplyImpl(callable, tup, MyMakeIndexSequence<sizeof...(Args)>{ });
+    // 보편 참조 인식 문제(?)
+    // 가변 팩 전개 문제(?)
+    // return MyApplyImpl(std::forward<Callable>(callable),
+    //                    std::forward<MyTuple<Args...>(tuple),
+    //                    MyMakeIndexSequence<sizeof...(Args)>{ });
+
+    // remove_reference_t는 C++14부터 지원하는 헬퍼 기능임.
+    // 따라서 std::remove_reference<T>::type으로 접근해야 함.
+    return MyApplyImpl(std::forward<Callable>(callable),
+                       std::forward<Tuple>(tuple),
+                       MyMakeIndexSequence<std::remove_reference<Tuple>::type::GetConstexprSize()>{ });
 }
+#pragma endregion
 
 // TEMP
 int Print(char ch, int i, float f)
@@ -238,14 +322,13 @@ int Print(char ch, int i, float f)
     return 9999;
 }
 
-template <typename Ret>
 struct Functor
 {
-    Ret operator()(char ch, int i, float f)
+    std::string operator()(char ch, int i, float f)
     {
         std::cout << "Functor | ch : " << ch << ", i : " << i << ", f : " << f << '\n';
 
-        return 8888;
+        return "Hello World";
     }
 };
 
@@ -283,26 +366,53 @@ int main()
     std::cout << seq.kNumIndices << '\n';
 
     // std::apply() 모방
-    int retFunction = MyApply(Print, tp);
+    // auto retFunction = MyApplyImpl(Print, tp, MyMakeIndexSequence<3>{ });
+    auto retFunction = MyApply(Print, tp);
 
     std::cout << "Ret : " << retFunction << '\n';
-
+    
     MyGet<0>(tp) = 'B';
-
-    int retFunctor = MyApply(Functor<int>{ }, tp);
-
+    
+    std::string retFunctor = MyApply(Functor{ }, tp);
+    
     std::cout << "Ret : " << retFunctor << '\n';
-
+    
     MyGet<0>(tp) = 'C';
-
-    int retLambda = MyApply([](char ch, int i, float f) -> int 
+    
+    /* int retLambda =*/ MyApply([](char ch, int i, float f) // -> int 
     {
         std::cout << "Lambda | ch : " << ch << ", i : " << i << ", f : " << f << '\n';
-
-        return 7777;
+    
+        // return 7777;
     }, tp);
+    
+    // std::cout << "Ret : " << retLambda << '\n';
 
-    std::cout << "Ret : " << retLambda << '\n';
+    // TEMP : std::apply() with std::tuple
+    // {
+    //     std::tuple<char, int, float> tp('A', 10, 3.14f);
+    // 
+    //     int retFunction = std::apply(Print, tp);
+    //     
+    //     std::cout << "Ret : " << retFunction << '\n';
+    //     
+    //     std::get<0>(tp) = 'B';
+    //     
+    //     int retFunctor = std::apply(Functor<int>{ }, tp);
+    //     
+    //     std::cout << "Ret : " << retFunctor << '\n';
+    //     
+    //     std::get<0>(tp) = 'C';
+    //     
+    //     int retLambda = std::apply([](char ch, int i, float f) -> int
+    //     {
+    //         std::cout << "Lambda | ch : " << ch << ", i : " << i << ", f : " << f << '\n';
+    //     
+    //         return 7777;
+    //     }, tp);
+    //     
+    //     std::cout << "Ret : " << retLambda << '\n';
+    // }
 
     return 0;
 }
