@@ -11,6 +11,11 @@
 // 1. std::decay<int&>::type -> int
 // 2. std::decay<const double>::type -> double
 //
+// remove_reference_t도 참조 타입을 제거하긴 하나,
+// decay는 const나 volatile 수식을 제거 및 배열을 포인터로 변환하는 기능도 수행함.
+//
+// !! 참조만 제거하고 싶다면 remove_reference_t, 보다 광범위하게 일반적인 형태로 변환하고 싶다면 decay를 사용할 것. !!
+//
 
 // 폴드 표현식(fold expressions)는 C++17부터 도입된 개념
 // 1. 좌측 폴드(Left Fold) : (... op expression)
