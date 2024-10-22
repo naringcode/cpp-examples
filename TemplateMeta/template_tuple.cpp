@@ -184,7 +184,7 @@ struct MyMakeIndexSequence<0, Indices...> : MyIndexSequence<Indices...>
 // 3. MyMakeIndexSequence<2, 2, 3>
 // 4. MyMakeIndexSequence<1, 1, 2, 3>
 // 5. MyMakeIndexSequence<0, 0, 1, 2, 3>
-// 5. MyIndexSequence<0, 1, 2, 3>
+// 6. MyIndexSequence<0, 1, 2, 3>
 //
 // 상속 구조
 // MyMakeIndexSequence<4> 
@@ -193,6 +193,12 @@ struct MyMakeIndexSequence<0, Indices...> : MyIndexSequence<Indices...>
 //    ← MyMakeIndexSequence<1, 1, 2, 3> 
 //     ← MyMakeIndexSequence<0, 0, 1, 2, 3>
 //      ← MyIndexSequence<0, 1, 2, 3>
+//
+// MyMakeIndexSequence<4>은 MyIndexSequence<0, 1, 2, 3>를 상속 받아서 구현된 형태이기에
+// 헬퍼 함수에 MyMakeIndexSequence<4>를 MyIndexSequence<...> 형태로 넘기면
+// 가변 인자 <0, 1, 2, 3>을 인식할 수 있는 것이다.
+//
+// apply()는 이런 가변 인자를 푸는 방식으로 동작하는 함수이다.
 
 #pragma region C++14 non-forward
 // // decltype(auto)를 반환형으로 쓰는 건 C++14부터 지원함(decltype은 생략해도 됨).
