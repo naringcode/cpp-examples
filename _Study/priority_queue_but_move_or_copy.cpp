@@ -4,6 +4,7 @@
 using namespace std;
 
 #define COMP_MODE 1
+#define USE_LESS_COMP 1
 
 // !! PriorityQueue를 사용하면 Move 계열 연산이 일어남. !!
 // !! 경험상 컴파일러에 따라 Copy 연산이 일어나는 것을 본 적이 있으니 이 부분은 설계할 때 약간 주의할 필요가 있음. !!
@@ -74,10 +75,16 @@ struct Item
     }
 
 #if COMP_MODE == 1
-    // PQ Comp
+    // PQ Comp(less)
     bool operator<(const Item& rhs) const
     {
         // PQ의 우선순위는 다른 컨테이너와 다르게 조금 다르게 생각해야 함.
+        return this->elem > rhs.elem;
+    }
+    
+    // PQ Comp(greater)
+    bool operator>(const Item& rhs) const
+    {
         return this->elem > rhs.elem;
     }
 #endif
@@ -109,7 +116,11 @@ int main()
     // }
 
 #if COMP_MODE == 1
+#if USE_LESS_COMP == 1
     priority_queue<Item, vector<Item>> pq;
+#else
+    priority_queue<Item, vector<Item>, greater<Item>> pq;
+#endif
 #else
     priority_queue<Item, vector<Item>, Comp> pq;
 #endif
