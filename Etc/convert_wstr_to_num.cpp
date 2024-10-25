@@ -10,6 +10,8 @@ using namespace std;
 // https://learn.microsoft.com/ko-kr/cpp/c-runtime-library/reference/strtol-wcstol-strtol-l-wcstol-l?view=msvc-170#return-value
 // https://www.ibm.com/docs/ko/i/7.5?topic=lf-wcstol-wcstoll-convert-wide-character-string-long-long-long-integer#wcstol__title__9
 
+// 해당 기능을 넣는다면 NumericHelper 정도가 적당할 듯.
+
 template <typename IntType>
 bool CheckIntegerBound(int64_t value)
 {
@@ -59,8 +61,8 @@ using Int16 = int16_t;
 using Int32 = int32_t;
 using Int64 = int64_t;
 
-// DECLARE_CONVERT_WSTRING_TO_INTEGER_FUNC(Int8)
-// DEFINE_CONVERT_WSTRING_TO_INTEGER_FUNC(Int8)
+DECLARE_CONVERT_WSTRING_TO_INTEGER_FUNC(Int8)
+DEFINE_CONVERT_WSTRING_TO_INTEGER_FUNC(Int8)
 
 DECLARE_CONVERT_WSTRING_TO_INTEGER_FUNC(Int16)
 DEFINE_CONVERT_WSTRING_TO_INTEGER_FUNC(Int16)
@@ -71,7 +73,34 @@ DEFINE_CONVERT_WSTRING_TO_INTEGER_FUNC(Int32)
 DECLARE_CONVERT_WSTRING_TO_INTEGER_FUNC(Int64)
 DEFINE_CONVERT_WSTRING_TO_INTEGER_FUNC(Int64)
 
-bool ConvertToInt8(const wchar_t* wStr, int8_t* outValue)
+// bool ConvertToInt8(const wchar_t* wStr, int8_t* outValue)
+// {
+//     if (nullptr == wStr || nullptr == outValue)
+//         return false;
+// 
+//     wchar_t* end = nullptr;
+//     errno = 0;
+// 
+//     int64_t res = ::wcstoll(wStr, &end, 10);
+// 
+//     /* 오버플로우, 언더플로우 체크 */
+//     if (ERANGE == errno)
+//         return false;
+// 
+//     /* 문자열 끝에 도달 안 한 경우 */
+//     if (L'\0' != *end)
+//         return false;
+// 
+//     /* 데이터가 경계 안에 있는지 확인 */
+//     if (false == CheckIntegerBound<std::remove_pointer_t<decltype(outValue)>>(res))
+//         return false;
+// 
+//     *outValue = static_cast<int32_t>(res);
+// 
+//     return true;
+// }
+
+bool ConvertToFloat(const wchar_t* wStr, float* outValue)
 {
     if (nullptr == wStr || nullptr == outValue)
         return false;
@@ -79,23 +108,42 @@ bool ConvertToInt8(const wchar_t* wStr, int8_t* outValue)
     wchar_t* end = nullptr;
     errno = 0;
 
-    int64_t res = ::wcstoll(wStr, &end, 10);
+    float res = ::wcstof(wStr, &end);
 
     /* 오버플로우, 언더플로우 체크 */
-    if (ERANGE == errno)
+    if (errno == ERANGE)
         return false;
 
     /* 문자열 끝에 도달 안 한 경우 */
     if (L'\0' != *end)
         return false;
 
-    /* 데이터가 경계 안에 있는지 확인 */
-    if (false == CheckIntegerBound<std::remove_pointer_t<decltype(outValue)>>(res))
+    *outValue = res;
+
+    return res;
+}
+
+bool ConvertToDouble(const wchar_t* wStr, double* outValue)
+{
+    if (nullptr == wStr || nullptr == outValue)
         return false;
 
-    *outValue = static_cast<int32_t>(res);
+    wchar_t* end = nullptr;
+    errno = 0;
 
-    return true;
+    double res = ::wcstod(wStr, &end);
+
+    /* 오버플로우, 언더플로우 체크 */
+    if (errno == ERANGE)
+        return false;
+
+    /* 문자열 끝에 도달 안 한 경우 */
+    if (L'\0' != *end)
+        return false;
+
+    *outValue = res;
+
+    return res;
 }
 
 int main()
@@ -190,6 +238,53 @@ int main()
     else
     {
         cout << "Failed - ConvertToInt64()\n";
+    }
+
+    cout << "-------------------------\n";
+
+    wchar_t wRealNum[] = L"3.14";
+
+    float  outFloat;
+    double outDouble;
+
+    if (ConvertToFloat(wRealNum, &outFloat))
+    {
+        cout << "Succeeded -  ConvertToFloat() : " << outFloat << '\n';
+    }
+    else
+    {
+        cout << "Failed - ConvertToFloat()\n";
+    }
+
+    if (ConvertToDouble(wRealNum, &outDouble))
+    {
+        cout << "Succeeded -  ConvertToDouble() : " << outDouble << '\n';
+    }
+    else
+    {
+        cout << "Failed - ConvertToDouble()\n";
+    }
+
+    cout << "-------------------------\n";
+
+    wchar_t wMultiRealNum[] = L"3.14 1.4141";
+
+    if (ConvertToFloat(wMultiRealNum, &outFloat))
+    {
+        cout << "Succeeded -  ConvertToFloat() : " << outFloat << '\n';
+    }
+    else
+    {
+        cout << "Failed - ConvertToFloat()\n";
+    }
+
+    if (ConvertToDouble(wMultiRealNum, &outDouble))
+    {
+        cout << "Succeeded -  ConvertToDouble() : " << outDouble << '\n';
+    }
+    else
+    {
+        cout << "Failed - ConvertToDouble()\n";
     }
 
     return 0;
