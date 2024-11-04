@@ -1,3 +1,6 @@
+// Update Date : 2024-11-05
+// Configuration : Debug-x64
+
 #include <iostream>
 #include <memory>
 
@@ -17,7 +20,7 @@ public:
     {
         cout << "~TestObject()\n";
     }
-    
+
 private:
     int _valA = 0;
 };
@@ -26,7 +29,7 @@ class TestObjectEx : public TestObject
 {
 public:
     TestObjectEx(int valA, double valB)
-        : TestObject{ valA }, _valB { valB }
+        : TestObject{ valA }, _valB{ valB }
     {
         cout << "TestObjectEx()\n";
     }
@@ -72,7 +75,7 @@ shared_ptr<T> MyMakeShared(Args&&... args)
     T* ptr = new T(std::forward<Args>(args)...);
 
     // 어떤 Deleter를 호출할 것인지 미리 지정하고 shared_ptr을 생성한다.
-    return shared_ptr<T>{ ptr, &MyDeleter<T> };
+    return shared_ptr<T>{ ptr, & MyDeleter<T> };
 }
 
 template <typename T>
@@ -742,6 +745,424 @@ int main()
         // 
         // 전체적인 과정이 헷갈린다면 main() 최상단의 사전 지식부터 읽고 차례대로 디버깅해서 분석하도록 하자.
         // 
+    }
+
+    cout << "--------------------------------------------------\n";
+
+    // operator=(shared_ptr&&)로 shared_ptr 자체를 갱신할 경우
+    {
+        // A
+        shared_ptr<TestObject> obj;
+
+        // B
+        obj = make_shared<TestObject>(100);
+
+        // C
+        obj = make_shared<TestObject>(200);
+
+        // _Ptr과 _Rep가 어떻게 갱신되며 shared_ptr의 소멸자가 어떤 방식으로 호출되는지 파악하기 위한 부분이다.
+        //
+        // --------------------------------------------------
+        // 
+        // 1. shared_ptr<TestObject> obj를 생성하되 내용을 채우지 않으면 _Ptr과 _Rep는 nullptr로 채워짐.
+        // 
+        // template <class _Ty>
+        // class _Ptr_base { // base class for shared_ptr and weak_ptr
+        //     ...
+        // 
+        // private:
+        //     element_type* _Ptr{ nullptr };
+        //     _Ref_count_base* _Rep{ nullptr };
+        // 
+        //     ...
+        // };
+        // 
+        // --------------------------------------------------
+        // 
+        // 2. obj = make_shared<TestObject>(100)로 인해 operator=(shared_ptr&&)가 호출되었으면?
+        // 
+        // !! obj의 _Ptr과 _Rep는 nullptr인 상황 !!
+        // shared_ptr& operator=(shared_ptr&& _Right) noexcept { // take resource from _Right
+        //     // 임시 객체를 생성하고 swap()을 진행해야 함.
+        //     shared_ptr(_STD move(_Right)).swap(*this);
+        //     return *this;
+        // }
+        // 
+        // !! 임시 객체에 소유권을 이전하기 위해 move(_Right)를 적용하였기에 이동 생성자 호출 !!
+        // shared_ptr(shared_ptr&& _Right) noexcept { // construct shared_ptr object that takes resource from _Right
+        //     this->_Move_construct_from(_STD move(_Right));
+        // }
+        // 
+        // !! _Move_construct_from(_STD move(_Right)) 호출 !!
+        // template <class _Ty2>
+        // void _Move_construct_from(_Ptr_base<_Ty2>&& _Right) noexcept {
+        //     // implement shared_ptr's (converting) move ctor and weak_ptr's move ctor
+        //     // !! ----- make_shared<TestObject>(100)로 생성한 값을 임시 객체에 넘김. ----- !!
+        //     _Ptr = _Right._Ptr;
+        //     _Rep = _Right._Rep;
+        // 
+        //     // !! ----- make_shared<TestObject>(100)로 생성한 값을 nullptr로 밀어 버림. ----- !!
+        //     _Right._Ptr = nullptr;
+        //     _Right._Rep = nullptr;
+        // 
+        // }
+        // 
+        // 콜 스택을 빠져 나오고...
+        // 
+        // shared_ptr& operator=(shared_ptr&& _Right) noexcept { // take resource from _Right
+        //     // _Right의 _Ptr과 _Rep는 nullptr로 밀리고, 임시 객체 shared_ptr에 소유권을 양도한 상태
+        //     shared_ptr(_STD move(_Right)).swap(*this);
+        //     return *this;
+        // }
+        // 
+        // !! swap() 함수 호출 !!
+        // void swap(shared_ptr& _Other) noexcept {
+        //     // this는 make_shared<TestObject>(100)의 값을 양도 받은 대상임(위에 있는 this랑 여기 있는 this는 다름).
+        //     // _Other는 shared_ptr<TestObject> obj임(위에 있는 this는 obj, 여기 있는 this는 임시 객체).
+        //     this->_Swap(_Other);
+        // }
+        // 
+        // void _Swap(_Ptr_base& _Right) noexcept { // swap p
+        //     // 헷갈릴 수도 있지만 _Right는 shared_ptr<TestObject> obj임('='의 왼쪽에 있던 것인데 _Right로 받은 것)
+        //     // "obj = make_shared<TestObject>(100)" 두 값을 실질적으로 교환하는 코드
+        //     _STD swap(_Ptr, _Right._Ptr);
+        //     _STD swap(_Rep, _Right._Rep);
+        // }
+        // 
+        // 콜 스택을 빠져 나오고...
+        // 
+        // shared_ptr& operator=(shared_ptr&& _Right) noexcept { // take resource from _Right
+        //     shared_ptr(_STD move(_Right)).swap(*this);
+        //     return *this;
+        // }
+        // 
+        // !! 임시 객체 shared_ptr(_STD move(_Right))의 소멸자를 호출 !!
+        // ~shared_ptr() noexcept { // release resource
+        //     this->_Decref();
+        // }
+        // 
+        // void _Decref() noexcept { // decrement reference count
+        //     // obj의 _Rep가 nullptr이었기 때문에 _Decref()를 실행하지 않음.
+        //     if (_Rep) {
+        //         _Rep->_Decref();
+        //     }
+        // }
+        // 
+        // 콜 스택을 빠져나와 main 함수까지 도달한 후...
+        // 
+        // obj = make_shared<TestObject>(100);
+        // 
+        // !! make_shared<TestObject>(100)의 소멸자 호출 !!
+        // ~shared_ptr() noexcept { // release resource
+        //     this->_Decref();
+        // }
+        // 
+        // void _Decref() noexcept { // decrement reference count
+        //     // 임시 객체를 만드는 도중 make_shared<TestObject>(100)의 자원의 소유권은 이전되었기에 _Rep는 nullptr임.
+        //     if (_Rep) {
+        //         _Rep->_Decref();
+        //     }
+        // }
+        // 
+        // --------------------------------------------------
+        // 
+        // 3. 값이 채워진 obj를 대상으로 "obj = make_shared<TestObject>(200)"를 진행하면?
+        // 
+        // shared_ptr& operator=(shared_ptr&& _Right) noexcept { // take resource from _Right
+        //     shared_ptr(_STD move(_Right)).swap(*this);
+        //     return *this;
+        // }
+        // 
+        // !! 임시 객체를 채우는 과정은 똑같으니 swap()부터 진행 !!
+        // void swap(shared_ptr& _Other) noexcept {
+        //     // _Other는 obj라는 사실을 잊으면 안 됨.
+        //     this->_Swap(_Other);
+        // }
+        // 
+        // void _Swap(_Ptr_base& _Right) noexcept { // swap pointers
+        //     // 교환 전 상태 : this{ _Ptr : 200 }, _Right{ _Ptr : 100 }
+        //     // 교환 후 상태 : this{ _Ptr : 100 }, _Right{ _Ptr : 200 }
+        //     _STD swap(_Ptr, _Right._Ptr);
+        //     _STD swap(_Rep, _Right._Rep);
+        // 
+        //    // !! ----- obj에는 이미 값이 채워진 상태이기 때문에 임시 객체의 _Rep는 nullptr이 아님. ----- !!
+        // }
+        // 
+        // 콜 스택을 빠져 나오고...
+        // 
+        // shared_ptr& operator=(shared_ptr&& _Right) noexcept { // take resource from _Right
+        //     shared_ptr(_STD move(_Right)).swap(*this);
+        //     return *this;
+        // }
+        // 
+        // !! 임시 객체 shared_ptr(_STD move(_Right))의 소멸자를 호출 !!
+        // ~shared_ptr() noexcept { // release resource
+        //     this->_Decref();
+        // }
+        // 
+        // void _Decref() noexcept { // decrement reference count
+        //     // 교환의 대상이 된 obj의 _Rep는 nullptr 아니었기에 _Decref()를 호출
+        //     if (_Rep) {
+        //         _Rep->_Decref();
+        //     }
+        // }
+        // 
+        // void _Decref() noexcept { // decrement use count
+        //     // _Uses는 현재 1이기에 윈자적 Decrement 연산을 수행하면 0이 됨.
+        //     // 그럼 _Destroy()와 _Decwref()를 이어서 실행하는데 이에 대한 설명은 앞선 예시에서 설명함.
+        //     if (_MT_DECR(_Uses) == 0) {
+        //         _Destroy();
+        //         _Decwref();
+        //     }
+        // }
+        // 
+        // 콜 스택을 빠져나와 main 함수까지 도달한 후...
+        // 
+        // obj = make_shared<TestObject>(200);
+        // 
+        // !! make_shared<TestObject>(200)의 소멸자 호출 !!
+        // ~shared_ptr() noexcept { // release resource
+        //     this->_Decref();
+        // }
+        // 
+        // void _Decref() noexcept { // decrement reference count
+        //     // 임시 객체를 만드는 도중 make_shared<TestObject>(200)의 자원은 소유권은 이전되었기에 _Rep는 nullptr임.
+        //     if (_Rep) {
+        //         _Rep->_Decref();
+        //     }
+        // }
+        // 
+        // --------------------------------------------------
+        // 
+        // 4. 스코프를 빠져나오며 obj의 소멸자 호출
+        // 
+        // ~shared_ptr() noexcept { // release resource
+        //     this->_Decref();
+        // }
+        // 
+        // void _Decref() noexcept { // decrement reference count
+        //     // make_shared<TestObject>(200)로부터 이전 받은 _Rep가 있기 때문에 _Decref() 호출
+        //     if (_Rep) {
+        //         _Rep->_Decref();
+        //     }
+        // }
+        // 
+        // void _Decref() noexcept { // decrement use count
+        //     // 값이 1인 _Uses를 원자적으로 감소시키며 _Destroy()와 _Decwref()를 이어서 호출
+        //     if (_MT_DECR(_Uses) == 0) {
+        //         _Destroy();
+        //         _Decwref();
+        //     }
+        // }
+        //
+    }
+
+    cout << "--------------------------------------------------\n";
+
+    // operator=(const shared_ptr&)로 shared_ptr 자체를 갱신할 경우
+    {
+        shared_ptr<TestObject> obj1 = make_shared<TestObject>(100);
+        shared_ptr<TestObject> obj2 = make_shared<TestObject>(200);
+
+        // 이 부분만 볼 것임.
+        obj2 = obj1;
+
+        // 전체적인 내용은 operator=(shared_ptr&&)로 갱신한 것과 유사함.
+        // 
+        // obj1과 obj2에 서로 값이 있는 상태에서 대입했을 때 소멸자가 어떻게 호출되는지 관찰하는 것이 핵심임.
+        // 
+        // --------------------------------------------------
+        // 
+        // 1. "obj2 = obj1"로 인한 operator=(const shared_ptr&) 호출
+        // 
+        // shared_ptr& operator=(const shared_ptr& _Right) noexcept {
+        //     // this는 obj2, _Right는 obj1임.
+        //     // !! shared_ptr(_Right)로 되어 있다. shared_ptr(_STD move(_Right))로 전달되는 것이 아니다. !!
+        //     shared_ptr(_Right).swap(*this);
+        //     return *this;
+        // }
+        // 
+        // !! 임시 객체를 생성하기 위한 복사 생성자 호출 !!
+        // shared_ptr(const shared_ptr& _Other) noexcept { // construct shared_ptr object that owns same resource as _Other
+        //     // _Other는 obj1임.
+        //     this->_Copy_construct_from(_Other);
+        // }
+        // 
+        // template <class _Ty2>
+        // void _Copy_construct_from(const shared_ptr<_Ty2>& _Other) noexcept {
+        //     // implement shared_ptr's (converting) copy ctor
+        //     // _Other는 obj1이고 이걸 대상으로 _Incref() 호출
+        //     _Other._Incref();
+        // 
+        //     // 레퍼런스 카운팅을 증가시킨 후 임시 객체가 같은 객체 메모리와 레퍼런스 카운팅 블록을 가지게 설정함.
+        //     _Ptr = _Other._Ptr;
+        //     _Rep = _Other._Rep;
+        // }
+        // 
+        // void _Incref() const noexcept {
+        //     // obj1은 make_shared<TestObject>(100)의 소유권을 이전 받은 상태이기에 _Rep는 nullptr이 아님.
+        //     if (_Rep) {
+        //         _Rep->_Incref();
+        //     }
+        // }
+        // 
+        // !! 단순 레퍼런스 카운팅 !!
+        // void _Incref() noexcept { // increment use count
+        //     _MT_INCR(_Uses);
+        // }
+        // 
+        // 콜 스택을 빠져 나오고...
+        // 
+        // shared_ptr& operator=(const shared_ptr& _Right) noexcept {
+        //     // _Right(obj1)와 임시 객체 shared_ptr의 _Ptr과 _Rep는 같은 대상을 가리키고 있는 상태(레퍼런스 카운팅은 1 증가함)
+        //     // this는 obj2임.
+        //     shared_ptr(_Right).swap(*this);
+        //     return *this;
+        // }
+        // 
+        // !! swap() 함수 호출 !!
+        // void swap(shared_ptr& _Other) noexcept {
+        //     // this는 obj1과 연동된(?) 임시 객체, _Other는 obj2임.
+        //     this->_Swap(_Other);
+        // }
+        // 
+        // void _Swap(_Ptr_base& _Right) noexcept { // swap pointers
+        //     // 교환 전 상태 : this{ _Ptr : 100, strong ptr : 2 }, _Right{ _Ptr : 200, strong ptr : 1 }
+        //     // 교환 후 상태 : this{ _Ptr : 200, strong ptr : 1 }, _Right{ _Ptr : 100, strong ptr : 2 }
+        //     _STD swap(_Ptr, _Right._Ptr);
+        //     _STD swap(_Rep, _Right._Rep);
+        // 
+        //     // this는 obj1을 반영한 임시 객체라는 사실을 잊으면 안 됨.
+        //     // _Right는 우리가 실질적으로 반영할 "obj2 = obj1"에서의 obj2임.
+        // 
+        //     // obj2의 모든 내용을 임시 객체의 것으로 갱신한 상태(obj1과 동일한 _Ptr과 _Rep를 가리키게 함)
+        //     // 임시 객체의 내용은 갱신되기 이전의 obj2의 것으로 교체함.
+        // }
+        // 
+        // 콜 스택을 빠져 나오고...
+        // 
+        // shared_ptr& operator=(const shared_ptr& _Right) noexcept {
+        //     shared_ptr(_Right).swap(*this);
+        //     return *this;
+        // }
+        // 
+        // !! 임시 객체 shared_ptr(_Right)의 소멸자를 호출 !!
+        // ~shared_ptr() noexcept { // release resource
+        //     this->_Decref();
+        // }
+        // 
+        // void _Decref() noexcept { // decrement reference count
+        //     // 현재 임시 객체가 반영하고 있는 건 교체하기 이전의 obj2의 _Ptr과 _Rep임.
+        //     if (_Rep) {
+        //         _Rep->_Decref();
+        //     }
+        // }
+        // 
+        // void _Decref() noexcept { // decrement use count
+        //     // _Uses의 현재 카운트가 1이니 감소시키면 _Destroy()와 _Decwref()를 이어서 호출함.
+        //     if (_MT_DECR(_Uses) == 0) {
+        //         _Destroy();
+        //         _Decwref();
+        //     }
+        // }
+        // 
+        // 콜 스택을 빠져나와 main 함수까지 도달한 후...
+        // 
+        // !! 이전 obj2의 내용물을 임시 객체와 교환해서 임시 객체의 소멸자 호출을 통해 레퍼런스 카운팅을 감소시킴. !!
+        // !! obj1을 obj2에 
+        // 
+        // 
+        // !! 이전 obj2의 레퍼런스 카운팅을 줄인 상태에서 obj1과 연동함. !!
+        // !! obj1과 obj2는 서로 연동된 상태이며 레퍼런스 카운트도 1 증가시킴. !!
+        // obj2 = obj1;
+        // 
+        // --------------------------------------------------
+        // 
+        // 2. obj2과 obj1의 소멸자를 차례대로 호출
+        // 
+        // !! obj2의 소멸자 호출 !!
+        // ~shared_ptr() noexcept { // release resource
+        //     this->_Decref();
+        // }
+        // 
+        // void _Decref() noexcept { // decrement reference count
+        //     if (_Rep) {
+        //         _Rep->_Decref();
+        //     }
+        // }
+        // 
+        // void _Decref() noexcept { // decrement use count
+        //     // _Uses의 값이 2이기 때문에 1을 감소시켜도 조건에 충족하지 않음.
+        //     if (_MT_DECR(_Uses) == 0) {
+        //         _Destroy();
+        //         _Decwref();
+        //     }
+        // }
+        // 
+        // !! obj1의 소멸자 호출 !!
+        // ~shared_ptr() noexcept { // release resource
+        //     this->_Decref();
+        // }
+        // 
+        // void _Decref() noexcept { // decrement reference count
+        //     if (_Rep) {
+        //         _Rep->_Decref();
+        //     }
+        // }
+        // 
+        // void _Decref() noexcept { // decrement use count
+        //     // _Uses의 값이 1이기 때문에 1을 감소시키면 조건에 충족하고 이어서 _Destroy()와 _Decwref()를 호출함.
+        //     if (_MT_DECR(_Uses) == 0) {
+        //         _Destroy();
+        //         _Decwref();
+        //     }
+        // }
+        //
+    }
+
+    cout << "--------------------------------------------------\n";
+
+    // shared_ptr을 복사 생성자로 받았을 경우
+    {
+
+        shared_ptr<TestObject> obj1 = make_shared<TestObject>(100);
+
+        // 이 부분만 보도록 할 것임.
+        shared_ptr<TestObject> obj2 = obj1;
+
+        // 복사 생성자는 _Copy_construct_from()을 사용하는데 이건 operator=(const shared_ptr&)를 설명하는 과정에서 언급함.
+        // 
+        // --------------------------------------------------
+        // 
+        // shared_ptr(const shared_ptr& _Other) noexcept { // construct shared_ptr object that owns same resource as _Other
+        //     this->_Copy_construct_from(_Other);
+        // }
+        // 
+        // template <class _Ty2>
+        // void _Copy_construct_from(const shared_ptr<_Ty2>& _Other) noexcept {
+        //     // implement shared_ptr's (converting) copy ctor
+        //     _Other._Incref();
+        // 
+        //     _Ptr = _Other._Ptr;
+        //     _Rep = _Other._Rep;
+        // }
+        // 
+        // void _Incref() const noexcept {
+        //     if (_Rep) {
+        //         _Rep->_Incref();
+        //     }
+        // }
+        // 
+        // void _Incref() noexcept { // increment use count
+        //     _MT_INCR(_Uses);
+        // }
+        // 
+        // !! 이게 끝이다. !!
+        //
+        // --------------------------------------------------
+        //
+        // 소멸자 호출 과정은 operator=(const shared_ptr&)에서 설명한 과정과 완전 동일하니 생략함.
+        //
     }
 
     cout << "--------------------------------------------------\n";
