@@ -1,7 +1,7 @@
 // Update Date : 2024-11-05
 // Program : Visual Studio 2022
 // Version : C++20
-// Configuration : Debug-x64
+// Configuration : Debug-x64, Release-x64
 
 #include <iostream>
 #include <memory>

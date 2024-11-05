@@ -1,3 +1,8 @@
+// Update Date : 2024-08-14
+// Program : Visual Studio 2015, Visual Studio 2019, Visual Studio 2022
+// Version : C++14
+// Configuration : Debug-x64, Release-x64
+
 #include <iostream>
 #include <vector>
 
