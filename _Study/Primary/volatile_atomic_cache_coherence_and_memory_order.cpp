@@ -1,3 +1,8 @@
+// Update Date : 2024-10-11
+// Program : Visual Studio 2022
+// Version : C++20
+// Configuration : Debug-x64, Release-x64
+
 #include <iostream>
 #include <atomic>
 #include <thread>
