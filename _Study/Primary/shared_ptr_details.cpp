@@ -1,4 +1,4 @@
-// Update Date : 2024-11-05
+// Update Date : 2024-11-06
 // Program : Visual Studio 2022
 // Version : C++20
 // Configuration : Debug-x64, Release-x64
@@ -77,7 +77,7 @@ shared_ptr<T> MyMakeShared(Args&&... args)
     T* ptr = new T(std::forward<Args>(args)...);
 
     // 어떤 Deleter를 호출할 것인지 미리 지정하고 shared_ptr을 생성한다.
-    return shared_ptr<T>{ ptr, & MyDeleter<T> };
+    return shared_ptr<T>{ ptr, &MyDeleter<T> };
 }
 
 template <typename T>
@@ -90,43 +90,113 @@ void MyDeleter(T* ptr)
 
 int main()
 {
-    // !! Visual Studio 2022 기준이며 아래 분석 내용은 컴파일러 버전에 따라 달라질 수 있음. !!
+    // !! Visual Studio 2022 + x64 빌드 기준이며 아래 분석 내용은 컴파일러 환경에 따라 달라질 수 있음. !!
 
     // !! 사전 지식(매우 중요 매우 중요 매우 중요 | 꼭 읽고 넘어가기) !!
     // 
-    // shared_ptr과 weak_ptr은 _Ptr_base을 이용하는데 이건 다음과 같은 형태로 구성되어 있다(unique_ptr은 해당하지 않음).
+    // shared_ptr<T>와 weak_ptr<T>는 _Ptr_base<T>를 이용하는데 해당 자료형은 다음과 같은 형태로 구성되어 있다(unique_ptr은 해당하지 않음).
     // 
     // [ element_type* _Ptr ][ _Ref_count_base* _Rep ]
+    // - _Ptr : 접근해서 사용하고자 하는 대상 포인터
+    // - _Rep : 레퍼런스 카운트 블록
+    //
+    // 스마트 포인터 구현의 핵심이 되는 건 _Rep이며 shared_ptr과 weak_ptr의 작업 대부분은 이걸 기반으로 한다.
     // 
-    // 여기서 중요한 것은 _Rep이며 shared_ptr과 weak_ptr에서 수행되는 대부분의 작업은 여기서 이루어진다.
+    // _Ref_count_base는 2개의 레퍼런스 카운터 _Uses와 _Weaks를 멤버 변수로 가지고 있으며,
+    // _Uses와 _Weaks가 0으로 떨어질 때 호출할 2개의 순수 가상 함수 _Destroy()와 _Delete_this()도 들고 있다.
     // 
-    // _Ref_count_base는 2개의 레퍼런스 카운터 _Uses와 _Weaks를 가지고 있으며,
-    // _Uses와 _Weaks가 0으로 떨어질 때 호출될 2개의 순수 가상 함수 _Destroy()와 _Delete_this()도 들고 있다.
-    // 
+    // !! __declspec(novtable)이 적용되었어도 _Ref_count_base에는 가상 함수 테이블의 크기가 포함됨. !!
     // class __declspec(novtable) _Ref_count_base { // common code for reference counting
     // private:
     //     virtual void _Destroy() noexcept     = 0; // destroy managed resource
     //     virtual void _Delete_this() noexcept = 0; // destroy self
     // 
-    //     _Atomic_counter_t _Uses  = 1;
-    //     _Atomic_counter_t _Weaks = 1;
+    //     _Atomic_counter_t _Uses  = 1; // 4바이트
+    //     _Atomic_counter_t _Weaks = 1; // 4바이트
     // 
     //     ...
     // };
+    //
+    // _Ref_count_base는 순수 가상 함수가 적용된 클래스이기 때문에 이걸 그대로 사용하지 않고 이를 상속하여 확장한 파생 클래스를 사용할 것이다.
+    // 파생 클래스 종류는 하나가 아니며, 어떤 파생 클래스를 사용할 것인지는 생성하고자 하는 스마트 포인터의 특성에 따라 달라진다.
     // 
-    // 순수 가상 함수가 적용되어 있기 때문에 _Ref_count_base를 그대로 사용하지 않고 이를 상속하여 확장한 클래스를 사용할 것이다.
-    // 어떤 파생 클래스를 사용할 것인지는 생성한 스마트 포인터의 특성에 따라 달라진다.
-    // 
-    // !! 이 스마트 포인터의 특성은 shared_ptr과 weak_ptr의 타입을 말하는 것이 아니다. !!
-    // !! make_shared<T>()를 통해서 생성했는지, 유저가 할당한 메모리를 넘겼는지, 할당자를 사용할 것인지, Custom Deleter는 적용한 것인지를 말하는 것이다. !!
-    // 
+    // !! 여기서 말하는 스마트 포인터의 특성은 shared_ptr과 weak_ptr을 말하는 것이 아니다. !!
+    // !! make_shared<T>()를 통해서 생성했는지, std::allocate_shared<T>()를 써서 유저가 구성한 할당자로 생성했는지, !!
+    // !! 직접 할당한 메모리를 넘겨서 생성했는지, Custom Deleter가 적용된 상태인지를 말하는 것이다. !!
+    //
+    // shared_ptr<T> sptr = make_shared<T>()로 sptr을 만들고 메모리에서 "&(sptr._Rep->__vfptr)"를 조회하면 다음과 같은 메모리 블록이 생성된다는 것을 확인할 수 있다.
+    // [ 가상 함수 테이블(8바이트) ][ _Uses(4바이트) ][ _Weaks(4바이트) ][ 상속 구역(파생 클래스의 형태에 따라 다르게 적용될 수 있는 블록) ]
+    //
+    // 쉽게 말해서 _Rep의 주소를 알면 상속 구역에 접근해서 사용하고자 하는 대상 T에 접근할 수 있다는 뜻이다.
+    // 사용하고자 하는 대상 T는 기본적으로 _Rep의 상속 구역에 묶여 있으며, shared_ptr가 사용할 대상 포인터 _Ptr은 _Rep에서 가져온다.
+    // !! 이런 방식을 취하면 _Rep를 할당할 때 _Ptr까지 한 번에 할당하니 동적할당을 2번 할 필요가 없다. !!
+    //
     // --------------------------------------------------
-    // 
-    // _Uses는 사용하고 있는 객체의 유효성을 검증하기 위한 카운터이고, 
+    //
+    // _Ref_count_base을 상속하여 구현한 파생 클래스 종류는 굉장히 다양하다.
+    // Visual Studio 2022 기준 Microsoft에서 제공하는 memory 헤더만 봐도 다음 파생 클래스들이 있다(대괄호 안에 있는 건 상속하여 정의한 멤버).
+    // !! 자주 사용되는 유형에만 설명을 달았음. !!
+    //
+    // # _Ref_count<_Ty>[ _Ty* _Ptr ]
+    //  : 유저가 전달한 메모리를 기반으로 생성할 때 사용
+    //
+    // # _Ref_count_resource<_Resource, _Dx>[ _Compressed_pair<_Dx, _Resource> _Mypair ]
+    //  : 유저가 생성한 메모리를 전달하는 방식에 Custom Deleter를 적용할 때 사용
+    //
+    // # _Ref_count_obj2<_Ty>[ _Wrap<remove_cv_t<_Ty>> _Storage ]
+    //  : make_shared<T>() 기반으로 생성할 경우 사용
+    //
+    // - _Ref_count_resource_alloc<_Resource, _Dx, _Alloc>[ _Compressed_pair<_Dx, _Compressed_pair<_Myalty, _Resource>> _Mypair ]
+    // - _Ref_count_unbounded_array<_Ty, bool = is_trivially_destructible_v<remove_extent_t<_Ty>>>[ _Wrap<remove_cv_t<_Element_type>> _Storage ]
+    // - _Ref_count_unbounded_array<_Ty, false>[ size_t _Size, _Wrap<remove_cv_t<_Element_type>> _Storage ]
+    // - _Ref_count_bounded_array<_Ty>[ _Wrap<remove_cv_t<_Ty>> _Storage ]
+    // - _Ref_count_obj_alloc3<_Ty, _Alloc>[ _Wrap<_Ty> _Storage ]
+    // - _Ref_count_unbounded_array_alloc<_Ty, _Alloc>[ size_t _Size, _Wrap<_Element_type> _Storage ]
+    // - _Ref_count_bounded_array_alloc<_Ty, _Alloc> : [ _Wrap<_Ty> _Storage ]
+    //
+    // --------------------------------------------------
+    //
+    // [ 가상 함수 테이블(8바이트) ][ _Uses(4바이트) ][ _Weaks(4바이트) ][ 상속 구역(파생 클래스의 형태에 따라 다르게 적용될 수 있는 블록) ]
+    //
+    // _Rep가 가리키는 대상은 위와 같이 메모리를 구성한다고 했다.
+    // 실제로도 그런지 확인해 봐야 한다.
+    //
+    // struct Test
+    // {
+    //     uint64_t valA = 0x1111'1111'1111'1111;
+    //     uint64_t valB = 0x2222'2222'2222'2222;
+    // };
+    //
+    // int main()
+    // {
+    //     shared_ptr<Test> sptr = make_shared<Test>();
+    //     auto temp = sptr;
+    //
+    //     return 0;
+    // }
+    //
+    // "return 0;" 라인에 중단점을 걸고 메모리에서 "&(sptr._Rep->__vfptr)"를 조회하면 레퍼런스 카운팅 블록과 Test의 멤버 변수 값이 들어간 것을 확인할 수 있다.
+    //
+    // 0x000002B799433860  [10 bd f5 8d f6 7f 00 00]    // 가상 함수 테이블(std::_Ref_count_obj2<Test>::`vftable')
+    // 0x000002B799433868  [02 00 00 00] [01 00 00 00]  // strong ref : 2, weak ref : 1
+    // 0x000002B799433870  [11 11 11 11 11 11 11 11]    // Test의 valA | 상속 구역
+    // 0x000002B799433878  [22 22 22 22 22 22 22 22]    // Test의 valB | 상속 구역
+    //
+    // !! _Rep의 구성 방식을 알면 대상 T가 담긴 _Ptr도 파악할 수 있다(대부분의 경우 _Ptr은 _Rep에서 전달하여 세팅하는 방식을 취함). !!
+    //
+    // 조사식을 통해 "&(sptr._Rep->__vfptr) + 2"와 "&(sptr._Rep->__vfptr) + 3"을 조회하면
+    // 각 포인터가 가리키고 있는 대상의 값이 0x1111111111111111과 0x2222222222222222라는 것을 확인할 수 있다.
+    // !! 조사식에서 "&(sptr._Rep->__vfptr) + 2"과 "sptr._Ptr"를 조회하면 포인터 주소 또한 같은 것을 파악할 수 있다. !!
+    //
+    // --------------------------------------------------
+    //
+    // # _Ref_count_base
+    //
+    // _Uses는 사용하고 있는 대상 객체 T의 유효성을 검증하기 위한 카운터이고,
     // _Weaks는 스마트 포인터 차원에서 할당한 메모리 블록(레퍼런스 카운팅 블록)의 유효성을 검증하기 위한 카운터이다.
-    // 
+    //
     // _Uses가 0으로 떨어지면 객체는 더 이상 유효해선 안 되니 _Destroy()를 통해 객체의 소멸자를 호출한다.
-    // 다만 이게 메모리 블록의 해제를 의미하지는 않는다(매우 중요).
+    // !! 다만 이건 단순히 소멸자를 명시적으로 호출한 것이지 이 행위가 메모리 블록의 해제를 의미하는 건 아니다(매우 중요). !!
     // 
     // _Weaks가 0으로 떨어져야만 _Delete_this()를 통해 메모리 블록을 해제한다.
     // 참고로 _Uses가 유효하다면 _Weaks는 항상 유효하다.
@@ -152,7 +222,7 @@ int main()
     // --------------------------------------------------
     // 
     // weak_ptr의 소멸자 또한 비슷한 과정을 거친다.
-    // 차이가 있다면 객체의 유효성과 관련한 내용은 없고 메모리 블록의 상태에만 관련이 있다는 것이다.
+    // 차이가 있다면 객체의 유효성은 따지지 않고 메모리 블록의 상태만 검증한다.
     // 
     // 1. _Weaks의 값을 1 감소시킨다.
     // 2. _Weaks의 값이 0으로 떨어졌는가?
@@ -162,8 +232,13 @@ int main()
     // 
     // !! shared_ptr을 통해 _Uses가 0으로 떨어지기 전까지 _Weaks의 값은 항상 유효하다는 사실을 기억해야 한다. !!
     // 
-    // 실질적으로 레퍼런스 카운팅을 조작하는 건 shared_ptr이나 weak_ptr이 아니다.
+    // 실질적으로 레퍼런스 카운팅을 조작하는 건 shared_ptr나 weak_ptr가 아니다.
     // 레퍼런스 카운팅을 수행하는 건 스마트 포인터에 연동된 메모리 블록이다.
+    // !! 이 메모리 블록은 _Ref_count_base를 상속한 파생 클래스임. !!
+    //
+    // shared_ptr -> _Ptr_base<T> : [ element_type* _Ptr ][ _Ref_count_base* _Rep ]
+    // - _Ptr : 접근해서 사용하고자 하는 대상 포인터
+    // - _Rep : 레퍼런스 카운트 블록
     // 
     // 1. 소멸자 호출
     // ~shared_ptr() noexcept { // release resource
@@ -196,14 +271,14 @@ int main()
     // _Uses가 0으로 떨어지면 _Destroy()를 호출하고, _Weaks가 0으로 떨어지면 _Delete_this()를 호출한다.
     // 이 두 함수는 메모리 블록(혹은 레퍼런스 카운팅 블록)의 순수 가상 함수인 만큼 파생 클래스에 의존적이다.
     // 
-    // !! C++에서 사용하는 shared_ptr의 핵심은 _Ref_count_base를 상속한 클래스들 중 어떤 파생 클래스를 사용하여, !!
-    // !! 어떤 _Destroy()와 _Delete_this()를 호출하느냐에 있다. !!
-    // !! 특히 _Destroy()를 유심히 봐야 한다. !!
-    // 
-    // 메모리 블록, 레퍼런스 카운팅 블록, 컨트롤 블록은 같은 의미니까 다르게 보면 안 된다.
+    // !! C++에서 제공하는 shared_ptr 구현의 핵심은 _Ref_count_base를 상속한 클래스들 중 어떤 파생 클래스를 사용할 것인지, !!
+    // !! 그 어떤 파생 클래스의 가상 함수 테이블을 타고 들어가 _Destroy()와 _Delete_this()를 호출할 것인지에 있다. !!
+    // !! 특히 _Destroy()를 유심히 봐야 하며, _Delete_this()와의 차이점을 이해해야 한다. !!
     //
+    // 설명할 때 등장하는 메모리 블록, 레퍼런스 카운팅 블록, 컨트롤 블록은 같은 의미이다.
+    // 
     // _Ref_count_base는 위 3가지 의미를 전부 내포하니까 명칭은 좋을대로 쓰면 된다.
-    // Visual Studio의 Inspector에서는 이걸 [control block]라고 칭한다.
+    // Visual Studio의 Inspector에서 보면 [control block]이라고 되어 있다.
     // 
 
     // MyMakeShared<TestObjectEx>()로 shared_ptr 생성
