@@ -1,3 +1,8 @@
+// Update Date : 2024-10-07
+// Program : Visual Studio 2022
+// Version : C++20
+// Configuration : Debug-x64, Release-x64
+
 #include <iostream>
 #include <memory>
 
@@ -109,14 +114,13 @@ int main()
 
         cout << "after static_pointer_cast...\n";
 
-        // !! 해제는 shared_ptr<TestObject>의 소멸자를 통해서 이루어짐. !!
+        // !! 메모리 해제는 shared_ptr<TestObject>의 소멸자를 통해서 이루어짐(shared_ptr<TestObjectEx>를 통해서 넘겼다고 해도). !!
         // !! 하지만 이게 ~TestObject()를 호출하겠다는 뜻은 아님. !!
-        // !! shared_ptr<TestObject>와 TestObject는 아예 별개의 객체임. !!
+        // !! shared_ptr<TestObject>를 구성하고 있는 메모리 블록은 TestObjectEx를 기반으로 하며, MyDeleter<TestObjectEx>를 묶어서 생성했다. !!
 
-        // 최종적으로 shared_ptr<TestObject>의 소멸자를 거치게 해도 호출되는 객체의 소멸자는 ~TestObjectEx()이다.
-        //
-        // 이건 deleter로 등록된 함수가 MyDeleter<TestObjectEx>이기 때문이 그런 것이다.
-        //
+        // 어찌되었든 shared_ptr<TestObject>의 소멸자를 거치긴 해도 객체 소멸을 위해 호출하는 건 생성 당시 등록한 deleter이다.
+        // 등록한 deleter에 따라 실행되는 건 "delete ptr"인데 이 ptr의 타입은 TestObjectEx이다.
+        // 따라서 최종적으로 호출되는 객체의 소멸자는 ~TestObjectEx()이다.
     }
 
     cout << "--------------------------------------------------\n";
