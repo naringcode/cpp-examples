@@ -18,7 +18,7 @@ using namespace std;
 // 1. shared_ptr_with_deleter.cpp
 // 2. shared_ptr_with_allocator.cpp
 // 3. shared_ptr_with_deleter_and_allocator.cpp
-// 4. (중요) shared_ptr_details.cpp (SFINAE 내용이 포함됨)
+// 4. (중요) shared_ptr_details.cpp (SFINAE 내용이 포함됨) <--
 // 
 // # weak_ptr의 유효성 검증 로직에 대한 내용
 // 5. weak_ptr_details.cpp
