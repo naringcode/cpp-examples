@@ -78,7 +78,7 @@ auto MaxElement(const T& first, const Args&... args) -> typename std::common_typ
 
     std::cout << typeid(CommonType).name() << ", " << typeid(Type).name() << '\n';
 
-    // 전달 받은 타입 출력(Comma 연산자 활용)
+    // 전달받은 타입 출력(Comma 연산자 활용)
     std::cout << typeid(first).name() << '\n';
     ((std::cout << typeid(args).name() << '\n'), ...);
 
@@ -97,7 +97,7 @@ auto Sum(const T& init, const Args&... args) // 반환형은 알아서 추론(�
     /**
      * C++17 : fold expressions(폴드 표현식)
      */
-    // 전달 받은 타입 출력(Comma 연산자 활용)
+    // 전달받은 타입 출력(Comma 연산자 활용)
     std::cout << typeid(init).name() << '\n';
     (..., (std::cout << typeid(args).name() << '\n'));
 
