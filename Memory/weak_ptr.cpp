@@ -28,13 +28,16 @@ int main()
     shared_ptr<int> sptr = std::make_shared<int>(10);
     weak_ptr<int>   wptr;// = sptr;
 
-    wptr = sptr;
-
     // !! 멀티스레딩 환경 주의 !!
     // 
     // 멀티스레드 환경일 경우 expired()로 체크한 이후 lock()을 건다면 그 사이에 레이스 컨디션이 발생해서 자원이 소멸할 수 있다.
     // 다만 lock()을 거는 것 자체는 스레드 안전하기 때문에 lock()을 건 이후 nullptr 체크로 자원의 유효성을 검증하는 과정이 필요하다.
     //
+
+    // shared_ptr이 애초에 강한 참조를 들고 있는 형태이기 때문에 스레드 안전하다.
+    // !! shared_ptr<T>&나 shared_ptr<T>*의 형태로 다른 스레드와 스마트 포인터를 공유하고 있다면? !!
+    // !! 이런 경우라면 스레드 안전하지 않지만 이건 애초에 코딩을 잘못한 것이니 논외로 함. !!
+    wptr = sptr;
 
     // expired()로 체크하는 방법(스레드 안전하지 않음)
     if (false == wptr.expired())
