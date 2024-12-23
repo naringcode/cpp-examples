@@ -1,4 +1,4 @@
-// Update Date : 2024-12-23
+// Update Date : 2024-12-24
 // OS : Windows 10 64bit
 // Program : Visual Studio 2022
 // Version : C++20
@@ -7,11 +7,31 @@
 #include <iostream>
 #include <memory>
 
+// 순서대로 볼 것
+// 
+// # shared_ptr을 사용할 경우 알아야 할 기본적인 내용
+// 1. shared_ptr_with_deleter.cpp
+// 2. shared_ptr_with_allocator.cpp
+// 3. shared_ptr_with_deleter_and_allocator.cpp
+// 4. (중요) shared_ptr_details.cpp (SFINAE 내용 포함)
+// 
+// # weak_ptr의 유효성 검증 로직에 대한 내용
+// 5. weak_ptr.cpp <-----
+// 6. weak_ptr_details.cpp
+//
+// # shared_ptr의 관리 객체에서 자신을 반환할 때 필요한 내용
+// 7. enable_shared_from_this.cpp
+// 8. enable_shared_from_this_details.cpp
+//
+// # shared_ptr을 멀티스레딩 환경에서 사용할 때 발생할 수 있는 문제점을 기술한 내용
+// 9. allocation_aligned_byte_boundaries.cpp(사전지식)
+// 10. (중요) smart_pointer_multi_threading_issues.cpp
+
 // https://en.cppreference.com/w/cpp/memory/weak_ptr
 // https://learn.microsoft.com/ko-kr/cpp/standard-library/weak-ptr-class?view=msvc-170
 
 // weak_ptr는 shared_ptr의 관리 객체의 참조 카운팅에 영향을 주지 않는 포인터이며,
-// 내부에서 컨트롤 블록의 약한 참조(weak ptr | _Weaks)를 통해서 관리된다.
+// 내부에서 컨트롤 블록의 약한 참조(weak refs | _Weaks)를 통해서 관리된다.
 //
 // weak_ptr은 shared_ptr이나 다른 weak_ptr을 통해서 생성된다.
 // weak_ptr은 shared_ptr 사이에서 발생하는 순환 참조 문제를 해결할 때 유용하다.
@@ -27,6 +47,12 @@ int main()
 
     shared_ptr<int> sptr = std::make_shared<int>(10);
     weak_ptr<int>   wptr;// = sptr;
+
+    // shared_ptr은 다양한 방식으로 생성할 수 있지만 weak_ptr은 이미 생성된 스마트 포인터를 받는 방식으로 동작한다.
+    // 1. shared_ptr을 받는 방식
+    // 2. 다른 weak_ptr로부터 받는 방식
+    //
+    // 다른 스마트 포인터를 기반으로 생성하기 때문에 weak_ptr의 생성자는 단순한 편이다.
 
     // !! 멀티스레딩 환경 주의 !!
     // 
@@ -54,7 +80,7 @@ int main()
         auto ptr = wptr.lock();
 
         // lock()은 스레드 안전하게 자원의 유효성을 판별한다.
-        // 따라서 사용하는 측은 이게 빈 스마트 포인터인지 검증하는 작업이 필요하다.
+        // 따라서 사용하는 측은 이게 유효한 스마트 포인터인지 검증하는 작업이 필요하다.
         if (nullptr != ptr)
         {
             *ptr = 200;

@@ -1,4 +1,4 @@
-// Update Date : 2024-12-23
+// Update Date : 2024-12-24
 // OS : Windows 10 64bit
 // Program : Visual Studio 2022
 // Version : C++20
@@ -20,19 +20,20 @@ using namespace std;
 // # shared_ptr을 사용할 경우 알아야 할 기본적인 내용
 // 1. shared_ptr_with_deleter.cpp
 // 2. shared_ptr_with_allocator.cpp
-// 3. shared_ptr_with_deleter_and_allocator.cpp <--
-// 4. (중요) shared_ptr_details.cpp (SFINAE 내용이 포함됨)
+// 3. shared_ptr_with_deleter_and_allocator.cpp <-----
+// 4. (중요) shared_ptr_details.cpp (SFINAE 내용 포함)
 // 
 // # weak_ptr의 유효성 검증 로직에 대한 내용
-// 5. weak_ptr_details.cpp
+// 5. weak_ptr.cpp
+// 6. weak_ptr_details.cpp
 //
 // # shared_ptr의 관리 객체에서 자신을 반환할 때 필요한 내용
-// 6. enable_shared_from_this.cpp
-// 7. enable_shared_from_this_details.cpp
+// 7. enable_shared_from_this.cpp
+// 8. enable_shared_from_this_details.cpp
 //
 // # shared_ptr을 멀티스레딩 환경에서 사용할 때 발생할 수 있는 문제점을 기술한 내용
-// 8. allocation_aligned_byte_boundaries.cpp(사전지식)
-// 9. (중요) smart_pointer_multi_threading_issues.cpp
+// 9. allocation_aligned_byte_boundaries.cpp(사전지식)
+// 10. (중요) smart_pointer_multi_threading_issues.cpp
 
 // 용어 정리
 // 
