@@ -783,9 +783,9 @@ int main()
 
     // std::make_shared<T>()로 스마트 포인터를 생성하는 방식
     {
-        //shared_ptr<TestObjectEx> objEx = make_shared<TestObjectEx>(123, 1.2345678);
-        //
-        //cout << "## End Of Block ##\n\n";
+        shared_ptr<TestObjectEx> objEx = make_shared<TestObjectEx>(123, 1.2345678);
+        
+        cout << "## End Of Block ##\n\n";
 
         // std::make_shared<T>() 기반이면 컨트롤 블록 _Ref_count_obj2<T>를 사용한다.
         //
@@ -1160,11 +1160,11 @@ int main()
 
     // 동적할당하여 생성한 Ptr를 생성자의 인자로 넘겨 스마트 포인터를 생성하는 방식
     {
-        //TestObjectEx* ptr = new TestObjectEx{ 456, 2.3456789 };
-        //
-        //shared_ptr<TestObjectEx> objEx{ ptr };
-        //
-        //cout << "## End Of Block ##\n\n";
+        TestObjectEx* ptr = new TestObjectEx{ 456, 2.3456789 };
+        
+        shared_ptr<TestObjectEx> objEx{ ptr };
+        
+        cout << "## End Of Block ##\n\n";
 
         // 사용자가 직접 Ptr을 지정하는 방식이면 컨트롤 블록 _Ref_count<T>를 사용한다.
         // 
@@ -1541,9 +1541,9 @@ int main()
     // Ptr, Deleter를 생성자의 인자로 넘겨 스마트 포인터를 생성하는 방식
     {
         // RVO에 의해 대상 메모리 공간에 직접적으로 Ptr, Deleter를 받는 생성자가 적용됨.
-        //shared_ptr<TestObjectEx> objEx = MyMakeSharedWithDeleter<TestObjectEx>(100, 3.141592);
-        //
-        //cout << "## End Of Block ##\n\n";
+        shared_ptr<TestObjectEx> objEx = MyMakeSharedWithDeleter<TestObjectEx>(100, 3.141592);
+        
+        cout << "## End Of Block ##\n\n";
 
         // MyMakeSharedWithDeleter<T>()는 스마트 포인터를 생성할 때 Deleter를 등록하는 방식을 사용한다.
         // 
@@ -1733,9 +1733,9 @@ int main()
     // Allocator를 생성자의 인자로 넘겨 스마트 포인터를 생성하는 방식
     {
         // RVO에 의해 대상 메모리 공간에 직접적으로 Allocator를 받는 생성자가 적용됨.
-        //shared_ptr<TestObjectEx> objEx = MyMakeSharedWithAllocator<TestObjectEx>(248, 6.283184);
-        //
-        //cout << "## End Of Block ##\n\n";
+        shared_ptr<TestObjectEx> objEx = MyMakeSharedWithAllocator<TestObjectEx>(248, 6.283184);
+        
+        cout << "## End Of Block ##\n\n";
 
         // MyMakeSharedWithAllocator<T>()는 스마트 포인터를 생성할 때 Allocator를 등록하는 방식을 사용한다.
         // 
@@ -2000,9 +2000,9 @@ int main()
     // Ptr, Deleter, Allocator를 생성자의 인자로 넘겨 스마트 포인터를 생성하는 방식
     {
         // RVO에 의해 대상 메모리 공간에 직접적으로 Ptr, Deleter, Allocator를 받는 생성자가 적용됨.
-        //shared_ptr<TestObjectEx> objEx = MyMakeSharedWithDeleterAllocator<TestObjectEx>(777, 1.6180339);
-        //
-        //cout << "## End Of Block ##\n\n";
+        shared_ptr<TestObjectEx> objEx = MyMakeSharedWithDeleterAllocator<TestObjectEx>(777, 1.6180339);
+        
+        cout << "## End Of Block ##\n\n";
 
         // MyMakeSharedWithDeleterAllocator<T>()는 스마트 포인터를 생성할 때 Ptr, Deleter, Allocator을 받는 방식을 사용한다.
         // !! Deleter와 Allocator를 둘 다 받는 유형에 대한 설명은 shared_ptr_with_deleter_and_allocator.cpp에 기술되어 있음. !!
@@ -2206,19 +2206,19 @@ int main()
     // 복사 생성자(shared_ptr(const shared_ptr& _Other))로 shared_ptr을 생성했을 경우
     {
         // 빈 스마트 포인터 생성
-        //shared_ptr<TestObject> obj1;
-        //
-        //// A(Ptr, Deleter, Allocator를 받는 유형의 생성자를 거친 후 RVO에 의해 반환된 스마트 포인터를 이동 대입 연산자로 받음)
-        //obj1 = MyMakeSharedWithDeleterAllocator_Simple<TestObject>(111);
-        //
-        //cout << "# Before - Copy Constructor\n";
-        //
-        //// B(복사 생성자)
-        //shared_ptr<TestObject> obj2 = obj1; // obj2{ obj1 };
-        //
-        //cout << "\n# After - Copy Constructor\n";
-        //
-        //cout << "\n## End Of Block ##\n\n";
+        shared_ptr<TestObject> obj1;
+        
+        // A(Ptr, Deleter, Allocator를 받는 유형의 생성자를 거친 후 RVO에 의해 반환된 스마트 포인터를 이동 대입 연산자로 받음)
+        obj1 = MyMakeSharedWithDeleterAllocator_Simple<TestObject>(111);
+        
+        cout << "# Before - Copy Constructor\n";
+        
+        // B(복사 생성자)
+        shared_ptr<TestObject> obj2 = obj1; // obj2{ obj1 };
+        
+        cout << "\n# After - Copy Constructor\n";
+        
+        cout << "\n## End Of Block ##\n\n";
 
         // 관리 객체(_Ptr)와 컨트롤 블록(_Rep)가 어떻게 관리되는지 확인하기 위한 코드이다.
         // 정확히 말해서 shared_ptr의 소멸자가 소멸 과정을 어떻게 유도하는지 파악하기 위한 부분이다.
@@ -2457,16 +2457,16 @@ int main()
     // 이동 생성자(shared_ptr(shared_ptr&& _Right))로 shared_ptr을 생성했을 경우
     {
         // A(RVO에 의해 Ptr, Deleter, Allocator를 받는 유형의 생성자가 적용됨)
-        //shared_ptr<TestObject> obj1 = MyMakeSharedWithDeleterAllocator_Simple<TestObject>(222);
-        //
-        //cout << "# Before - Move Constructor\n";
-        //
-        //// B(이동 생성자)
-        //shared_ptr<TestObject> obj2 = std::move(obj1);
-        //
-        //cout << "\n# After - Move Constructor\n";
-        //
-        //cout << "\n## End Of Block ##\n\n";
+        shared_ptr<TestObject> obj1 = MyMakeSharedWithDeleterAllocator_Simple<TestObject>(222);
+        
+        cout << "# Before - Move Constructor\n";
+        
+        // B(이동 생성자)
+        shared_ptr<TestObject> obj2 = std::move(obj1);
+        
+        cout << "\n# After - Move Constructor\n";
+        
+        cout << "\n## End Of Block ##\n\n";
 
         // B 과정을 거쳤을 때 스마트 포인터가 어떻게 소멸 과정을 유도하는지 확인하면 된다.
         //
@@ -2571,21 +2571,21 @@ int main()
     // 복사 대입 연산자(operator=(const shared_ptr& _Right))로 shared_ptr의 변수 자체를 갱신할 경우
     {
         // A(RVO에 의해 Ptr, Deleter, Allocator를 받는 유형의 생성자가 적용됨)
-        //shared_ptr<TestObject> obj1 = MyMakeSharedWithDeleterAllocator_Simple<TestObject>(333);
-        //
-        //cout << "# Separator #\n\n";
-        //
-        //// B(RVO에 의해 Ptr, Deleter, Allocator를 받는 유형의 생성자가 적용됨)
-        //shared_ptr<TestObject> obj2 = MyMakeSharedWithDeleterAllocator_Simple<TestObject>(444);
-        //
-        //cout << "# Before - Copy Assignment Operator\n\n";
-        //
-        //// C(복사 대입 연산자)
-        //obj1 = obj2;
-        //
-        //cout << "# After - Copy Assignment Operator\n";
-        //
-        //cout << "\n## End Of Block ##\n\n";
+        shared_ptr<TestObject> obj1 = MyMakeSharedWithDeleterAllocator_Simple<TestObject>(333);
+        
+        cout << "# Separator #\n\n";
+        
+        // B(RVO에 의해 Ptr, Deleter, Allocator를 받는 유형의 생성자가 적용됨)
+        shared_ptr<TestObject> obj2 = MyMakeSharedWithDeleterAllocator_Simple<TestObject>(444);
+        
+        cout << "# Before - Copy Assignment Operator\n\n";
+        
+        // C(복사 대입 연산자)
+        obj1 = obj2;
+        
+        cout << "# After - Copy Assignment Operator\n";
+        
+        cout << "\n## End Of Block ##\n\n";
 
         // C 과정을 거쳤을 때 스마트 포인터가 어떻게 소멸 과정을 유도하는지 확인하면 된다.
         //
@@ -2804,21 +2804,21 @@ int main()
     // 이동 대입 연산자(operator=(shared_ptr&& _Right))로 shared_ptr의 변수 자체를 갱신할 경우
     {
         // A(RVO에 의해 Ptr, Deleter, Allocator를 받는 유형의 생성자가 적용됨)
-        //shared_ptr<TestObject> obj1 = MyMakeSharedWithDeleterAllocator_Simple<TestObject>(555);
-        //
-        //cout << "# Separator #\n\n";
-        //
-        //// B(RVO에 의해 Ptr, Deleter, Allocator를 받는 유형의 생성자가 적용됨)
-        //shared_ptr<TestObject> obj2 = MyMakeSharedWithDeleterAllocator_Simple<TestObject>(666);
-        //
-        //cout << "# Before - Move Assignment Operator\n\n";
-        //
-        //// C(이동 대입 연산자)
-        //obj1 = std::move(obj2);
-        //
-        //cout << "# After - Move Assignment Operator\n";
-        //
-        //cout << "\n## End Of Block ##\n\n";
+        shared_ptr<TestObject> obj1 = MyMakeSharedWithDeleterAllocator_Simple<TestObject>(555);
+        
+        cout << "# Separator #\n\n";
+        
+        // B(RVO에 의해 Ptr, Deleter, Allocator를 받는 유형의 생성자가 적용됨)
+        shared_ptr<TestObject> obj2 = MyMakeSharedWithDeleterAllocator_Simple<TestObject>(666);
+        
+        cout << "# Before - Move Assignment Operator\n\n";
+        
+        // C(이동 대입 연산자)
+        obj1 = std::move(obj2);
+        
+        cout << "# After - Move Assignment Operator\n";
+        
+        cout << "\n## End Of Block ##\n\n";
 
         // C의 이동 대입 과정을 거쳤을 때 스마트 포인터가 어떻게 소멸 과정을 유도하는지 확인하면 된다.
         // 
@@ -3007,27 +3007,27 @@ int main()
     // Copy Constructor와 Copy Assignment Operator의 연장선
     {
         // RVO에 의해 대상 메모리 공간에 직접적으로 Allocator를 받는 생성자가 적용됨.
-        //shared_ptr<TestObjectEx> objEx1 = MyMakeSharedWithAllocator<TestObjectEx>(100, 3.141592);
-        //
-        //cout << "# Separator #\n\n";
-        //
-        //// 복사 대입 연산자
-        //{
-        //    shared_ptr<TestObjectEx> objEx2; // 빈 스마트 포인터
-        //
-        //    objEx2 = objEx1;
-        //
-        //    cout << "Copy : objEx2 = objEx1;\n\n";
-        //}
-        //
-        //// 복사 생성자
-        //{
-        //    shared_ptr<TestObjectEx> objEx3 = objEx1;
-        //
-        //    cout << "Copy : shared_ptr<TestObjectEx> objEx3 = objEx1;\n\n";
-        //}
-        //
-        //cout << "## End Of Block ##\n\n";
+        shared_ptr<TestObjectEx> objEx1 = MyMakeSharedWithAllocator<TestObjectEx>(100, 3.141592);
+        
+        cout << "# Separator #\n\n";
+        
+        // 복사 대입 연산자
+        {
+            shared_ptr<TestObjectEx> objEx2; // 빈 스마트 포인터
+        
+            objEx2 = objEx1;
+        
+            cout << "Copy : objEx2 = objEx1;\n\n";
+        }
+        
+        // 복사 생성자
+        {
+            shared_ptr<TestObjectEx> objEx3 = objEx1;
+        
+            cout << "Copy : shared_ptr<TestObjectEx> objEx3 = objEx1;\n\n";
+        }
+        
+        cout << "## End Of Block ##\n\n";
 
         // 스마트 포인터를 복사한다고 해서 최초 스마트 포인터를 생성했을 때 만든 Allocator를 새로 만들지는 않는다.
         // 스마트 포인터를 복사할 때 레퍼런스 카운팅이 이루어지긴 하지만 기본적으로는 관리 객체와 컨트롤 블록의 포인터를 복사하는 형태이다.
@@ -3068,23 +3068,23 @@ int main()
     // 사용 도중에 nullptr을 대입했을 경우, nullptr을 가리키는 스마트 포인터가 Deleter를 호출하는지 확인하기 위한 코드
     {
         // RVO에 의해 대상 메모리 공간에 직접적으로 Ptr, Deleter를 받는 생성자가 적용됨.
-        //shared_ptr<TestObjectEx> objEx1 = MyMakeSharedWithDeleter<TestObjectEx>(100, 3.141592);
-        //
-        //cout << "# Separator #\n\n";
-        //
-        //{
-        //    // 복사 생성자
-        //    shared_ptr<TestObjectEx> objEx2 = objEx1;
-        //
-        //    // shared_ptr(nullptr_t) 생성자로 임시 객체 생성 후, 이를 objEx1에 반영하기 위한 이동 대입 연산자가 호출됨.
-        //    objEx1 = nullptr; // nullptr은 암시적으로 shared_ptr{ nullptr }로 변환됨.
-        //
-        //    cout << "assign nullptr...\n\n";
-        //
-        //    // 해당 블록을 빠져나오면 shared_ptr의 소멸자를 거치며 컨트롤 블록을 통해 관리 객체의 소멸자를 호출함.
-        //}
-        //
-        //cout << "## End Of Block ##\n\n";
+        shared_ptr<TestObjectEx> objEx1 = MyMakeSharedWithDeleter<TestObjectEx>(100, 3.141592);
+        
+        cout << "# Separator #\n\n";
+        
+        {
+            // 복사 생성자
+            shared_ptr<TestObjectEx> objEx2 = objEx1;
+        
+            // shared_ptr(nullptr_t) 생성자로 임시 객체 생성 후, 이를 objEx1에 반영하기 위한 이동 대입 연산자가 호출됨.
+            objEx1 = nullptr; // nullptr은 암시적으로 shared_ptr{ nullptr }로 변환됨.
+        
+            cout << "assign nullptr...\n\n";
+        
+            // 해당 블록을 빠져나오면 shared_ptr의 소멸자를 거치며 컨트롤 블록을 통해 관리 객체의 소멸자를 호출함.
+        }
+        
+        cout << "## End Of Block ##\n\n";
 
         // End Of Block 이후 Deleter가 호출되진 않음.
         // 사용 도중 objEx1에 nullptr을 대입해도 문제 없음.
@@ -3241,23 +3241,23 @@ int main()
     // 사용 도중에 nullptr을 대입했을 경우, nullptr을 가리키는 스마트 포인터가 deallocate()를 호출하는지 확인하기 위한 코드
     {
         // RVO에 의해 대상 메모리 공간에 직접적으로 Allocator를 받는 생성자가 적용됨.
-        //shared_ptr<TestObjectEx> objEx1 = MyMakeSharedWithAllocator<TestObjectEx>(100, 3.141592);
-        //
-        //cout << "# Separator #\n\n";
-        //
-        //{
-        //    // 복사 생성자
-        //    shared_ptr<TestObjectEx> objEx2 = objEx1;
-        //
-        //    // shared_ptr(nullptr_t) 생성자로 임시 객체 생성 후, 이를 objEx1에 반영하기 위한 이동 대입 연산자가 호출됨.
-        //    objEx1 = nullptr; // nullptr은 암시적으로 shared_ptr{ nullptr }로 변환됨.
-        //
-        //    cout << "assign nullptr...\n\n";
-        //    
-        //    // 해당 블록을 빠져나오면 shared_ptr의 소멸자를 거치며 컨트롤 블록을 통해 관리 객체의 소멸자를 호출함.
-        //}
-        //
-        //cout << "## End Of Block ##\n\n";
+        shared_ptr<TestObjectEx> objEx1 = MyMakeSharedWithAllocator<TestObjectEx>(100, 3.141592);
+        
+        cout << "# Separator #\n\n";
+        
+        {
+            // 복사 생성자
+            shared_ptr<TestObjectEx> objEx2 = objEx1;
+        
+            // shared_ptr(nullptr_t) 생성자로 임시 객체 생성 후, 이를 objEx1에 반영하기 위한 이동 대입 연산자가 호출됨.
+            objEx1 = nullptr; // nullptr은 암시적으로 shared_ptr{ nullptr }로 변환됨.
+        
+            cout << "assign nullptr...\n\n";
+            
+            // 해당 블록을 빠져나오면 shared_ptr의 소멸자를 거치며 컨트롤 블록을 통해 관리 객체의 소멸자를 호출함.
+        }
+        
+        cout << "## End Of Block ##\n\n";
 
         // End Of Block 이후 할당자의 deallocate()가 호출되진 않음.
         // 사용 도중 objEx1에 nullptr을 대입해도 문제 없음.
@@ -3319,23 +3319,23 @@ int main()
     // 사용 도중에 nullptr을 대입했을 경우, nullptr을 가리키는 스마트 포인터가 Deleter나 deallocate()를 호출하는지 확인하기 위한 코드
     {
         // RVO에 의해 대상 메모리 공간에 직접적으로 Ptr, Deleter, Allocator를 받는 생성자가 적용됨.
-        //shared_ptr<TestObjectEx> objEx1 = MyMakeSharedWithDeleterAllocator_Simple<TestObjectEx>(100, 3.141592);
-        //
-        //cout << "# Separator #\n\n";
-        //
-        //{
-        //    // 복사 생성자
-        //    shared_ptr<TestObjectEx> objEx2 = objEx1;
-        //
-        //    // shared_ptr(nullptr_t) 생성자로 임시 객체 생성 후, 이를 objEx1에 반영하기 위한 이동 대입 연산자가 호출됨.
-        //    objEx1 = nullptr; // nullptr은 암시적으로 shared_ptr{ nullptr }로 변환됨.
-        //
-        //    cout << "assign nullptr...\n\n";
-        //
-        //    // 해당 블록을 빠져나오면 shared_ptr의 소멸자를 거치며 컨트롤 블록을 통해 관리 객체의 소멸자를 호출함.
-        //}
-        //
-        //cout << "## End Of Block ##\n\n";
+        shared_ptr<TestObjectEx> objEx1 = MyMakeSharedWithDeleterAllocator_Simple<TestObjectEx>(100, 3.141592);
+        
+        cout << "# Separator #\n\n";
+        
+        {
+            // 복사 생성자
+            shared_ptr<TestObjectEx> objEx2 = objEx1;
+        
+            // shared_ptr(nullptr_t) 생성자로 임시 객체 생성 후, 이를 objEx1에 반영하기 위한 이동 대입 연산자가 호출됨.
+            objEx1 = nullptr; // nullptr은 암시적으로 shared_ptr{ nullptr }로 변환됨.
+        
+            cout << "assign nullptr...\n\n";
+        
+            // 해당 블록을 빠져나오면 shared_ptr의 소멸자를 거치며 컨트롤 블록을 통해 관리 객체의 소멸자를 호출함.
+        }
+        
+        cout << "## End Of Block ##\n\n";
 
         // End Of Block 이후 전달한 Deleter나 할당자의 deallocate()가 호출되진 않음.
         // 사용 도중 스마트 포인터에 nullptr을 대입해도 문제 없음.
