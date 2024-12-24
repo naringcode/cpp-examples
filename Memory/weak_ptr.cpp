@@ -88,6 +88,17 @@ int main()
         }
     }
 
+    // expired()로 빠르게 유효성만 검증하고 lock()을 통해 객체에 접근하는 방법(스레드 안전함)
+    if (false == wptr.expired())
+    {
+        auto ptr = wptr.lock();
+        
+        if (nullptr != ptr)
+        {
+            *ptr = 300;
+        }
+    }
+
     cout << "sptr use_count() : " << sptr.use_count() << " / value " << *sptr << '\n';
     cout << "wptr use_count() : " << wptr.use_count() << '\n';
 
@@ -109,9 +120,21 @@ int main()
     // lock()로 체크하는 방법
     {
         auto ptr = wptr.lock();
+
         if (nullptr != ptr)
         {
             *ptr = 200;
+        }
+    }
+
+    // expired()로 빠르게 유효성만 검증하고 lock()을 통해 객체에 접근하는 방법
+    if (false == wptr.expired())
+    {
+        auto ptr = wptr.lock();
+        
+        if (nullptr != ptr)
+        {
+            *ptr = 300;
         }
     }
 
