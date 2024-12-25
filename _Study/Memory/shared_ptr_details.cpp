@@ -2395,10 +2395,8 @@ int main()
         // 
         // 5. "shared_ptr<TestObject> obj2 = obj1" 과정에서 복사 생성자 호출
         // 
-        // template <class _Ty2, enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0>
-        // shared_ptr(const shared_ptr<_Ty2>& _Other) noexcept
+        // shared_ptr(const shared_ptr& _Other) noexcept // construct shared_ptr object that owns same resource as _Other
         // {
-        //     // construct shared_ptr object that owns same resource as _Other
         //     this->_Copy_construct_from(_Other);
         // }
         // 
@@ -3483,6 +3481,16 @@ int main()
         //     _Rep = _Other._Rep; // 최초 shared_ptr를 만들었을 때 생성한 컨트롤 블록을 적용(스마트 포인터를 복사하지 않고 컨트롤 블록만 가지고 옮)
         // }
         // 
+        // --------------------------------------------------
+        // 
+        // 4. 이동 대입 연산자로 obj에 캐스팅 결과 반영
+        // 
+        // shared_ptr& operator=(shared_ptr&& _Right) noexcept // take resource from _Right
+        // {
+        //     shared_ptr(_STD move(_Right)).swap(*this);
+        //     return *this;
+        // }
+        // 
 
         // _Uses가 0으로 떨어지면 최초 스마트 포인터를 만들었을 때 생성한 컨트롤 블록을 타고 관리 객체의 소멸자를 호출한다.
         // 
@@ -3599,7 +3607,7 @@ int main()
         
         cout << "# Separator #\n\n";
         
-        // A) 복사 생성자
+        // A) 복사 기반 변환 생성자
         {
             shared_ptr<TestObject> objEx2 = objEx1; // objEx2{ objEx1 };
         
@@ -3612,7 +3620,7 @@ int main()
         
         cout << "# Separator #\n\n";
         
-        // B) 복사 대입 연산자
+        // B) 복사 기반 변환 대입 연산자
         {
             shared_ptr<TestObject> objEx3; // 빈 스마트 포인터
         
@@ -3641,7 +3649,7 @@ int main()
         //
         // 1. shared_ptr<TestObject> objEx2 = objEx1; // objEx2{ objEx1 };
         // 
-        // 위 과정을 거치며 다른 타입의 스마트 포인터를 받는 복사 생성자를 호출한다.
+        // 위 과정을 거치며 다른 타입의 스마트 포인터를 받는 "복사 기반 변환 생성자"를 호출한다.
         // 
         // template <class _Ty2, enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0>
         // shared_ptr(const shared_ptr<_Ty2>& _Other) noexcept 
@@ -3710,7 +3718,7 @@ int main()
         // 
         // 3. objEx3 = objEx1;
         // 
-        // 위 과정을 거치며 다른 타입의 스마트 포인터를 받는 복사 대입 연산자를 호출한다.
+        // 위 과정을 거치며 다른 타입의 스마트 포인터를 받는 "복사 기반 변환 대입 연산자"를 호출한다.
         // 
         // template <class _Ty2, enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0>
         // shared_ptr& operator=(const shared_ptr<_Ty2>& _Right) noexcept 
@@ -3736,7 +3744,7 @@ int main()
         
         cout << "# Separator #\n\n";
         
-        // A) 이동 생성자
+        // A) 이동 기반 변환 생성자
         {
             shared_ptr<TestObject> objEx2 = std::move(objEx1); // objEx2{ std::move(objEx1) };
         
@@ -3754,7 +3762,7 @@ int main()
         
         cout << "# Separator #\n\n";
         
-        // B) 이동 대입 연산자
+        // B) 이동 기반 변환 대입 연산자
         {
             shared_ptr<TestObject> objEx3; // 빈 스마트 포인터
         
@@ -3780,7 +3788,7 @@ int main()
         //
         // 1. shared_ptr<TestObject> objEx2 = std::move(objEx1); // objEx2{ std::move(objEx1) };
         // 
-        // 위 과정을 거치며 다른 타입의 스마트 포인터를 받는 이동 생성자를 호출한다.
+        // 위 과정을 거치며 다른 타입의 스마트 포인터를 받는 "이동 기반 변환 생성자"를 호출한다.
         // 
         // template <class _Ty2, enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0>
         // shared_ptr(shared_ptr<_Ty2>&& _Right) noexcept // construct shared_ptr object that takes resource from _Right
@@ -3814,7 +3822,7 @@ int main()
         // 
         // 3. objEx3 = std::move(objEx1);
         // 
-        // 위 과정을 거치며 다른 타입의 스마트 포인터를 받는 이동 대입 연산자를 호출한다.
+        // 위 과정을 거치며 다른 타입의 스마트 포인터를 받는 "이동 기반 변환 대입 연산자"를 호출한다.
         // 
         // template <class _Ty2, enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0>
         // shared_ptr& operator=(shared_ptr<_Ty2>&& _Right) noexcept // take resource from _Right
@@ -3825,8 +3833,9 @@ int main()
         // 
         // 타입을 추론하는 과정은 "Up Casting by Copy Operation"에 있다.
         // 
-        // !! 임시 객체에 소유권을 이전하기 위해 move(_Right)를 적용하였기에 이동 생성자 호출 !!
-        // shared_ptr(shared_ptr&& _Right) noexcept // construct shared_ptr object that takes resource from _Right
+        // !! 임시 객체에 소유권을 이전하기 위해 move(_Right)를 적용하였기에 이동 기반 변환 생성자 호출 !!
+        // template <class _Ty2, enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0>
+        // shared_ptr(shared_ptr<_Ty2>&& _Right) noexcept // construct shared_ptr object that takes resource from _Right
         // {
         //     this->_Move_construct_from(_STD move(_Right));
         // }
@@ -3878,7 +3887,8 @@ int main()
         // 
         // 5. 콜 스택을 빠져나오고 임시 객체의 소멸자 호출
         // 
-        // shared_ptr& operator=(shared_ptr&& _Right) noexcept // take resource from _Right
+        // template <class _Ty2, enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0>
+        // shared_ptr& operator=(shared_ptr<_Ty2>&& _Right) noexcept // take resource from _Right
         // {
         //     // _Right의 _Ptr과 _Rep는 소유권을 임시 객체에 양도하면서 nullptr로 밀리고,
         //     // 임시 객체의 _Ptr과 _Rep는 objEx3의 것으로 교환된 상태임.
@@ -3938,7 +3948,8 @@ int main()
             cout << "sptr2 is empty...\n\n";
         }
 
-        // 캐스팅을 진행하지 않고 생성자나 대입 연산자로 다운 캐스팅을 하는 것은 불가능하다.
+        // 생성자나 대입 연산자로 다운 캐스팅을 하는 것은 불가능하다.
+        // 항상 적절한 캐스팅 함수를 먼저 적용한 다음에 결과를 다른 스마트 포인터에 반영해야 한다.
         // 이 부분은 static_pointer_cast<T1, T2>()든 dynamic_pointer_cast<T1, T2>()든 동일한 내용이다.
         // shared_ptr<TestObjectEx> sptr3 = sptr1;
         
@@ -4035,7 +4046,8 @@ int main()
         // shared_ptr<TestObjectEx> sptr2;
         // sptr2 = dynamic_pointer_cast<TestObjectEx>(sptr1);
         // 
-        // shared_ptr& operator=(shared_ptr&& _Right) noexcept { // take resource from _Right
+        // shared_ptr& operator=(shared_ptr&& _Right) noexcept // take resource from _Right
+        // {
         //     shared_ptr(_STD move(_Right)).swap(*this);
         //     return *this;
         // }

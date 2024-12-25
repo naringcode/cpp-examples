@@ -360,7 +360,8 @@ int main()
             cout << "sptr2 is empty...\n\n";
         }
 
-        // 캐스팅을 진행하지 않고 생성자나 대입 연산자로 다운 캐스팅을 하는 것은 불가능하다.
+        // 생성자나 대입 연산자로 다운 캐스팅을 하는 것은 불가능하다.
+        // 항상 적절한 캐스팅 함수를 먼저 적용한 다음에 결과를 다른 스마트 포인터에 반영해야 한다.
         // 이 부분은 static_pointer_cast<T1, T2>()든 dynamic_pointer_cast<T1, T2>()든 동일한 내용이다.
         // shared_ptr<TestObjectEx> sptr3 = sptr1;
 
