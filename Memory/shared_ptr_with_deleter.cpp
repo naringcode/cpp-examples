@@ -1,4 +1,4 @@
-// Update Date : 2024-12-24
+// Update Date : 2024-12-25
 // OS : Windows 10 64bit
 // Program : Visual Studio 2022
 // Version : C++20
@@ -78,6 +78,12 @@ public:
         cout << std::dec;
     }
 
+public:
+    virtual void Print() const
+    {
+        cout << "TestObject::Print()\n\n";
+    }
+
 private:
     int _valA = 0;
 };
@@ -102,8 +108,40 @@ public:
         cout << std::dec;
     }
 
+public:
+    void Print() const override
+    {
+        cout << "TestObjectEx::Print()\n\n";
+    }
+
 private:
     double _valB = 0.0;
+};
+
+class FooObject
+{
+public:
+    FooObject()
+    {
+        cout << "FooObject()\n";
+
+        cout << std::hex << "\tPtr : 0x" << this << "\n\n";
+        cout << std::dec;
+    }
+
+    ~FooObject()
+    {
+        cout << "~FooObject()\n";
+
+        cout << std::hex << "\tPtr : 0x" << this << "\n\n";
+        cout << std::dec;
+    }
+
+public:
+    void Print() const
+    {
+        cout << "FooObject::Print()\n\n";
+    }
 };
 
 /********************
@@ -245,7 +283,8 @@ int main()
 
     cout << "-------------------------#03#-------------------------\n\n";
 
-    // 업캐스팅하여 스마트 포인터를 사용할 경우 어떤 소멸자가 호출되는지 관찰하기 위한 코드
+
+    // 업 캐스팅하여 스마트 포인터를 사용할 경우 어떤 소멸자가 호출되는지 관찰하기 위한 코드
     {
         shared_ptr<TestObject> obj;
 
@@ -253,12 +292,17 @@ int main()
             // RVO에 의해 대상 메모리 공간에 직접적으로 Ptr, Deleter를 받는 생성자가 적용됨.
             shared_ptr<TestObjectEx> objEx = MyMakeSharedWithDeleter<TestObjectEx>(300UL, 2.718281f);
 
-            // 인자로 넘긴 objEx의 관리 객체의 주소를 캐스팅하여 shared_ptr<TestObject>를 생성하고
+            // 인자로 넘긴 objEx의 관리 객체의 주소를 부모로 업 캐스팅하여 shared_ptr<TestObject>를 생성하고
             // 이를 obj에 반영하기 위한 이동 대입 연산자가 호출됨.
             obj = static_pointer_cast<TestObject>(objEx);
+
+            // 부모로 업 캐스팅하는 것이기에 다음 코드도 가능함.
+            // obj = objEx;
         }
 
         cout << "after static_pointer_cast...\n\n";
+
+        obj->Print();
 
         // !! 관리 객체의 소멸자 호출은 shared_ptr<TestObject>의 소멸자를 통해서 이루어짐(shared_ptr<TestObjectEx>를 통해서 넘겼다고 해도). !!
         // !! shared_ptr<TestObject>의 소멸자를 거친다고 해도 이게 ~TestObject()를 호출하겠다는 뜻은 아님. !!
@@ -269,12 +313,107 @@ int main()
         // 삭제하는 ptr이 TestObjectEx 타입이기 때문에 최종적으로 호출되는 객체의 소멸자는 ~TestObjectEx()이다.
 
         // TestObject의 소멸자에 virtual을 붙이지 않아도 MyDeleter<TestObjectEx>()를 통해 직접적으로 TestObjectEx를 삭제한다.
-        // static_pointer_cast<T>()를 통해 부모로 업캐스팅 했다고 해도 파생 클래스를 직접적으로 삭제하는 방식이기 때문에
+        // static_pointer_cast<T>()를 통해 부모로 업 캐스팅 했다고 해도 파생 클래스를 직접적으로 삭제하는 방식이기 때문에
         // 굳이 부모 클래스의 소멸자를 가상화하지 않아도 소멸자 호출 과정이 제대로 단계별로 이루어지는 것이다.
         // !! 애초에 가상 함수 테이블을 타고 들어가 소멸자를 호출하는 방식이 아니니까. !!
 
         // 자세한 건 shared_ptr_details.cpp에 적어두었다.
 
+        cout << "## End Of Block ##\n\n";
+    }
+
+    cout << "-------------------------#04#-------------------------\n\n";
+
+    // static_pointer_cast<T1, T2>()를 이용한 다운 캐스팅
+    {
+        // static_pointer_cast<T1, T2>()는 업 캐스팅과 다운 캐스팅을 모두 수행할 수 있는 함수이다.
+        // !! 이 함수는 static_cast<T1>(T2)의 기능을 스마트 포인터에 맞게 적용한 함수임. !!
+        //
+        // 업 캐스팅이 Derived Class -> Base Class로의 포인터 변환을 의미한다면,
+        // 다운 캐스팅은 Base Class -> Derived Class로의 포인터 변환을 의미한다.
+        //
+        // 하지만 다운 캐스팅을 적용할 경우 컴파일러가 타입 관계까지는 검사하지 않기 때문에
+        // 코드를 잘못 작성하면 런타임 시 정의하지 않았거나 의도하지 않은 동작을 초래할 수 있다.
+        //
+        // static_pointer_cast<T1, T2>()는 강제 형변환이 아니며 C++에서 지원하는 static_cast<T1>(T2)와 유사하게 동작한다.
+
+        // 업 캐스팅으로 받는다.
+        shared_ptr<TestObject> sptr1 = MyMakeSharedWithDeleter<TestObjectEx>(123, 3.14);
+        
+        sptr1->Print();
+
+        // TEST
+        // sptr1 = nullptr;
+
+        // static_pointer_cast<T1, T2>()를 활용한 다운 캐스팅 진행
+        shared_ptr<TestObjectEx> sptr2 = static_pointer_cast<TestObjectEx>(sptr1);
+
+        cout << "after static_pointer_cast...\n\n";
+
+        // sptr1이 빈 스마트 포인터였다면 sptr2도 빈 스마트 포인터가 된다.
+        if (nullptr != sptr2)
+        {
+            sptr2->Print();
+        }
+        else
+        {
+            cout << "sptr2 is empty...\n\n";
+        }
+
+        // 캐스팅을 진행하지 않고 생성자나 대입 연산자로 다운 캐스팅을 하는 것은 불가능하다.
+        // 이 부분은 static_pointer_cast<T1, T2>()든 dynamic_pointer_cast<T1, T2>()든 동일한 내용이다.
+        // shared_ptr<TestObjectEx> sptr3 = sptr1;
+
+        // 다음 코드는 컴파일 단계에서 에러가 발생한다.
+        // shared_ptr<FooObject> sptr4 = static_pointer_cast<FooObject>(sptr1);
+        
+        cout << "## End Of Block ##\n\n";
+    }
+    
+    cout << "-------------------------#05#-------------------------\n\n";
+
+    // dynamic_pointer_cast<T1, T2>()를 이용한 다운 캐스팅
+    {
+        // 스마트 포인터 간 다운 캐스팅을 진행할 때는 static_pointer_cast<T1, T2>()를 쓰는 것보다 dynamic_pointer_cast<T1, T2>()를 쓰는 것이 안전하다.
+        // 
+        // dynamic_pointer_cast<T1, T2>()는 유효하지 않은 다운 캐스팅을 수행하려 했을 경우 빈 스마트 포인터를 반환하며,
+        // 유효한 다운 캐스팅을 진행하면 적절한 shared_ptr<T1>을 반환한다.
+
+        // 업 캐스팅으로 받는다.
+        shared_ptr<TestObject> sptr1 = MyMakeSharedWithDeleter<TestObjectEx>(123, 3.14);
+
+        sptr1->Print();
+
+        // TEST
+        // sptr1 = nullptr;
+        
+        // dynamic_pointer_cast<T1, T2>()를 활용한 다운 캐스팅 진행
+        shared_ptr<TestObjectEx> sptr2 = dynamic_pointer_cast<TestObjectEx>(sptr1);
+
+        // sptr1이 빈 스마트 포인터였다면 sptr2도 빈 스마트 포인터가 된다.
+        if (nullptr != sptr2)
+        {
+            sptr2->Print();
+        }
+        else
+        {
+            cout << "sptr2 is empty...\n\n";
+        }
+
+        // 정의되지 않은 상속 관계로 캐스팅을 시도하면 빈 스마트 포인터를 반환한다.
+        // static_pointer_cast<T1, T2>()와 달리 컴파일 타임에 에러가 발생하지 않는다.
+        // !! dynamic_pointer_cast<T1, T2>()는 dynamic_cast<T1>(T2)와 유사하게 동작함. !!
+        shared_ptr<FooObject> sptr3 = dynamic_pointer_cast<FooObject>(sptr1);
+        
+        if (nullptr != sptr3)
+        {
+            sptr3->Print();
+        }
+        else
+        {
+            cout << "sptr3 is empty...\n\n";
+        }
+        
         cout << "## End Of Block ##\n\n";
     }
 

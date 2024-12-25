@@ -1,4 +1,4 @@
-// Update Date : 2024-12-23
+// Update Date : 2024-12-25
 // OS : Windows 10 64bit
 // Program : Visual Studio 2022
 // Version : C++20
@@ -75,6 +75,12 @@ public:
         cout << std::dec;
     }
 
+public:
+    virtual void Print() const
+    {
+        cout << "TestObject::Print()\n\n";
+    }
+
 private:
     int _valA = 0;
 };
@@ -99,8 +105,40 @@ public:
         cout << std::dec;
     }
 
+public:
+    void Print() const override
+    {
+        cout << "TestObjectEx::Print()\n\n";
+    }
+
 private:
     double _valB = 0.0;
+};
+
+class FooObject
+{
+public:
+    FooObject()
+    {
+        cout << "FooObject()\n";
+
+        cout << std::hex << "\tPtr : 0x" << this << "\n\n";
+        cout << std::dec;
+    }
+
+    ~FooObject()
+    {
+        cout << "~FooObject()\n";
+
+        cout << std::hex << "\tPtr : 0x" << this << "\n\n";
+        cout << std::dec;
+    }
+
+public:
+    void Print() const
+    {
+        cout << "FooObject::Print()\n\n";
+    }
 };
 
 /********************
@@ -3352,20 +3390,22 @@ int main()
     // 순수 가상 함수라는 인터페이스를 타고 들어가는 로직 자체는 동일하다.
     // 따라서 어떤 유형으로 스마트 포인터를 생성하든 상관 없다.
 
-    // 업캐스팅하여 스마트 포인터를 사용할 경우 소멸 과정이 어떻게 유도되는지 관찰하기 위한 코드
+    // 업 캐스팅하여 스마트 포인터를 사용할 경우 소멸 과정이 어떻게 유도되는지 관찰하기 위한 코드
     {
         shared_ptr<TestObject> obj;
-
+        
         {
             // 간단하게 로직만 분석할 것이기 때문에 make_shared<T>()를 사용함.
-            shared_ptr<TestObjectEx> objEx = make_shared<TestObjectEx>(300UL, 2.718281f);
-
-            // 인자로 넘긴 objEx의 관리 객체의 주소를 캐스팅하여 shared_ptr<TestObject>를 생성하고
+            shared_ptr<TestObjectEx> objEx = make_shared<TestObjectEx>(123, 3.14);
+        
+            // 인자로 넘긴 objEx의 관리 객체의 주소를 부모로 업 캐스팅하여 shared_ptr<TestObject>를 생성하고
             // 이를 obj에 반영하기 위한 이동 대입 연산자가 호출됨.
             obj = static_pointer_cast<TestObject>(objEx);
         }
-
+        
         cout << "after static_pointer_cast...\n\n";
+        
+        obj->Print();
 
         // 블록을 빠져나올 때 관리 객체의 소멸자는 shared_ptr<TestObject>의 소멸자를 통해서 호출된다.
         // shared_ptr<TestObjectEx>를 통해서 넘겼다고 해도 최종적으로 호출되는 건 shared_ptr<TestObject>의 소멸자이다.
@@ -3383,7 +3423,7 @@ int main()
         // 쉽게 생각해서 shared_ptr<TestObject>의 소멸자를 거친다고 해도 컨트롤 블록을 거치며 호출되는 관리 객체의 소멸자는 ~TestObjectEx()이다.
         // 
         // 가상 함수 테이블을 타지 않고 컨트롤 블록 차원에서 직접적으로 생성한 객체의 소멸자를 호출한다.
-        // 부모로 업캐스팅 했다고 해도 파생 클래스의 소멸자를 직접 호출하는 방식이기 때문에 스마트 포인터로 관리되는 객체의 소멸자에는 virtual이 안 붙어도 된다.
+        // 부모로 업 캐스팅 했다고 해도 파생 클래스의 소멸자를 직접 호출하는 방식이기 때문에 스마트 포인터로 관리되는 객체의 소멸자에는 virtual이 안 붙어도 된다.
         // !! 가상 함수 타이블을 타고 들어가는 방식으로 소멸자를 호출하는 방식이 아님. !!
         // 
         // --------------------------------------------------
@@ -3412,6 +3452,9 @@ int main()
         //     // 캐스팅한 포인터와 컨트롤 블록이 분리되어 있기 때문에 이를 묶는 작업이 필요함.
         //     return shared_ptr<_Ty1>(_Other, _Ptr); // _Other과 _Ptr을 묶어서 shared_ptr를 생성
         // }
+        // 
+        // 여기서는 일반적인 참조 형태를 받는 static_pointer_cast<T1, T2>()를 사용하지만 
+        // 보편 참조를 받는 static_pointer_cast(shared_ptr<_Ty2>&& _Other) 유형도 존재한다.
         // 
         // --------------------------------------------------
         // 
@@ -3543,6 +3586,473 @@ int main()
     // (중요) 하위 객체의 타입이 컨트롤 블록에 묶여 있으면, 상위 타입으로 캐스팅해서 사용해도 하위 객체의 타입을 기반으로 소멸 되정이 유도된다.
     // 
     // 여기서는 make_shared<T>()로 생성한 것은 캐스팅하였지만 다른 유형으로 생성한 스마트 포인터를 캐스팅해도 원리 자체는 동일하다.
+
+    cout << "-------------------------#15#-------------------------\n\n";
+
+    /*****************************************
+    *      Up Casting by Copy Operation      *
+    *****************************************/
+
+    // 업 캐스팅을 복사 연산자로 진행할 경우 어떤 과정을 거치는지 확인하기 위한 코드
+    {
+        shared_ptr<TestObjectEx> objEx1 = make_shared<TestObjectEx>(123, 3.14);
+        
+        cout << "# Separator #\n\n";
+        
+        // A) 복사 생성자
+        {
+            shared_ptr<TestObject> objEx2 = objEx1; // objEx2{ objEx1 };
+        
+            cout << "Copy : shared_ptr<TestObject> objEx2 = objEx1;\n\n";
+        
+            cout << "objEx1.use_count() : " << objEx1.use_count() << "\n\n";
+        
+            objEx2->Print();
+        }
+        
+        cout << "# Separator #\n\n";
+        
+        // B) 복사 대입 연산자
+        {
+            shared_ptr<TestObject> objEx3; // 빈 스마트 포인터
+        
+            objEx3 = objEx1;
+        
+            cout << "Copy : objEx3 = objEx1;\n\n";
+        
+            cout << "objEx1.use_count() : " << objEx1.use_count() << "\n\n";
+        
+            objEx3->Print();
+        }
+        
+        cout << "# Separator #\n\n";
+        
+        cout << "objEx1.use_count() : " << objEx1.use_count() << "\n\n";
+        
+        cout << "## End Of Block ##\n\n";
+
+        // A와 B 과정에서 복사 연산이 어떻게 이루어지는지 확인할 것이다.
+        //
+        // --------------------------------------------------
+        // 
+        // ***** A 부분 *****
+        //
+        // --------------------------------------------------
+        //
+        // 1. shared_ptr<TestObject> objEx2 = objEx1; // objEx2{ objEx1 };
+        // 
+        // 위 과정을 거치며 다른 타입의 스마트 포인터를 받는 복사 생성자를 호출한다.
+        // 
+        // template <class _Ty2, enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0>
+        // shared_ptr(const shared_ptr<_Ty2>& _Other) noexcept 
+        // {
+        //     // construct shared_ptr object that owns same resource as _Other
+        //     this->_Copy_construct_from(_Other);
+        // }
+        // 
+        // !! 컴파일 타임에서 템플릿 인자를 추론할 수 있게 _SP_pointer_compatible<T1, T2> 사용 !!
+        // template <class _Yty, class _Ty>
+        // struct _SP_pointer_compatible : is_convertible<_Yty*, _Ty*>::type 
+        // {
+        //     // N4950 [util.smartptr.shared.general]/6 "a pointer type Y* is said to be compatible
+        //     // with a pointer type T* when either Y* is convertible to T* ..."
+        // };
+        // 
+        // !! is_convertible은 bool_constant를 상속받고, bool_constant는 integral_constant를 상속받음. !!
+        // _EXPORT_STD template <class _From, class _To>
+        // struct is_convertible : bool_constant<__is_convertible_to(_From, _To)> {
+        //     // determine whether _From is convertible to _To
+        // };
+        // 
+        // _EXPORT_STD template <bool _Val>
+        // using bool_constant = integral_constant<bool, _Val>;
+        // 
+        // _EXPORT_STD template <class _Ty, _Ty _Val>
+        // struct integral_constant {
+        //     static constexpr _Ty value = _Val;
+        // 
+        //     using value_type = _Ty;
+        //     using type       = integral_constant;
+        // 
+        //     constexpr operator value_type() const noexcept {
+        //         return value;
+        //     }
+        // 
+        //     _NODISCARD constexpr value_type operator()() const noexcept {
+        //         return value;
+        //     }
+        // };
+        // 
+        // https://learn.microsoft.com/ko-kr/cpp/extensions/compiler-support-for-type-traits-cpp-component-extensions?view=msvc-170
+        // __is_convertible_to(from, to)는 MSVC에서 제공하는 기능이다.
+        // 
+        // --------------------------------------------------
+        // 
+        // 2. _Copy_construct_from() 호출
+        // 
+        // template <class _Ty2>
+        // void _Ptr_base<T>::_Copy_construct_from(const shared_ptr<_Ty2>& _Other) noexcept
+        // {
+        //     // implement shared_ptr's (converting) copy ctor
+        //     // !! _Other는 objEx1이고 이걸 대상으로 _Incref() 호출하여 _Uses를 1 증가시킴. !!
+        //     _Other._Incref();
+        // 
+        //     // 레퍼런스 카운트 _Uses를 1 증가시킨 후 objEx2가 objEx1과 같은 관리 객체와 컨트롤 블록을 가지게 설정함.
+        //     _Ptr = _Other._Ptr;
+        //     _Rep = _Other._Rep;
+        // }
+        // 
+        // --------------------------------------------------
+        // 
+        // ***** B 부분 *****
+        //
+        // --------------------------------------------------
+        // 
+        // 3. objEx3 = objEx1;
+        // 
+        // 위 과정을 거치며 다른 타입의 스마트 포인터를 받는 복사 대입 연산자를 호출한다.
+        // 
+        // template <class _Ty2, enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0>
+        // shared_ptr& operator=(const shared_ptr<_Ty2>& _Right) noexcept 
+        // {
+        //     shared_ptr(_Right).swap(*this);
+        //     return *this;
+        // }
+        // 
+        // 템플릿 인자를 추론하는 과정은 A에 있는 내용과 동일하며,
+        // 임시 객체를 생성하고 swap()을 호출하는 건 "Copy Assignment Operator"에 있는 내용과 동일하니 생략한다.
+        // 
+    }
+
+    cout << "-------------------------#16#-------------------------\n\n";
+
+    /*****************************************
+    *      Up Casting by Move Operation      *
+    *****************************************/
+
+    // 업 캐스팅을 이동 연산자로 진행할 경우 어떤 과정을 거치는지 확인하기 위한 코드
+    {
+        shared_ptr<TestObjectEx> objEx1 = make_shared<TestObjectEx>(123, 3.14);
+        
+        cout << "# Separator #\n\n";
+        
+        // A) 이동 생성자
+        {
+            shared_ptr<TestObject> objEx2 = std::move(objEx1); // objEx2{ std::move(objEx1) };
+        
+            cout << "Move : shared_ptr<TestObject> objEx2 = std::move(objEx1);\n\n";
+        
+            cout << "objEx1.use_count() : " << objEx1.use_count() << " & ";
+            cout << "objEx2.use_count() : " << objEx2.use_count() << "\n\n";
+        
+            objEx2->Print();
+        }
+        
+        cout << "# Separator #\n\n";
+        
+        objEx1 = make_shared<TestObjectEx>(456, 6.28);
+        
+        cout << "# Separator #\n\n";
+        
+        // B) 이동 대입 연산자
+        {
+            shared_ptr<TestObject> objEx3; // 빈 스마트 포인터
+        
+            objEx3 = std::move(objEx1);
+        
+            cout << "Move : objEx3 = objEx1;\n\n";
+        
+            cout << "objEx1.use_count() : " << objEx1.use_count() << " & ";
+            cout << "objEx3.use_count() : " << objEx3.use_count() << "\n\n";
+        
+            objEx3->Print();
+        }
+        
+        cout << "## End Of Block ##\n\n";
+
+        // A와 B 과정에서 이동 연산이 어떻게 이루어지는지 확인할 것이다.
+        //
+        // --------------------------------------------------
+        // 
+        // ***** A 부분 *****
+        //
+        // --------------------------------------------------
+        //
+        // 1. shared_ptr<TestObject> objEx2 = std::move(objEx1); // objEx2{ std::move(objEx1) };
+        // 
+        // 위 과정을 거치며 다른 타입의 스마트 포인터를 받는 이동 생성자를 호출한다.
+        // 
+        // template <class _Ty2, enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0>
+        // shared_ptr(shared_ptr<_Ty2>&& _Right) noexcept // construct shared_ptr object that takes resource from _Right
+        // {
+        //     this->_Move_construct_from(_STD move(_Right));
+        // }
+        // 
+        // 타입을 추론하는 과정은 "Up Casting by Copy Operation"에 있다.
+        // 
+        // --------------------------------------------------
+        // 
+        // 2. _Move_construct_from() 호출
+        // template <class _Ty2>
+        // void _Ptr_base<T>::_Move_construct_from(_Ptr_base<_Ty2>&& _Right) noexcept
+        // {
+        //     // implement shared_ptr's (converting) move ctor and weak_ptr's move ctor
+        //     // !! 스마트 포인터의 소유권(관리 객체와 컨트롤 블록)을 objEx2에 넘김. !!
+        //     _Ptr = _Right._Ptr;
+        //     _Rep = _Right._Rep;
+        // 
+        //     // !! 전달 대상이 된 기존 스마트 포인터 objEx1의 소유권을 날림. !!
+        //     _Right._Ptr = nullptr;
+        //     _Right._Rep = nullptr;
+        // }
+        // 
+        // --------------------------------------------------
+        // 
+        // ***** B 부분 *****
+        //
+        // --------------------------------------------------
+        // 
+        // 3. objEx3 = std::move(objEx1);
+        // 
+        // 위 과정을 거치며 다른 타입의 스마트 포인터를 받는 이동 대입 연산자를 호출한다.
+        // 
+        // template <class _Ty2, enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0>
+        // shared_ptr& operator=(shared_ptr<_Ty2>&& _Right) noexcept // take resource from _Right
+        // {
+        //     shared_ptr(_STD move(_Right)).swap(*this);
+        //     return *this;
+        // }
+        // 
+        // 타입을 추론하는 과정은 "Up Casting by Copy Operation"에 있다.
+        // 
+        // !! 임시 객체에 소유권을 이전하기 위해 move(_Right)를 적용하였기에 이동 생성자 호출 !!
+        // shared_ptr(shared_ptr&& _Right) noexcept // construct shared_ptr object that takes resource from _Right
+        // {
+        //     this->_Move_construct_from(_STD move(_Right));
+        // }
+        // 
+        // !! _Move_construct_from(_STD move(_Right)) 호출 !!
+        // template <class _Ty2>
+        // void _Ptr_base<T>::_Move_construct_from(_Ptr_base<_Ty2>&& _Right) noexcept
+        // {
+        //     // implement shared_ptr's (converting) move ctor and weak_ptr's move ctor
+        //     // !! 스마트 포인터의 소유권(관리 객체와 컨트롤 블록)을 임시 객체에 넘김. !!
+        //     _Ptr = _Right._Ptr;
+        //     _Rep = _Right._Rep;
+        // 
+        //     // !! 전달 대상이 된 기존 스마트 포인터 objEx1의 소유권을 날림. !!
+        //     _Right._Ptr = nullptr;
+        //     _Right._Rep = nullptr;
+        // }
+        // 
+        // --------------------------------------------------
+        // 
+        // 4. 임시 객체에 소유권을 전달한 다음 swap()을 호출
+        // 
+        // void shared_ptr<T>::swap(shared_ptr& _Other) noexcept
+        // {
+        //     // this는 스마트 포인터의 소유권을 양도 받은 대상임(이동 대입 연산자에 있는 this와 여기 있는 this는 다른 대상이니 주의할 것).
+        //     // _Other는 "objEx3 = std::move(objEx1)" 중 objEx3에 해당하며, _Swap()을 호출하고 있는 this는 임시 객체임.
+        //     this->_Swap(_Other);
+        // }
+        // 
+        // void _Ptr_base<T>::_Swap(_Ptr_base& _Right) noexcept // swap pointers
+        // {
+        //     // objEx1이 임시 객체에 넘긴 소유권을 objEx3에 반영하는 단계임.
+        //     _STD swap(_Ptr, _Right._Ptr);
+        //     _STD swap(_Rep, _Right._Rep);
+        // 
+        //     // 위 코드가 실행되었으면 임시 객체는 obj1의 _Ptr과 _Rep를 가리키게 됨.
+        //     //
+        //     // swap()으로 교환하기 이전
+        //     // : objEx1{ _Ptr : nullptr }, 임시 객체{ _Ptr : 100, strong ptr : 1 }, objEx3{ _Ptr : nullptr }
+        //     //
+        //     // swap()으로 교환한 이후
+        //     // : objEx1{ _Ptr : nullptr }, 임시 객체{ _Ptr : nullptr }, objEx3{ _Ptr : 100, strong ptr : 1 }
+        //     // 
+        //     // objEx1은 임시 객체에 소유권을 넘기면서 _Ptr과 _Rep를 nullptr로 밀었음.
+        // }
+        // 
+        // 
+        // --------------------------------------------------
+        // 
+        // 5. 콜 스택을 빠져나오고 임시 객체의 소멸자 호출
+        // 
+        // shared_ptr& operator=(shared_ptr&& _Right) noexcept // take resource from _Right
+        // {
+        //     // _Right의 _Ptr과 _Rep는 소유권을 임시 객체에 양도하면서 nullptr로 밀리고,
+        //     // 임시 객체의 _Ptr과 _Rep는 objEx3의 것으로 교환된 상태임.
+        //     shared_ptr(_STD move(_Right)).swap(*this);
+        //     return *this;
+        // }
+        // 
+        // _Right는 소유권을 양도하는 이동 대상이라 소멸자가 호출되지 않는다(애초에 참조 형태임).
+        // 소멸자가 호출되는 건 _Right(objEx1)의 소유권을 이전 받은 임시 객체 쪽이다.
+        // 
+        // !! 임시 객체 shared_ptr(_STD move(_Right))의 소멸자를 호출 !!
+        // ~shared_ptr() noexcept // release resource
+        // {
+        //     this->_Decref();
+        // }
+        // 
+        // void _Ptr_base<T>::_Decref() noexcept // decrement reference count
+        // {
+        //     // 임시 객체는 objEx1의 소유권을 이전 받은 다음 objEx3와 소유권을 교환한 상태임.
+        //     // objEx3는 빈 스마트 포인터였기 때문에 _Rep는 nullptr이라 아래 if 문 안에 있는 로직은 실행되지 않음.
+        //     if (_Rep) {
+        //         _Rep->_Decref();
+        //     }
+        // }
+        // 
+    }
+
+    cout << "-------------------------#17#-------------------------\n\n";
+
+    /*****************************************************************************
+    *      Down Casting by static_pointer_cast<TestObject, TestObjectEx>()      *
+    *****************************************************************************/
+
+    // static_pointer_cast<T1, T2>()를 이용한 다운 캐스팅을 진행할 경우 어떤 과정을 거치는지 확인하기 위한 코드
+    {
+        // 업 캐스팅으로 받는다.
+        // shared_ptr(shared_ptr<_Ty2>&& _Right)가 호출되기 때문에 이 부분은 "Up Casting by Move Operation"를 참고하도록 한다.
+        shared_ptr<TestObject> sptr1 = make_shared<TestObjectEx>(123, 3.14);
+        
+        sptr1->Print();
+        
+        // TEST
+        // sptr1 = nullptr;
+        
+        // static_pointer_cast<T1, T2>()를 활용한 다운 캐스팅 진행
+        shared_ptr<TestObjectEx> sptr2 = static_pointer_cast<TestObjectEx>(sptr1);
+        
+        cout << "after static_pointer_cast...\n\n";
+        
+        // sptr1이 빈 스마트 포인터였다면 sptr2도 빈 스마트 포인터가 된다.
+        if (nullptr != sptr2)
+        {
+            sptr2->Print();
+        }
+        else
+        {
+            cout << "sptr2 is empty...\n\n";
+        }
+
+        // 캐스팅을 진행하지 않고 생성자나 대입 연산자로 다운 캐스팅을 하는 것은 불가능하다.
+        // 이 부분은 static_pointer_cast<T1, T2>()든 dynamic_pointer_cast<T1, T2>()든 동일한 내용이다.
+        // shared_ptr<TestObjectEx> sptr3 = sptr1;
+        
+        // 다음 코드는 컴파일 단계에서 에러가 발생한다.
+        // shared_ptr<FooObject> sptr4 = static_pointer_cast<FooObject>(sptr1);
+
+        // !! 캐스팅 과정 자체는 "Up Casting by static_pointer_cast<TestObject, TestObjectEx>()"에 나온 내용과 동일함. !!
+
+        cout << "## End Of Block ##\n\n";
+    }
+
+    cout << "-------------------------#18#-------------------------\n\n";
+
+    /*****************************************************************************
+    *      Down Casting by dynamic_pointer_cast<TestObject, TestObjectEx>()      *
+    *****************************************************************************/
+
+    // dynamic_pointer_cast<T1, T2>()를 이용한 다운 캐스팅을 진행할 경우 어떤 과정을 거치는지 확인하기 위한 코드
+    {
+        // 업 캐스팅으로 받는다.
+        // shared_ptr(shared_ptr<_Ty2>&& _Right)가 호출되기 때문에 이 부분은 "Up Casting by Move Operation"를 참고하도록 한다.
+        shared_ptr<TestObject> sptr1 = make_shared<TestObjectEx>(123, 3.14);
+
+        sptr1->Print();
+
+        // TEST
+        // sptr1 = nullptr;
+
+        // A) dynamic_pointer_cast<T1, T2>()를 활용한 다운 캐스팅 진행
+        shared_ptr<TestObjectEx> sptr2 = dynamic_pointer_cast<TestObjectEx>(sptr1);
+        
+        // sptr1이 빈 스마트 포인터였다면 sptr2도 빈 스마트 포인터가 된다.
+        if (nullptr != sptr2)
+        {
+            sptr2->Print();
+        }
+        else
+        {
+            cout << "sptr2 is empty...\n\n";
+        }
+
+        // B) 정의되지 않은 상속 관계로 캐스팅을 시도하면 빈 스마트 포인터를 반환한다.
+        // static_pointer_cast<T1, T2>()와 달리 컴파일 타임에 에러가 발생하지 않는다.
+        // !! dynamic_pointer_cast<T1, T2>()는 dynamic_cast<T1>(T2)와 유사하게 동작함. !!
+        shared_ptr<FooObject> sptr3 = dynamic_pointer_cast<FooObject>(sptr1);
+
+        if (nullptr != sptr3)
+        {
+            sptr3->Print();
+        }
+        else
+        {
+            cout << "sptr3 is empty...\n\n";
+        }
+
+        cout << "## End Of Block ##\n\n";
+
+        // 유효한 다운 캐스팅을 진행했을 때와 유효하지 않은 다운 캐스팅을 진행했을 때
+        // 연산이 어떻게 이루어지는지 확인할 것이다.
+        //
+        // --------------------------------------------------
+        // 
+        // 1. dynamic_pointer_cast<TestObjectEx>(sptr1) 호출
+        // 
+        // _EXPORT_STD template <class _Ty1, class _Ty2>
+        // _NODISCARD shared_ptr<_Ty1> dynamic_pointer_cast(const shared_ptr<_Ty2>& _Other) noexcept 
+        // {
+        //     // dynamic_cast for shared_ptr that properly respects the reference count control block
+        //     // 대상 스마트 포인터에서 관리 객체의 포인터를 가져와 dynamic_cast<T1>()을 진행함.
+        //     const auto _Ptr = dynamic_cast<typename shared_ptr<_Ty1>::element_type*>(_Other.get());
+        // 
+        //     // A) 부분
+        //     // 포인터가 유효하다면 dynamic_cast가 적용된 포인터를 묶어서 새로운 shared_ptr을 구성하고 반환함.
+        //     if (_Ptr) {
+        //         return shared_ptr<_Ty1>(_Other, _Ptr);
+        //     }
+        // 
+        //     // B) 부분
+        //     // 포인터가 유효하지 않다면 빈 스마트 포인터를 반환함.
+        //     return {};
+        // }
+        // 
+        // 여기서는 일반적인 참조 형태를 받는 dynamic_pointer_cast<T1, T2>()를 사용하지만 
+        // 보편 참조를 받는 dynamic_pointer_cast(shared_ptr<_Ty2>&& _Other) 유형도 존재한다.
+        // 
+        // --------------------------------------------------
+        // 
+        // 2. shared_ptr<TestObjectEx> sptr2 = dynamic_pointer_cast<TestObjectEx>(sptr1);
+        // 
+        // RVO에 의해 dynamic_pointer_cast<T1, T2>()가 반환한 결과가 sptr2에 반영된다.
+        // 
+        // 만약 다음과 같이 RVO가 적용되지 않는 코드를 작성한다면 이동 대입 연산자가 호출된다.
+        // 
+        // shared_ptr<TestObjectEx> sptr2;
+        // sptr2 = dynamic_pointer_cast<TestObjectEx>(sptr1);
+        // 
+        // shared_ptr& operator=(shared_ptr&& _Right) noexcept { // take resource from _Right
+        //     shared_ptr(_STD move(_Right)).swap(*this);
+        //     return *this;
+        // }
+        // 
+        // --------------------------------------------------
+        // 
+        // 3. shared_ptr<FooObject> sptr3 = dynamic_pointer_cast<FooObject>(sptr1);
+        // 
+        // 위 과정은 1번, 2번과 유사하다.
+        // 다만 유효하지 않은 상속 관계이기 때문에 빈 스마트 포인터가 반환된다.
+        // 
+    }
+
+    // static_pointer_cast<T1, T2>(), dynamic_pointer_cast<T1, T2>() 외에
+    // const_pointer_cast<T1, T2>()와 reinterpret_pointer_cast<T1, T2>()도 존재한다.
+    // 
+    // C++에서 지원하는 기본적인 캐스팅 관련 연산은 스마트 포인터에도 비슷하게 정의되어 있다.
 
     cout << "------------------------------------------------------\n\n";
 

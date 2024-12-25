@@ -1,4 +1,4 @@
-// Update Date : 2024-12-24
+// Update Date : 2024-12-25
 // OS : Windows 10 64bit
 // Program : Visual Studio 2022
 // Version : C++20
@@ -77,6 +77,12 @@ public:
         cout << std::dec;
     }
 
+public:
+    virtual void Print() const
+    {
+        cout << "TestObject::Print()\n\n";
+    }
+
 private:
     int _valA = 0;
 };
@@ -101,8 +107,40 @@ public:
         cout << std::dec;
     }
 
+public:
+    void Print() const override
+    {
+        cout << "TestObjectEx::Print()\n\n";
+    }
+
 private:
     double _valB = 0.0;
+};
+
+class FooObject
+{
+public:
+    FooObject()
+    {
+        cout << "FooObject()\n";
+
+        cout << std::hex << "\tPtr : 0x" << this << "\n\n";
+        cout << std::dec;
+    }
+
+    ~FooObject()
+    {
+        cout << "~FooObject()\n";
+
+        cout << std::hex << "\tPtr : 0x" << this << "\n\n";
+        cout << std::dec;
+    }
+
+public:
+    void Print() const
+    {
+        cout << "FooObject::Print()\n\n";
+    }
 };
 
 /********************
@@ -378,7 +416,7 @@ int main()
 
     cout << "-------------------------#04#-------------------------\n\n";
 
-    // 업캐스팅하여 스마트 포인터를 사용할 경우 어떤 소멸자가 호출되는지 관찰하기 위한 코드
+    // 업 캐스팅하여 스마트 포인터를 사용할 경우 어떤 소멸자가 호출되는지 관찰하기 위한 코드
     {
         shared_ptr<TestObject> obj;
 
@@ -389,14 +427,95 @@ int main()
             // 인자로 넘긴 objEx의 관리 객체의 주소를 캐스팅하여 shared_ptr<TestObject>를 생성하고
             // 이를 obj에 반영하기 위한 이동 대입 연산자가 호출됨.
             obj = static_pointer_cast<TestObject>(objEx);
+            
+            // 부모로 업 캐스팅하는 것이기에 다음 코드도 가능함.
+            // obj = objEx;
         }
 
         cout << "after static_pointer_cast...\n\n";
+
+        obj->Print();
 
         cout << "## End Of Block ##\n\n";
     }
 
     g_IdCounter = 0;
+    
+    cout << "-------------------------#05#-------------------------\n\n";
+
+    // static_pointer_cast<T1, T2>()를 이용한 다운 캐스팅
+    {
+        // 업 캐스팅으로 받는다.
+        shared_ptr<TestObject> sptr1 = MyMakeSharedWithAllocator<TestObjectEx>(123, 3.14);
+
+        sptr1->Print();
+
+        // TEST
+        // sptr1 = nullptr;
+
+        // static_pointer_cast<T1, T2>()를 활용한 다운 캐스팅 진행
+        shared_ptr<TestObjectEx> sptr2 = static_pointer_cast<TestObjectEx>(sptr1);
+
+        cout << "after static_pointer_cast...\n\n";
+
+        // sptr1이 빈 스마트 포인터였다면 sptr2도 빈 스마트 포인터가 된다.
+        if (nullptr != sptr2)
+        {
+            sptr2->Print();
+        }
+        else
+        {
+            cout << "sptr2 is empty...\n\n";
+        }
+
+        // 캐스팅을 진행하지 않고 생성자나 대입 연산자로 다운 캐스팅을 하는 것은 불가능하다.
+        // shared_ptr<TestObjectEx> sptr3 = sptr1;
+
+        // 다음 코드는 컴파일 단계에서 에러가 발생한다.
+        // shared_ptr<FooObject> sptr4 = static_pointer_cast<FooObject>(sptr1);
+
+        cout << "## End Of Block ##\n\n";
+    }
+
+    cout << "-------------------------#06#-------------------------\n\n";
+
+    // dynamic_pointer_cast<T1, T2>()를 이용한 다운 캐스팅
+    {
+        // 업 캐스팅으로 받는다.
+        shared_ptr<TestObject> sptr1 = MyMakeSharedWithAllocator<TestObjectEx>(123, 3.14);
+
+        sptr1->Print();
+
+        // TEST
+        // sptr1 = nullptr;
+        
+        // dynamic_pointer_cast<T1, T2>()를 활용한 다운 캐스팅 진행
+        shared_ptr<TestObjectEx> sptr2 = dynamic_pointer_cast<TestObjectEx>(sptr1);
+
+        // sptr1이 빈 스마트 포인터였다면 sptr2도 빈 스마트 포인터가 된다.
+        if (nullptr != sptr2)
+        {
+            sptr2->Print();
+        }
+        else
+        {
+            cout << "sptr2 is empty...\n\n";
+        }
+
+        // 정의되지 않은 상속 관계로 캐스팅을 시도
+        shared_ptr<FooObject> sptr3 = dynamic_pointer_cast<FooObject>(sptr1);
+        
+        if (nullptr != sptr3)
+        {
+            sptr3->Print();
+        }
+        else
+        {
+            cout << "sptr3 is empty...\n\n";
+        }
+
+        cout << "## End Of Block ##\n\n";
+    }
 
     cout << "--------------------------------------------------\n";
 
