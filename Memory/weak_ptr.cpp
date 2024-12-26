@@ -1,4 +1,4 @@
-// Update Date : 2024-12-24
+// Update Date : 2024-12-26
 // OS : Windows 10 64bit
 // Program : Visual Studio 2022
 // Version : C++20
@@ -22,10 +22,11 @@
 // # shared_ptr의 관리 객체에서 자신을 반환할 때 필요한 내용
 // 7. enable_shared_from_this.cpp
 // 8. enable_shared_from_this_details.cpp
+// 9. enable_shared_from_this_examples.cpp
 //
 // # shared_ptr을 멀티스레딩 환경에서 사용할 때 발생할 수 있는 문제점을 기술한 내용
-// 9. allocation_aligned_byte_boundaries.cpp(사전지식)
-// 10. (중요) smart_pointer_multi_threading_issues.cpp
+// 10. allocation_aligned_byte_boundaries.cpp(사전지식)
+// 11. (중요) smart_pointer_multi_threading_issues.cpp
 
 // https://en.cppreference.com/w/cpp/memory/weak_ptr
 // https://learn.microsoft.com/ko-kr/cpp/standard-library/weak-ptr-class?view=msvc-170

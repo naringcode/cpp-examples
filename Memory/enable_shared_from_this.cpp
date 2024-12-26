@@ -21,7 +21,7 @@ using namespace std;
 // 5. weak_ptr.cpp
 // 6. weak_ptr_details.cpp
 //
-// # shared_ptr의 관리 객체에서 자기 자신을 반환할 때 필요한 내용
+// # shared_ptr의 관리 객체에서 자신을 반환할 때 필요한 내용
 // 7. enable_shared_from_this.cpp <-----
 // 8. enable_shared_from_this_details.cpp
 // 9. enable_shared_from_this_examples.cpp
@@ -39,7 +39,7 @@ public:
 public:
     shared_ptr<FooObjectA> GetSharedPtr()
     {
-        // shared_ptr 자신을 클래스 내부에서 this 형식으로 어딘가에 반환해야 하는 상황이 발생한다면,
+        // shared_ptr가 적용된 관리 객체가 클래스 내부에서 자기 자신을 this 형식으로 어딘가에 반환해야 하는 상황이 발생한다면,
         // enable_shared_from_this<T>를 상속하고, shared_from_this()를 쓰는 방식을 택해야 한다.
         // !! 베이스 클래스가 있는 경우 다중 상속을 사용해야 함. !!
         return this->shared_from_this();
@@ -47,7 +47,7 @@ public:
         // 이런 식으로 쓰면 안 된다.
         // return shared_ptr<FooObjectA>(this);
 
-        // shared_ptr로 관리되고 있는 객체라면 this를 넘기는 방식으로 또 다른 shared_ptr을 생성해선 안 된다.
+        // shared_ptr로 관리되고 있는 객체일 경우 this를 가지고 또 다른 shared_ptr를 생성해선 안 된다.
         // shared_ptr<T>(this); // 잘못된 코드
         //
         // 이건 새로운 shared_ptr을 생성하는 것이기 때문에 자칫 잘못하면 동일 포인터를 대상으로 하는 여러 개의 shared_ptr이 생길 수 있다.
@@ -55,17 +55,16 @@ public:
         // 2. 여러 개의 새로운 shared_ptr이 생성됨(동일 관리 객체, 다른 컨트롤 블록).
         // 3. shared_ptr<T>(this)를 한 횟수만큼 관리 객체의 소멸 과정이 추가적으로 유도됨.
         // 
-        // (주의) 새로운 shared_ptr을 생성하게 되면 동일 관리 객체를 대상으로 다른 컨트롤 블록이 생성된다.
+        // (주의) this 기반으로 새로운 shared_ptr를 생성하게 되면 동일 관리 객체를 대상으로 다른 컨트롤 블록이 생성된다.
         // 
         // enable_shared_from_this<T>를 적용하고 shared_from_this()를 쓰면
-        // 본래 shared_ptr의 관리 객체와 컨트롤 블록을 연계한 shared_ptr이 생성된다.
-
-        // 보통 멀티스레딩 로직을 구성할 때 
+        // 본래 shared_ptr의 관리 객체와 컨트롤 블록을 연계한 shared_ptr가 생성된다.
     }
 
     weak_ptr<FooObjectA> GetWeakPtr()
     {
-        // weak_ptr도 this를 넘기는 형식으로 넘겨야 하는 상황이 발생하면 weak_from_this()로 반환해야 한다.
+        // weak_ptr도 마찬가지로 관리 객체 차원에서 this로 구성하여 넘겨야 하는 상황이 발생하면
+        // this로 weak_ptr를 구성하는 것이 아닌 weak_from_this()로 반환해야 한다.
         // weak_ptr의 경우에는 weak_ptr<T>(this)를 받는 생성자 자체가 없다.
         return this->weak_from_this();
     }
