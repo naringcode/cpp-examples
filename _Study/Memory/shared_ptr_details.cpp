@@ -1,4 +1,4 @@
-// Update Date : 2024-12-25
+// Update Date : 2024-12-26
 // OS : Windows 10 64bit
 // Program : Visual Studio 2022
 // Version : C++20
@@ -812,6 +812,28 @@ int main()
     // Visual Studio의 Inspector에서 _Ref_count_base를 조회하면 [control block]이라고 되어 있다.
     // 클래스 이름은 레퍼런스 카운팅을 할 것처럼 생겼지만 조회해서 보면 컨트롤 블록인 것이다.
     // !! _Ref_count_base의 파생 클래스 유형을 보면 단순 레퍼런스 카운팅만 하는 것이 아닌 Deleter와 Allocator를 받는 유형도 있으니 컨트롤 블록이 더 적합한 명칭이긴 함. !!
+    //
+    // --------------------------------------------------
+    // 
+    // (주의) _Uses와 _Weaks의 레퍼런스 카운팅 자체는 원자적으로 진행되지만 스마트 포인터의 생성 및 갱신은 스레드 안전하지 않다.
+    //
+    // (Return) ConstructorOrAssignment(SmartPointer& _Other)
+    // {
+    //     // 원자적으로 레퍼런스 카운팅이 이루어진다고 해도
+    //     _Other._Incref();
+    // 
+    //     // 생성 및 갱신 자체는 스레드 안전하지 않음. 
+    //     _Ptr = _Other._Ptr;
+    //     // <----- 여기서 _Other의 _Ptr과 _Rep가 갱신되었으면?
+    //     _Rep = _Other._Rep;
+    // }
+    //
+    // 스마트 포인터의 생성 및 갱신 과정에서 스레드 경합이 일어난다면 문제가 발생할 수 있다.
+    // 이에 대한 자세한 내용은 smart_pointer_multi_threading_issues.cpp를 보도록 한다.
+    //
+    // _Uses와 _Weaks가 0으로 떨어지는 시점은 단 한 순간이기 때문에 이 부분은 스레드 안전하다고 봐도 된다.
+    // 스레드 안전하지 않은 건 레퍼런스 카운팅 쪽이 아니라 _Ptr과 _Rep의 갱신이 원자적으로 이루어지지 않는 부분에서 온다.
+    //
 
     cout << "-------------------------#01#-------------------------\n\n";
 
