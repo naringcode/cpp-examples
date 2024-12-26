@@ -123,7 +123,7 @@ int main()
     *      Copy Operation : shared_ptr -> weak_ptr      *
     ****************************************************/
 
-    // shared_ptr을 weak_ptr에 복사
+    // shared_ptr를 weak_ptr에 복사
     {
         shared_ptr<TestObject> sptr = make_shared<TestObject>(100);
         
@@ -302,7 +302,7 @@ int main()
     *      Move Operation : shared_ptr -> weak_ptr      *
     ****************************************************/
 
-    // shared_ptr을 weak_ptr에 이동
+    // shared_ptr를 weak_ptr에 이동
     {
         shared_ptr<TestObject> sptr1 = make_shared<TestObject>(200);
         shared_ptr<TestObject> sptr2 = make_shared<TestObject>(300);
@@ -362,6 +362,107 @@ int main()
     }
 
     cout << "-------------------------#03#-------------------------\n\n";
+
+    /***********************************************************
+    *      Copy & Move Operation : weak_ptr -> shared_ptr      *
+    ***********************************************************/
+
+    // weak_ptr를 shared_ptr에 복사 혹은 이동
+    {
+        shared_ptr<TestObject> sptr1 = make_shared<TestObject>(100);
+        weak_ptr<TestObject>   wptr1 = sptr1; // wptr1{ sptr1 };
+
+        // A(복사 기반 변환 생성자)
+        shared_ptr<TestObject> sptr2{ wptr1 };
+
+        // B(이동 기반 변환 생성자가 아닌 "복사 기반 변환 생성자"가 호출됨)
+        shared_ptr<TestObject> sptr3{ std::move(wptr1) };
+
+        cout << "# Separator #\n\n";
+
+        // 모든 과정이 복사 기반으로 이루어졌기 때문에 모든 use_count()는 3을 반환해야 한다.
+        cout << "sptr1.use_count() : " << sptr1.use_count() << "\n\n";
+        cout << "sptr2.use_count() : " << sptr2.use_count() << "\n\n";
+        cout << "sptr3.use_count() : " << sptr3.use_count() << "\n\n";
+
+        // --------------------------------------------------
+        // 
+        // ***** A 부분 *****
+        // 
+        // --------------------------------------------------
+        // 
+        // 1. shared_ptr<TestObject> sptr2{ wptr1 };
+        // 
+        // 위 코드를 거치며 "복사 기반 변환 생성자" 호출
+        // 
+        // template <class _Ty2, enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0>
+        // explicit shared_ptr(const weak_ptr<_Ty2>& _Other) // construct shared_ptr object that owns resource *_Other
+        // {
+        //     if (!this->_Construct_from_weak(_Other))
+        //     {
+        //         // weak_ptr을 shared_ptr로 변환할 수 없는 상태라면 예외를 던짐.
+        //         _Throw_bad_weak_ptr();
+        //     }
+        // }
+        // 
+        // [[noreturn]] inline void _Throw_bad_weak_ptr() {
+        //     _THROW(bad_weak_ptr{});
+        // }
+        // 
+        // 생성자가 explicit으로 되어 있기에 암시적 형변환을 허용하지 않는다(명시적으로 생성자의 인자를 넘겨야 함).
+        // 
+        // --------------------------------------------------
+        // 
+        // 2. _Construct_from_weak() 호출
+        // 
+        // template <class _Ty2>
+        // bool _Ptr_base<T>::_Construct_from_weak(const weak_ptr<_Ty2>& _Other) noexcept
+        // {
+        //     // implement shared_ptr's ctor from weak_ptr, and weak_ptr::lock()
+        //     // _Incref_nz()는 원자성을 보장하는 함수임.
+        //     if (_Other._Rep && _Other._Rep->_Incref_nz())
+        //     {
+        //         _Ptr = _Other._Ptr;
+        //         _Rep = _Other._Rep;
+        // 
+        //         return true;
+        //     }
+        // 
+        //     // _Incref_nz()가 false를 반환했으면 _Ptr과 _Rep를 갱신하지 않음.
+        //     // 대상이 빈 스마트 포인터이기 때문에 이 경우 _Ptr과 _Rep에는 nullptr로 되어 있어야 함.
+        //     return false;
+        // }
+        // 
+        // _Incref_nz()에 대한 설명은 "weak_ptr<T>::lock()" 쪽에 있다.
+        //
+        // --------------------------------------------------
+        // 
+        // ***** B 부분 *****
+        // 
+        // --------------------------------------------------
+        // 
+        // 3. shared_ptr<TestObject> sptr3{ std::move(wptr1) };
+        // 
+        // 위 코드를 거치며 "복사 기반 변환 대입 연산자" 호출
+        // !! std::move()로 전달했지만 이동 기반의 무언가가 호출되는 것이 아니니까 주의해야 함. !!
+        // 
+        // template <class _Ty2, enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0>
+        // explicit shared_ptr(const weak_ptr<_Ty2>& _Other) // construct shared_ptr object that owns resource *_Other
+        // {
+        //     if (!this->_Construct_from_weak(_Other))
+        //     {
+        //         // weak_ptr을 shared_ptr로 변환할 수 없는 상태라면 예외를 던짐.
+        //         _Throw_bad_weak_ptr();
+        //     }
+        // }
+        // 
+        // 진행 과정은 A 부분과 동일하다.
+        // 
+
+        cout << "## End Of Block ##\n\n";
+    }
+
+    cout << "-------------------------#04#-------------------------\n\n";
 
     /*********************************************************
     *      Copy & Move Operation : weak_ptr -> weak_ptr      *
@@ -596,7 +697,7 @@ int main()
         cout << "## End Of Block ##\n\n";
     }
 
-    cout << "-------------------------#04#-------------------------\n\n";
+    cout << "-------------------------#05#-------------------------\n\n";
 
     /***********************************
     *      weak_ptr<T>::expired()      *
@@ -657,7 +758,7 @@ int main()
         // 
     }
 
-    cout << "-------------------------#05#-------------------------\n\n";
+    cout << "-------------------------#06#-------------------------\n\n";
 
     /********************************
     *      weak_ptr<T>::lock()      *
@@ -824,7 +925,7 @@ int main()
         //
     }
 
-    cout << "-------------------------#06#-------------------------\n\n";
+    cout << "-------------------------#07#-------------------------\n\n";
 
     /**********************************************************
     *      weak_ptr<T>::expired() -> weak_ptr<T>::lock()      *
@@ -903,7 +1004,7 @@ int main()
         // 
     }
 
-    cout << "-------------------------#07#-------------------------\n\n";
+    cout << "-------------------------#08#-------------------------\n\n";
 
     /**************************************
     *      Up Casting & Down Casting      *
