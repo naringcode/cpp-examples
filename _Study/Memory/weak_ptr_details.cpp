@@ -1,4 +1,4 @@
-// Update Date : 2024-12-26
+// Update Date : 2024-12-27
 // OS : Windows 10 64bit
 // Program : Visual Studio 2022
 // Version : C++20
@@ -6,7 +6,6 @@
 
 #include <iostream>
 #include <memory>
-#include <thread>
 
 using namespace std;
 
@@ -20,1158 +19,614 @@ using namespace std;
 // 
 // # weak_ptr의 유효성 검증 로직에 대한 내용
 // 5. weak_ptr.cpp
-// 6. weak_ptr_details.cpp <-----
+// 6. weak_ptr_details.cpp
 //
-// # shared_ptr의 관리 객체에서 자기 자신을 반환할 때 필요한 내용
+// # shared_ptr의 관리 객체에서 자신을 반환할 때 필요한 내용
 // 7. enable_shared_from_this.cpp
-// 8. enable_shared_from_this_details.cpp
+// 8. enable_shared_from_this_details.cpp <-----
 // 9. enable_shared_from_this_examples.cpp
 //
 // # shared_ptr을 멀티스레딩 환경에서 사용할 때 발생할 수 있는 문제점을 기술한 내용
 // 10. allocation_aligned_byte_boundaries.cpp(사전지식)
 // 11. (중요) smart_pointer_multi_threading_issues.cpp
 
-// 용어 정리
-// 
-// 관리 객체(Managed Object) : 스마트 포인터를 통해서 사용 및 관리하고자 하는 대상 객체(이것의 메모리를 "관리 객체의 메모리"라고 칭할 것임)
-// 레퍼런스 카운팅 블록 : 참조 카운트를 관리하기 위한 블록
-// 컨트롤 블록(다음 내용을 포함하는 개념)
-// : 레퍼런스 카운팅 관리
-// : 객체의 삭제 방식이나 메모리 관리 방식을 지정하기 위한 Deleter나 Allocator를 가질 수 있음.
-// : 디버깅이나 메모리 관리 및 프로파일링을 위한 메타 데이터를 가질 수 있음.
-// : 컨트롤 블록 안에 관리 객체의 메모리를 할당하여 최적화하는 경우도 있음(둘은 다른 개념).
-//
-// 컨트롤 블록은 레퍼런스 카운팅 블록을 포함하는 상위 개념이지만 찾아보면 두 개념을 동일하게 보는 경우가 많다.
-// 컨트롤 블록 안에 관리 객체의 메모리를 함께 할당하는 경우도 있지만 이건 최적화를 위해서 그렇게 한 것일 뿐, 관리 객체와 컨트롤 블록 두 개념은 별개로 봐야 한다.
-//
-// Deleter(삭제자) : 관리 객체의 수명이 다했을 때 이를 해제할 방식이 기술되어 있는 Callable
-// Allocator(할당자) : 컨트롤 블록을 할당하고 해제하기 위해 사용할 클래스
-//
-// Deleter는 관리 객체와 연관되어 있고, Allocator는 컨트롤 블록과 연관되어 있다.
-// 할당자의 deallocate()와 Deleter는 개념상 서로 연관성이 없지만 인터페이스만 보고 기능을 유추하려 하면 혼란스러울 수 있다.
-// !! 할당자의 deallocate()와 Deleter는 서로 연관성이 없으며 아예 독립된 별개의 기능을 수행한다. !!
-
-/***************************
-*      Object Classes      *
-***************************/
-
-class TestObject
+class FooObjectA : public enable_shared_from_this<FooObjectA>
 {
 public:
-    TestObject(int valA) : _valA{ valA }
-    {
-        cout << "TestObject()\n";
+    FooObjectA()  { cout << "FooObjectA()\n"; }
+    ~FooObjectA() { cout << "~FooObjectA()\n"; }
 
-        cout << std::hex << "\tPtr : 0x" << this << "\n\n";
-        cout << std::dec;
+public:
+    shared_ptr<FooObjectA> GetSharedPtr()
+    {
+        // shared_ptr가 적용된 관리 객체가 클래스 내부에서 자기 자신을 this 형식으로 어딘가에 반환해야 하는 상황이 발생한다면,
+        // enable_shared_from_this<T>를 상속하고, shared_from_this()를 쓰는 방식을 택해야 한다.
+        // !! 베이스 클래스가 있는 경우 다중 상속을 사용해야 함. !!
+        return this->shared_from_this();
+
+        // 이런 식으로 쓰면 안 된다.
+        // return shared_ptr<FooObjectA>(this);
+
+        // shared_ptr로 관리되고 있는 객체일 경우 this를 가지고 또 다른 shared_ptr를 생성해선 안 된다.
+        // shared_ptr<T>(this); // 잘못된 코드
+        //
+        // 이건 새로운 shared_ptr을 생성하는 것이기 때문에 자칫 잘못하면 동일 포인터를 대상으로 하는 여러 개의 shared_ptr이 생길 수 있다.
+        // 1. 본래의 shared_ptr이 있는데 이걸 shared_ptr<T>(this)로 새로운 스마트 포인터 생성함.
+        // 2. 여러 개의 새로운 shared_ptr이 생성됨(동일 관리 객체, 다른 컨트롤 블록).
+        // 3. shared_ptr<T>(this)를 한 횟수만큼 관리 객체의 소멸 과정이 추가적으로 유도됨.
+        // 
+        // (주의) this 기반으로 새로운 shared_ptr를 생성하게 되면 동일 관리 객체를 대상으로 다른 컨트롤 블록이 생성된다.
+        // 
+        // enable_shared_from_this<T>를 적용하고 shared_from_this()를 쓰면
+        // 본래 shared_ptr의 관리 객체와 컨트롤 블록을 연계한 shared_ptr가 생성된다.
     }
 
-    /* virtual */ ~TestObject()
+    weak_ptr<FooObjectA> GetWeakPtr()
     {
-        cout << "~TestObject()\n";
-
-        cout << std::hex << "\tPtr : 0x" << this << "\n\n";
-        cout << std::dec;
+        // weak_ptr도 마찬가지로 관리 객체 차원에서 this로 구성하여 넘겨야 하는 상황이 발생하면
+        // this로 weak_ptr를 구성하는 것이 아닌 weak_from_this()로 반환해야 한다.
+        // weak_ptr의 경우에는 weak_ptr<T>(this)를 받는 생성자 자체가 없다.
+        return this->weak_from_this();
     }
 
-private:
-    int _valA = 0;
+public:
+    int val = 0x1234;
 };
 
-class TestObjectEx : public TestObject
+class FooObjectB // : public enable_shared_from_this<FooObjectB>
 {
 public:
-    TestObjectEx(int valA, double valB)
-        : TestObject{ valA }, _valB{ valB }
-    {
-        cout << "TestObjectEx()\n";
+    FooObjectB() { cout << "FooObjectB()\n"; }
+    ~FooObjectB() { cout << "~FooObjectB()\n"; }
 
-        cout << std::hex << "\tPtr : 0x" << this << "\n\n";
-        cout << std::dec;
-    }
+public:
+    // shared_ptr<FooObjectB> GetSharedPtr()
+    // {
+    //     return this->shared_from_this();
+    // }
 
-    /* virtual */ ~TestObjectEx()
-    {
-        cout << "~TestObjectEx()\n";
+    // weak_ptr<FooObjectB> GetWeakPtr()
+    // {
+    //     return this->weak_from_this();
+    // }
 
-        cout << std::hex << "\tPtr : 0x" << this << "\n\n";
-        cout << std::dec;
-    }
-
-private:
-    double _valB = 0.0;
+public:
+    int val = 0x5678;
 };
-
-/*****************
-*      Main      *
-*****************/
 
 int main()
 {
-    // weak_ptr는 shared_ptr의 참조 카운팅에 영향을 받지 않는 스마트 포인터이다.
-    // 내부에서 컨트롤 블록의 약한 참조(weak refs | _Weaks)를 통해서 관리된다.
+    // !! 중단점을 걸고 레퍼런스 카운팅을 확인 및 분석을 진행할 것. !!
+
+    // auto typeStr      = typeid(_Can_enable_shared<FooObjectA>::type).name();
+    // auto valueStr     = typeid(_Can_enable_shared<FooObjectA>::value).name();
+    // auto valueTypeStr = typeid(_Can_enable_shared<FooObjectA>::value_type).name();
+
+    // enable_shared_from_this<T>를 사용
+    shared_ptr<FooObjectA> fooASharedPtr = make_shared<FooObjectA>();
+
+    shared_ptr<FooObjectA> fooASharedFromThisPtr = fooASharedPtr->GetSharedPtr();
+    weak_ptr<FooObjectA>   fooAWeakFromThis      = fooASharedPtr->GetWeakPtr();
+    
+    // --------------------------------------------------
+    
+    // enable_shared_from_this<T>를 미사용
+    shared_ptr<FooObjectB> fooBSharedPtr = make_shared<FooObjectB>();
+    
+    shared_ptr<FooObjectB> fooBSharedPtrPlain = fooBSharedPtr;
+    weak_ptr<FooObjectB>   fooBWeakPtrPlain   = fooBSharedPtr;
+
+    // --------------------------------------------------
+
+    // !! Visual Studio 2022 기준 !!
+
+    // 스마트 포인터(shared_ptr, weak_ptr)는 _Ptr_base를 상속받는 형태로 구현되어 있으며 _Ptr_base는 다음 두 변수를 가진다.
+    // - element_type*    _Ptr{ nullptr }; // 관리 객체의 포인터
+    // - _Ref_count_base* _Rep{ nullptr }; // 컨트롤 블록의 포인터
     // 
-    // weak_ptr은 강한 참조를 사용하지 않기 때문에 shared_ptr 간 참조에서 발생하는 순환 참조 문제를 해결할 때 유용하다.
-    // 관리 객체의 파괴 여부를 조회할 때도 사용할 수 있긴 하지만 이게 컨트롤 블록의 해제 여부를 나타내는 것은 아니니 주의해야 한다.
+    // _Ref_count_base는 컨트롤 블록의 최상위 부모 클래스이며 레퍼런스 카운팅을 진행하기 위한 변수가 존재한다.
+    // - _Atomic_counter_t _Uses  = 1; // 강한 참조(주로 shared_ptr에서 사용)
+    // - _Atomic_counter_t _Weaks = 1; // 약한 참조(주로 weak_ptr에서 사용)
     // 
-    // 이러한 상황이 메모리 누수인 것은 아니지만 관리 객체의 소멸자가 호출되었는데
-    // 컨트롤 블록을 해제하지 않은 weak_ptr이 다수 존재한다면 메모리가 누수된 것처럼 동작할 수 있다.
-    // 따라서 적절하게 weak_ptr을 nullptr(빈 스마트 포인터)로 밀거나 reset()을 호출하여 컨트롤 블록이 해제될 수 있게 유도하는 과정이 필요하다.
+    // --------------------------------------------------
+    // 
+    // enable_shared_from_this<T>는 스마트 포인터가 아니다.
+    // 해당 클래스는 스마트 포인터의 기능을 개방하여 자기참조 문제를 해결하기 위한 인터페이스에 가깝다.
+    // 
+    // _EXPORT_STD template <class _Ty>
+    // class enable_shared_from_this // provide member functions that create shared_ptr to this
+    // {
+    //     ...
+    //     mutable weak_ptr<_Ty> _Wptr;
+    // };
+    // 
+    // 클래스 내부를 보면 "weak_ptr<_Ty> _Wptr"을 들고 있는 게 전부이다.
+    //
 
-    cout << "-------------------------#01#-------------------------\n\n";
+    // shared_ptr을 최초로 생성하는 코드를 보면 _Set_ptr_rep_and_enable_shared()를 거치게 되어 있다.
+    // 
+    // --------------------------------------------------
+    // 
+    // A) make_shared<T>()의 경우
+    // 
+    // _NODISCARD_SMART_PTR_ALLOC shared_ptr<_Ty> make_shared(_Types&&... _Args) // make a shared_ptr to non-array object
+    // {
+    //     const auto _Rx = new _Ref_count_obj2<_Ty>(_STD forward<_Types>(_Args)...);
+    //     shared_ptr<_Ty> _Ret;
+    //     _Ret._Set_ptr_rep_and_enable_shared(_STD addressof(_Rx->_Storage._Value), _Rx); // <-----
+    //     return _Ret;
+    // }
+    // 
+    // --------------------------------------------------
+    // 
+    // B) Ptr를 받는 생성자의 경우
+    // 
+    // template <class _Ux,
+    //     enable_if_t<
+    //         conjunction_v<
+    //             conditional_t<is_array_v<_Ty>, _Can_array_delete<_Ux>, _Can_scalar_delete<_Ux>>,
+    //             _SP_convertible<_Ux, _Ty>
+    //         >,
+    //         int
+    //     > = 0>
+    // explicit shared_ptr(_Ux* _Px) // construct shared_ptr object that owns _Px
+    // {
+    //     if constexpr (is_array_v<_Ty>)
+    //     {
+    //         _Setpd(_Px, default_delete<_Ux[]>{});
+    //     }
+    //     else
+    //     {
+    //         _Temporary_owner<_Ux> _Owner(_Px);
+    //         _Set_ptr_rep_and_enable_shared(_Owner._Ptr, new _Ref_count<_Ux>(_Owner._Ptr)); // <-----
+    //         _Owner._Ptr = nullptr;
+    //     }
+    // }
+    // 
+    // --------------------------------------------------
+    // 
+    // C) Ptr와 Deleter 받는 생성자의 경우
+    // 
+    // template <class _Ux, class _Dx,
+    //     enable_if_t<
+    //         conjunction_v<
+    //             is_move_constructible<_Dx>, _Can_call_function_object<_Dx&, _Ux*&>,
+    //             _SP_convertible<_Ux, _Ty>
+    //         >,
+    //         int> = 0>
+    // shared_ptr(_Ux* _Px, _Dx _Dt) // construct with _Px, deleter
+    // {
+    //     _Setpd(_Px, _STD move(_Dt));
+    // }
+    // 
+    // template <class _UxptrOrNullptr, class _Dx>
+    // void shared_ptr<T>::_Setpd(const _UxptrOrNullptr _Px, _Dx _Dt) // take ownership of _Px, deleter _Dt
+    // {
+    //     _Temporary_owner_del<_UxptrOrNullptr, _Dx> _Owner(_Px, _Dt);
+    // 
+    //     _Set_ptr_rep_and_enable_shared( // <-----
+    //         _Owner._Ptr, 
+    //         new _Ref_count_resource<_UxptrOrNullptr, _Dx>(_Owner._Ptr, _STD move(_Dt)));
+    // 
+    //     _Owner._Call_deleter = false;
+    // }
+    // 
+    // --------------------------------------------------
+    // 
+    // D) Allocator를 받는 생성자의 경우
+    // 
+    // template <class _Ty, class _Alloc, class... _Types>
+    // enable_if_t<!is_array_v<_Ty>, shared_ptr<_Ty>> allocate_shared(const _Alloc& _Al, _Types&&... _Args) // make a shared_ptr to non-array object
+    // {
+    //     // Note: As of 2019-05-28, this implements the proposed resolution of LWG-3210 (which controls whether
+    //     // allocator::construct sees T or const T when _Ty is const qualified)
+    //     using _Refoa   = _Ref_count_obj_alloc3<remove_cv_t<_Ty>, _Alloc>;
+    //     using _Alblock = _Rebind_alloc_t<_Alloc, _Refoa>;
+    //     
+    //     _Alblock _Rebound(_Al);
+    //     _Alloc_construct_ptr<_Alblock> _Constructor{_Rebound};
+    //     
+    //     _Constructor._Allocate();
+    //     _Construct_in_place(*_Constructor._Ptr, _Al, _STD forward<_Types>(_Args)...);
+    //     
+    //     shared_ptr<_Ty> _Ret;
+    //     const auto _Ptr = reinterpret_cast<_Ty*>(_STD addressof(_Constructor._Ptr->_Storage._Value));
+    //     _Ret._Set_ptr_rep_and_enable_shared(_Ptr, _Unfancy(_Constructor._Release())); // <-----
+    //     
+    //     return _Ret;
+    // }
+    // 
+    // --------------------------------------------------
+    // 
+    // E) Ptr, Deleter, Allocator를 받는 생성자의 경우
+    // 
+    // template <class _Ux, class _Dx, class _Alloc,
+    //     enable_if_t<
+    //         conjunction_v<is_move_constructible<_Dx>, _Can_call_function_object<_Dx&, _Ux*&>,
+    //         _SP_convertible<_Ux, _Ty>>,
+    //     int> = 0>
+    // shared_ptr(_Ux* _Px, _Dx _Dt, _Alloc _Ax) // construct with _Px, deleter, allocator
+    // {
+    //     _Setpda(_Px, _STD move(_Dt), _Ax);
+    // }
+    // 
+    // template <class _UxptrOrNullptr, class _Dx, class _Alloc>
+    // void shared_ptr<T>::_Setpda(const _UxptrOrNullptr _Px, _Dx _Dt, _Alloc _Ax) // take ownership of _Px, deleter _Dt, allocator _Ax
+    // {
+    //     using _Alref_alloc = _Rebind_alloc_t<_Alloc, _Ref_count_resource_alloc<_UxptrOrNullptr, _Dx, _Alloc>>;
+    // 
+    //     _Temporary_owner_del<_UxptrOrNullptr, _Dx> _Owner(_Px, _Dt);
+    // 
+    //     _Alref_alloc _Alref(_Ax);
+    //     _Alloc_construct_ptr<_Alref_alloc> _Constructor(_Alref);
+    // 
+    //     _Constructor._Allocate();
+    //     _Construct_in_place(*_Constructor._Ptr, _Owner._Ptr, _STD move(_Dt), _Ax);
+    // 
+    //     _Set_ptr_rep_and_enable_shared(_Owner._Ptr, _Unfancy(_Constructor._Ptr)); // <-----
+    // 
+    //     _Constructor._Ptr    = nullptr;
+    //     _Owner._Call_deleter = false;
+    // }
+    // 
+    // --------------------------------------------------
+    // 
+    // * _Set_ptr_rep_and_enable_shared()는 다음과 같이 구성되어 있다.
+    // 
+    // template <class _Ux>
+    // void shared_ptr<_Ty>::_Set_ptr_rep_and_enable_shared(_Ux* const _Px, _Ref_count_base* const _Rx) noexcept // take ownership of _Px
+    // {
+    //     this->_Ptr = _Px; // 관리 객체
+    //     this->_Rep = _Rx; // 컨트롤 블록
+    // 
+    //     // enable_shared_from_this<T>를 상속받은 상태라면 아래 if 문에 들어가 관리 객체의 _Wptr을 설정할 것임.
+    //     // !! conjunction_v<...>는 템플릿 구조체를 활용하여 구성되며 컴파일 타임에 추론됨. !!
+    //     if constexpr (conjunction_v<negation<is_array<_Ty>>, negation<is_volatile<_Ux>>, _Can_enable_shared<_Ux>>)
+    //     {
+    //         if (_Px && _Px->_Wptr.expired())
+    //         {
+    //             // _Wptr은 enable_shared_from_this<T>의 멤버 변수
+    //             // 관리 객체가 enable_shared_from_this<T>를 상속받은 형태이기 때문에 관리 객체는 _Wptr을 가지고 있음.
+    //             _Px->_Wptr = shared_ptr<remove_cv_t<_Ux>>(*this, const_cast<remove_cv_t<_Ux>*>(_Px));
+    //         }
+    //     }
+    // }
+    // 
+    // (중요) "if constexpr 문"으로 되어 있기 때문에 컴파일 타임에 계산했을 시 조건이 맞다면 코드를 생성하고 아닐 경우 코드를 생성하지 않는다.
+    // 
+    // _Px->_Wptr = shared_ptr<remove_cv_t<_Ux>>(*this, const_cast<remove_cv_t<_Ux>*>(_Px));
+    // 
+    // 위 과정을 거치면 _Weaks의 값이 1 증가하며 _Wptr는 생성된 shared_ptr와 동일한 관리 객체와 컨트롤 블록을 가지게 된다.
+    // 좀 이상하긴 해도 자기 자신의 포인터를 관리 객체로 하여 weak_ptr로 들고 있는 형태가 된다.
+    // !! 생성한 shared_ptr와 이후 설정한 _Wptr은 동일한 관리 객체와 컨트롤 블록을 가짐. !!
+    // 
+    // "if constexpr 문"의 조건으로 들어간 템플릿 요소를 보도록 하자.
+    // - conjunction_v<Traits...> : conjunction<Traits...>::value로 되어 있으며 여러 조건이 true일 경우 true를 반환하는 논리 AND 연산임.
+    // - negation<T> : bool_constant<!bool(T::value)>로 되어 있는 논리 부정 연산임.
+    // - is_array<T> : T가 배열일 경우 true, 아닐 경우 false인 value를 반환하는 템플릿 구조체임.
+    // - is_volatile<T> : T가 volatile 또는 const volatile로 되어 있을 경우 true, 그 외의 경우 false를 반환하는 템플릿 구조체임.
+    // - _Can_enable_shared<T> : T가 enable_shared_from_this<T>를 상속받은 것인지 확인하기 위한 템플릿 구조체임.
+    // 
+    // // 기본 템플릿
+    // template <class _Yty, class = void>
+    // struct _Can_enable_shared : false_type { }; // detect unambiguous and accessible inheritance from enable_shared_from_this
+    // 
+    // // 특수화 템플릿
+    // template <class _Yty>
+    // struct _Can_enable_shared<_Yty, void_t<typename _Yty::_Esft_type>>
+    //     : is_convertible<remove_cv_t<_Yty>*, typename _Yty::_Esft_type*>::type
+    // {
+    //     // is_convertible is necessary to verify unambiguous inheritance
+    // };
+    // 
+    // https://en.cppreference.com/w/cpp/types/remove_cv
+    // remove_cv_t<T>는 const와 volatile를 제거한 타입을 받기 위한 템플릿 구조체이다.
+    // 
+    // enable_shared_from_this<T>를 상속하면 _Esft_type이 내부에 정의된다.
+    // 
+    // _EXPORT_STD template <class _Ty>
+    // class enable_shared_from_this { // provide member functions that create shared_ptr to this
+    // public:
+    //     using _Esft_type = enable_shared_from_this;
+    //     ...
+    // };
+    // 
+    // _Can_enable_shared<T>는 T가 _Esft_type을 가지고 있는지 판단하기 위한 템플릿 구조체이며,
+    // _Esft_type의 존재 여부를 판단했으면 그 다음에는 is_convertible<From, To>를 추론한다.
+    // 
+    // !! is_convertible은 bool_constant를 상속받고, bool_constant는 integral_constant를 상속받음. !!
+    // _EXPORT_STD template <class _From, class _To>
+    // struct is_convertible : bool_constant<__is_convertible_to(_From, _To)> {
+    //     // determine whether _From is convertible to _To
+    // };
+    // 
+    // _EXPORT_STD template <bool _Val>
+    // using bool_constant = integral_constant<bool, _Val>;
+    // 
+    // _EXPORT_STD template <class _Ty, _Ty _Val>
+    // struct integral_constant
+    // {
+    //     static constexpr _Ty value = _Val;
+    // 
+    //     using value_type = _Ty;
+    //     using type       = integral_constant;
+    // 
+    //     constexpr operator value_type() const noexcept {
+    //         return value;
+    //     }
+    // 
+    //     _NODISCARD constexpr value_type operator()() const noexcept {
+    //         return value;
+    //     }
+    // };
+    // 
+    // is_convertible<From, To>이 상속하는 대상은 bool_constant<true>이거나 bool_constant<false>이다.
+    // 따라서 is_convertible<From, To>의 type은 bool_constant<true> 혹은 bool_constant<false>이고,
+    // is_convertible<From, To>의 value는 true나 false가 된다.
+    // 
+    // 그리고 이러한 is_convertible<From, To>를 _Can_enable_shared<T>가 상속하는 형태로 되어 있다.
+    // 
+    // if constexpr (conjunction_v<negation<is_array<_Ty>>, negation<is_volatile<_Ux>>, _Can_enable_shared<_Ux>>)
+    // {
+    //     ...
+    // }
+    //   
+    // 그럼 생각을 정리하고 위 "if constexpr 문"을 다시 보도록 하자.
+    //
+    
+    // template <class _Ux>
+    // void shared_ptr<_Ty>::_Set_ptr_rep_and_enable_shared(_Ux* const _Px, _Ref_count_base* const _Rx) noexcept // take ownership of _Px
+    // {
+    //     this->_Ptr = _Px; // 관리 객체
+    //     this->_Rep = _Rx; // 컨트롤 블록
+    // 
+    //     // enable_shared_from_this<T>를 상속받은 상태라면 아래 if 문에 들어가 관리 객체의 _Wptr을 설정할 것임.
+    //     // !! conjunction_v<...>는 템플릿 구조체를 활용하여 구성되며 컴파일 타임에 추론됨. !!
+    //     if constexpr (conjunction_v<negation<is_array<_Ty>>, negation<is_volatile<_Ux>>, _Can_enable_shared<_Ux>>)
+    //     {
+    //         if (_Px && _Px->_Wptr.expired())
+    //         {
+    //             // _Wptr은 enable_shared_from_this<T>의 멤버 변수
+    //             // 관리 객체가 enable_shared_from_this<T>를 상속받은 형태이기 때문에 관리 객체는 _Wptr을 가지고 있음.
+    //             _Px->_Wptr = shared_ptr<remove_cv_t<_Ux>>(*this, const_cast<remove_cv_t<_Ux>*>(_Px));
+    //         }
+    //     }
+    // }
+    // 
+    // if constexpr가 컴파일 타임에 생성한 코드를 보도록 하자.
+    // 
+    // if (_Px && _Px->_Wptr.expired()) { ... }
+    // 
+    // if 문 내에 있는 코드가 수행되기 위해선 관리 객체가 존재해야 하고 _Wptr이 유효하지 않은(_Uses가 0) 상태여야 한다.
+    // 
+    // _Px->_Wptr = shared_ptr<remove_cv_t<_Ux>>(*this, const_cast<remove_cv_t<_Ux>*>(_Px));
+    // 
+    // 그럼 위 코드가 수행되는 과정을 보도록 하자.
+    // 
+    // --------------------------------------------------
+    // 
+    // 1. shared_ptr<T2>와 관리 객체를 받아 임시 객체를 생성하기 위한 shared_ptr<T1>의 생성자 호출
+    // 
+    // 여기서 T1과 T2는 같은 타입이다.
+    // 
+    // template <class _Ty2>
+    // shared_ptr(const shared_ptr<_Ty2>& _Right, element_type* _Px) noexcept
+    // {
+    //     // construct shared_ptr object that aliases _Right
+    //     this->_Alias_construct_from(_Right, _Px);
+    // }
+    // 
+    // --------------------------------------------------
+    // 
+    // 2._Alias_construct_from() 호출
+    // 
+    // template <class _Ty2>
+    // void _Ptr_base<T1>::_Alias_construct_from(const shared_ptr<_Ty2>& _Other, element_type* _Px) noexcept
+    // {
+    //     // implement shared_ptr's aliasing ctor
+    //     _Other._Incref();
+    // 
+    //     _Ptr = _Px;         // 스마트 포인터로 관리할 관리 객체를 그대로 적용
+    //     _Rep = _Other._Rep; // 스마트 포인터로 관리할 관리 객체를 그대로 적용(*this로 넘긴 대상임)
+    // }
+    // 
+    // --------------------------------------------------
+    // 
+    // 3. _Px->_Wptr에 적용하기 위한 "복사 기반 변환 대입 연산자"를 호출
+    // 
+    // template <class _Ty2, enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0>
+    // weak_ptr& operator=(const shared_ptr<_Ty2>& _Right) noexcept
+    // {
+    //     weak_ptr(_Right).swap(*this);
+    //     return *this;
+    // }
+    // 
+    // !! 임시 객체 weak_ptr(_Right)를 생성하기 위한 변환 생성자 호출 !!
+    // template <class _Ty2, enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0>
+    // weak_ptr(const shared_ptr<_Ty2>& _Other) noexcept
+    // {
+    //     this->_Weakly_construct_from(_Other); // shared_ptr keeps resource alive during conversion
+    // }
+    // 
+    // !! _Weakly_construct_from() 호출 !!
+    // template <class _Ty2>
+    // void _Ptr_base<T1>::_Weakly_construct_from(const _Ptr_base<_Ty2>& _Other) noexcept // implement weak_ptr's ctors
+    // {
+    //     // 1번과 2번 과정에서 생성한 임시 객체 shared_ptr<remove_cv_t<_Ux>>(*this, const_cast<remove_cv_t<_Ux>*>(_Px))를
+    //     // 대입 연산자에 있는 임시 객체 weak_ptr(_Right)에 반영
+    //     if (_Other._Rep)
+    //     {
+    //         _Ptr = _Other._Ptr;
+    //         _Rep = _Other._Rep;
+    //         _Rep->_Incwref();
+    //     }
+    //     else
+    //     {
+    //         _STL_INTERNAL_CHECK(!_Ptr && !_Rep);
+    //     }
+    // }
+    // 
+    // !! 임시 객체 weak_ptr(_Right)를 _Px->_Wptr에 반영하기 위한 swap() 호출 !!
+    // void weak_ptr<T>::swap(weak_ptr& _Other) noexcept
+    // {
+    //     this->_Swap(_Other);
+    // }
+    // 
+    // !! 최종적으로 _Px->_Wptr에 반영 !!
+    // void _Ptr_base<T>::_Swap(_Ptr_base& _Right) noexcept // swap pointers
+    // {
+    //     _STD swap(_Ptr, _Right._Ptr);
+    //     _STD swap(_Rep, _Right._Rep);
+    // }
+    //
 
-    /****************************************************
-    *      Copy Operation : shared_ptr -> weak_ptr      *
-    ****************************************************/
+    // 로직이 다소 혼란스럽기에 복습 차원에서 한 번 더 정리한다.
+    // 
+    // enable_shared_from_this<T>는 스마트 포인터가 아니라 내부에 weak_ptr<T>를 가지는 클래스이다.
+    // enable_shared_from_this<T>는 객체를 확장하는 개념이라기보단 특정 기능을 개방하는 느낌에 가깝다.
+    // 
+    // 일반적으로 객체를 shared_ptr로 생성하면 컨트롤 블록의 레퍼런스 카운팅은 [1 strong refs, 1 weak refs]이지만,
+    // enable_shared_from_this<T>를 적용한 객체는 내부에서 _Wptr을 대상으로 복사하는 과정을 거치기 때문에 해당 카운팅은 [1 strong refs, 2 weak refs]가 된다.
+    // 
+    // 이해가 되지 않는다면 _Set_ptr_rep_and_enable_shared()의 동작 방식을 설명한 코드를 다시 보도록 하자.
+    // 
+    // 소멸자 호출 과정 중 레퍼런스 카운팅이 제대로 수행되어 관리 객체의 소멸 과정 이후 컨트롤 블록의 해제까지 제대로 이루어지는지 확인해야 한다.
+    // 
+    // --------------------------------------------------
+    // 
+    // 1. shared_ptr의 소멸자 호출
+    // 
+    // ~shared_ptr() noexcept // release resource
+    // {
+    //     this->_Decref(); // _Ptr_base에 있는 함수
+    // }
+    // 
+    // --------------------------------------------------
+    // 
+    // 2. _Ptr_base<T>의 _Decref()를 거쳐 컨트롤 블록의 _Decref() 호출
+    // 
+    // void _Ptr_base<T>::_Decref() noexcept // decrement reference count
+    // {
+    //     if (_Rep)
+    //     {
+    //         _Rep->_Decref();
+    //     }
+    // }
+    // 
+    // !! _Uses의 값이 0에 도달하여 _Destroy()와 _Decwref()를 차례대로 호출한다고 가정 !!
+    // void _Ref_count_base::_Decref() noexcept // decrement use count
+    // {
+    //     if (_MT_DECR(_Uses) == 0)
+    //     {
+    //         _Destroy();
+    //         _Decwref();
+    //     }
+    // }
+    // 
+    // --------------------------------------------------
+    // 
+    // 3. 컨트롤 블록의 _Destroy() 호출
+    // 
+    // _Destroy()는 최상위 컨트롤 블록의 순수 가상 함수이기 때문에 이를 상속하여 구현한 쪽에 의존적이다.
+    // 
+    // !! 여기서는 make_shared<T>()의 컨트롤 블록인 _Ref_count_obj2<T>를 기반으로 함. !!
+    // void _Ref_count_obj2<T>::_Destroy() noexcept override // destroy managed resource
+    // {
+    //     _Destroy_in_place(_Storage._Value);
+    // }
+    // 
+    // template <class _Ty>
+    // _CONSTEXPR20 void _Destroy_in_place(_Ty& _Obj) noexcept
+    // {
+    //     if constexpr (is_array_v<_Ty>)
+    //     {
+    //         _Destroy_range(_Obj, _Obj + extent_v<_Ty>);
+    //     }
+    //     else
+    //     {
+    //         // 이쪽 로직이 수행됨.
+    //         _Obj.~_Ty();
+    //     }
+    // }
+    // 
+    // (* 중요 *) _Destroy()를 호출하는 과정에서 관리 객체의 소멸자를 호출하는데 이때 _Wptr의 소멸자가 호출된다.
+    // 
+    // --------------------------------------------------
+    // 
+    // 4. enable_shared_from_this<T>의 멤버 변수 _Wptr의 소멸자 호출
+    // 
+    // ~weak_ptr() noexcept
+    // {
+    //     this->_Decwref();
+    // }
+    // 
+    // void _Ptr_base<T>::_Decwref() noexcept // decrement weak reference count
+    // {
+    //     if (_Rep)
+    //     {
+    //         _Rep->_Decwref();
+    //     }
+    // }
+    // 
+    // void _Ref_count_base::_Decwref() noexcept // decrement weak reference count
+    // {
+    //     // _Weaks의 값이 하나 줄었으나 해당 값이 0에 도달한 것은 아니기 때문에 _Delete_this()를 호출하진 않음.
+    //     if (_MT_DECR(_Weaks) == 0)
+    //     {
+    //         _Delete_this();
+    //     }
+    // }
+    // 
+    // --------------------------------------------------
+    // 
+    // 5. 컨트롤 블록의 _Decref()에 돌아와 _Decwref()를 이어서 호출
+    // 
+    // !! _Uses의 값이 0에 도달하여 _Destroy()와 _Decwref()를 차례대로 호출한다고 가정 !!
+    // void _Ref_count_base::_Decref() noexcept // decrement use count
+    // {
+    //     if (_MT_DECR(_Uses) == 0)
+    //     {
+    //         _Destroy();
+    //         _Decwref();
+    //     }
+    // }
+    // 
+    // void _Ref_count_base::_Decwref() noexcept // decrement weak reference count
+    // {
+    //     // _Weaks의 값을 하나 줄이면 비로소 해당 값이 0에 도달하기 때문에 _Delete_this()를 호출함.
+    //     if (_MT_DECR(_Weaks) == 0)
+    //     {
+    //         // _Delete_this() 또한 최상위 컨트롤 블록의 순수 가상 함수이기 때문에 이를 상속하여 구현한 쪽에 의존적임.
+    //         _Delete_this();
+    //     }
+    // }
+    // 
+    // !! 여기서는 make_shared<T>()의 컨트롤 블록인 _Ref_count_obj2<T>를 기반으로 함. !!
+    // void _Ref_count_obj2<T>::_Delete_this() noexcept override // destroy self
+    // {
+    //     delete this;
+    // }
+    //
 
-    // shared_ptr를 weak_ptr에 복사
-    {
-        shared_ptr<TestObject> sptr = make_shared<TestObject>(100);
-        
-        // A(복사 기반 변환 생성자)
-        weak_ptr<TestObject> wptr1 = sptr; // wptr1{ sptr };
-        
-        // B(복사 기반 변환 대입 연산자)
-        weak_ptr<TestObject> wptr2;
-        wptr2 = sptr;
-        
-        cout << "# Separator #\n\n";
-        
-        cout << "sptr.use_count() : " << sptr.use_count() << "\n\n";
-        
-        cout << "# Separator #\n\n";
-        
-        // 소멸 과정에서 weak_ptr을 거치며 컨트롤 블록이 해제될 수 있도록 함.
-        sptr = nullptr;
-        
-        cout << "sptr = nullptr;\n\n";
-        
-        cout << "sptr.use_count() : " << sptr.use_count() << "\n\n";
-
-        // --------------------------------------------------
-        // 
-        // ***** A 부분 *****
-        // 
-        // --------------------------------------------------
-        //
-        // 1. weak_ptr<TestObject> wptr1 = sptr;
-        // 
-        // shared_ptr<TestObject>를 받는 "복사 기반 변환 생성자" 호출
-        // 
-        // template <class _Ty2, enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0>
-        // weak_ptr(const shared_ptr<_Ty2>& _Other) noexcept
-        // {
-        //     this->_Weakly_construct_from(_Other); // shared_ptr keeps resource alive during conversion
-        // }
-        // 
-        // !! _Weakly_construct_from() 호출 !!
-        // template <class _Ty2>
-        // void _Ptr_base<T>::_Weakly_construct_from(const _Ptr_base<_Ty2>& _Other) noexcept // implement weak_ptr's ctors
-        // {
-        //     // _Rep가 존재하기 때문에 아래 if 문에 들어가 실행됨.
-        //     if (_Other._Rep)
-        //     {
-        //         _Ptr = _Other._Ptr;
-        //         _Rep = _Other._Rep;
-        // 
-        //         // 다음 코드는 원자적으로 수행됨.
-        //         _Rep->_Incwref();
-        //     }
-        //     else
-        //     {
-        //         _STL_INTERNAL_CHECK(!_Ptr && !_Rep);
-        //     }
-        // }
-        // 
-        // --------------------------------------------------
-        // 
-        // 2. _Rep->_Incwref() 호출
-        // 
-        // void _Ref_count_base::_Incwref() noexcept // increment weak reference count
-        // {
-        //     // 원자적인 증가 연산을 수행
-        //     _MT_INCR(_Weaks);
-        // }
-        //
-        // --------------------------------------------------
-        // 
-        // ***** B 부분 *****
-        // 
-        // --------------------------------------------------
-        // 
-        // 3. wptr2 = sptr;
-        // 
-        // 위 코드를 거치며 "복사 기반 변환 대입 연산자" 호출
-        // 
-        // template <class _Ty2, enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0>
-        // weak_ptr& operator=(const shared_ptr<_Ty2>& _Right) noexcept
-        // {
-        //     weak_ptr(_Right).swap(*this);
-        //     return *this;
-        // }
-        // 
-        // 타입을 추론하는 과정은 shared_ptr_details.cpp에 적었으니 이 부분은 생략한다.
-        // 
-        // !! 임시 객체 weak_ptr(_Right)를 생성하기 위한 "복사 기반 변환 생성자" 호출 !!
-        // template <class _Ty2, enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0>
-        // weak_ptr(const shared_ptr<_Ty2>& _Other) noexcept
-        // {
-        //     this->_Weakly_construct_from(_Other); // shared_ptr keeps resource alive during conversion
-        // }
-        // 
-        // !! _Weakly_construct_from() 호출 !!
-        // template <class _Ty2>
-        // void _Ptr_base<T>::_Weakly_construct_from(const _Ptr_base<_Ty2>& _Other) noexcept // implement weak_ptr's ctors
-        // {
-        //     if (_Other._Rep)
-        //     {
-        //         _Ptr = _Other._Ptr;
-        //         _Rep = _Other._Rep;
-        //         _Rep->_Incwref();
-        //     }
-        //     else
-        //     {
-        //         _STL_INTERNAL_CHECK(!_Ptr && !_Rep);
-        //     }
-        // }
-        // 
-        // 위 과정은 A에서 진행한 것과 똑같다.
-        //
-
-        // weak_ptr의 소멸자 호출 과정은 다음과 같다.
-        //
-        // --------------------------------------------------
-        // 
-        // 1. weak_ptr의 소멸자 호출
-        // 
-        // ~weak_ptr() noexcept
-        // {
-        //     this->_Decwref();
-        // }
-        // 
-        // --------------------------------------------------
-        // 
-        // 2. _Decwref() 호출(스마트 포인터 관리 클래스)
-        // 
-        // void _Ptr_base<T>::_Decwref() noexcept // decrement weak reference count
-        // {
-        //     // 컨트롤 블록이 유효하다면 아래 if 문의 로직을 수행함.
-        //     if (_Rep)
-        //     {
-        //         // weak_ptr도 컨트롤 블록을 감싼 일종의 래퍼 클래스임.
-        //         // 이런 이유로 컨트롤 블록 차원에서 _Weaks를 감소시켜 컨트롤 블록의 소멸 과정을 유도함.
-        //         // !! _Ptr_base<T>는 weak_ptr<T>와 shared_ptr<T>의 부모 클래스이지 컨트롤 블록의 최상위 부모가 아님. !!
-        //         // !! 컨트롤 블록의 최상위 부모 클래스는 _Ref_count_base임. !!
-        //         _Rep->_Decwref();
-        //     }
-        // }
-        // 
-        // --------------------------------------------------
-        // 
-        // 3. _Decwref() 호출(컨트롤 블록의 최상위 클래스)
-        // 
-        // void _Ref_count_base::_Decwref() noexcept // decrement weak reference count
-        // {
-        //     // 원자적인 감소를 수행했을 때 _Weaks가 0에 도달한다면 _Delete_this()를 호출함.
-        //     if (_MT_DECR(_Weaks) == 0)
-        //     {
-        //         // 순수 가상 함수(컨트롤 블록의 소멸 과정 유도)
-        //         _Delete_this();
-        //     }
-        // }
-        // 
-        // 컨트롤 블록에 있는 _Decwref()는 shared_ptr의 _Decref()에서 _Uses가 0에 도달할 때 호출되기도 한다.
-        // 
-        // --------------------------------------------------
-        // 
-        // 4. _Delete_this() 호출
-        // 
-        // void _Ref_count_obj2<T>::_Delete_this() noexcept override // destroy self
-        // {
-        //     delete this;
-        // }
-        // 
-        // 소멸자가 호출된 이후 weak_ptr을 다시 사용할 일은 없기 때문에 _Rep를 nullptr로 갱신하는 작업은 하지 않는다.
-        //
-
-        cout << "## End Of Block ##\n\n";
-    }
-
-    cout << "-------------------------#02#-------------------------\n\n";
-
-    /****************************************************
-    *      Move Operation : shared_ptr -> weak_ptr      *
-    ****************************************************/
-
-    // shared_ptr를 weak_ptr에 이동
-    {
-        shared_ptr<TestObject> sptr1 = make_shared<TestObject>(200);
-        shared_ptr<TestObject> sptr2 = make_shared<TestObject>(300);
-        
-        // A(이동 기반 변환 생성자가 아닌 "복사 기반 변환 생성자"가 호출됨)
-        weak_ptr<TestObject> wptr1 = std::move(sptr1); // wptr1{ std::move(sptr1) };
-        
-        // B(이동 기반 변환 대입 연산자가 아닌 "복사 기반 변환 대입 연산자"가 호출됨)
-        weak_ptr<TestObject> wptr2;
-        wptr2 = std::move(sptr2);
-        
-        cout << "# Separator #\n\n";
-        
-        // 실제로는 복사 과정이 이루어졌기 때문에 sptr1.use_count()는 0을 반환하지 않는다.
-        cout << "sptr1.use_count() : " << sptr1.use_count() << "\n\n";
-        cout << "sptr2.use_count() : " << sptr2.use_count() << "\n\n";
-
-        // --------------------------------------------------
-        // 
-        // ***** A 부분 *****
-        // 
-        // --------------------------------------------------
-        // 
-        // 1. weak_ptr<TestObject> wptr1 = std::move(sptr1); // wptr1{ std::move(sptr1) };
-        // 
-        // shared_ptr<TestObject>를 받는 "복사 기반 변환 생성자" 호출
-        // !! std::move()로 전달했지만 이동 기반의 무언가가 호출되는 것이 아니니까 주의해야 함. !!
-        // 
-        // template <class _Ty2, enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0>
-        // weak_ptr(const shared_ptr<_Ty2>& _Other) noexcept
-        // {
-        //     this->_Weakly_construct_from(_Other); // shared_ptr keeps resource alive during conversion
-        // }
-        //
-        // --------------------------------------------------
-        // 
-        // ***** B 부분 *****
-        // 
-        // --------------------------------------------------
-        // 
-        // 2. wptr2 = std::move(sptr2);
-        // 
-        // 위 코드를 거치며 "복사 기반 변환 대입 연산자" 호출
-        // !! std::move()로 전달했지만 이동 기반의 무언가가 호출되는 것이 아니니까 주의해야 함. !!
-        // 
-        // template <class _Ty2, enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0>
-        // weak_ptr& operator=(const shared_ptr<_Ty2>& _Right) noexcept
-        // {
-        //     weak_ptr(_Right).swap(*this);
-        //     return *this;
-        // }
-        // 
-        // 코드 수행 과정은 "Copy Operation : shared_ptr -> weak_ptr"의 B 부분과 동일하다.
-        //
-
-        cout << "## End Of Block ##\n\n";
-    }
-
-    cout << "-------------------------#03#-------------------------\n\n";
-
-    /***********************************************************
-    *      Copy & Move Operation : weak_ptr -> shared_ptr      *
-    ***********************************************************/
-
-    // weak_ptr를 shared_ptr에 복사 혹은 이동
-    {
-        shared_ptr<TestObject> sptr1 = make_shared<TestObject>(100);
-        weak_ptr<TestObject>   wptr1 = sptr1; // wptr1{ sptr1 };
-
-        // A(복사 기반 변환 생성자)
-        shared_ptr<TestObject> sptr2{ wptr1 };
-
-        // B(이동 기반 변환 생성자가 아닌 "복사 기반 변환 생성자"가 호출됨)
-        shared_ptr<TestObject> sptr3{ std::move(wptr1) };
-
-        cout << "# Separator #\n\n";
-
-        // 모든 과정이 복사 기반으로 이루어졌기 때문에 모든 use_count()는 3을 반환해야 한다.
-        cout << "sptr1.use_count() : " << sptr1.use_count() << "\n\n";
-        cout << "sptr2.use_count() : " << sptr2.use_count() << "\n\n";
-        cout << "sptr3.use_count() : " << sptr3.use_count() << "\n\n";
-
-        // --------------------------------------------------
-        // 
-        // ***** A 부분 *****
-        // 
-        // --------------------------------------------------
-        // 
-        // 1. shared_ptr<TestObject> sptr2{ wptr1 };
-        // 
-        // 위 코드를 거치며 "복사 기반 변환 생성자" 호출
-        // 
-        // template <class _Ty2, enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0>
-        // explicit shared_ptr(const weak_ptr<_Ty2>& _Other) // construct shared_ptr object that owns resource *_Other
-        // {
-        //     if (!this->_Construct_from_weak(_Other))
-        //     {
-        //         // weak_ptr을 shared_ptr로 변환할 수 없는 상태라면 예외를 던짐.
-        //         _Throw_bad_weak_ptr();
-        //     }
-        // }
-        // 
-        // [[noreturn]] inline void _Throw_bad_weak_ptr() {
-        //     _THROW(bad_weak_ptr{});
-        // }
-        // 
-        // 생성자가 explicit으로 되어 있기에 암시적 형변환을 허용하지 않는다(명시적으로 생성자의 인자를 넘겨야 함).
-        // 
-        // --------------------------------------------------
-        // 
-        // 2. _Construct_from_weak() 호출
-        // 
-        // template <class _Ty2>
-        // bool _Ptr_base<T>::_Construct_from_weak(const weak_ptr<_Ty2>& _Other) noexcept
-        // {
-        //     // implement shared_ptr's ctor from weak_ptr, and weak_ptr::lock()
-        //     // _Incref_nz()는 원자성을 보장하는 함수임.
-        //     if (_Other._Rep && _Other._Rep->_Incref_nz())
-        //     {
-        //         _Ptr = _Other._Ptr;
-        //         _Rep = _Other._Rep;
-        // 
-        //         return true;
-        //     }
-        // 
-        //     // _Incref_nz()가 false를 반환했으면 _Ptr과 _Rep를 갱신하지 않음.
-        //     // 대상이 빈 스마트 포인터이기 때문에 이 경우 _Ptr과 _Rep에는 nullptr로 되어 있어야 함.
-        //     return false;
-        // }
-        // 
-        // _Incref_nz()에 대한 설명은 "weak_ptr<T>::lock()" 쪽에 있다.
-        //
-        // --------------------------------------------------
-        // 
-        // ***** B 부분 *****
-        // 
-        // --------------------------------------------------
-        // 
-        // 3. shared_ptr<TestObject> sptr3{ std::move(wptr1) };
-        // 
-        // 위 코드를 거치며 "복사 기반 변환 대입 연산자" 호출
-        // !! std::move()로 전달했지만 이동 기반의 무언가가 호출되는 것이 아니니까 주의해야 함. !!
-        // 
-        // template <class _Ty2, enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0>
-        // explicit shared_ptr(const weak_ptr<_Ty2>& _Other) // construct shared_ptr object that owns resource *_Other
-        // {
-        //     if (!this->_Construct_from_weak(_Other))
-        //     {
-        //         // weak_ptr을 shared_ptr로 변환할 수 없는 상태라면 예외를 던짐.
-        //         _Throw_bad_weak_ptr();
-        //     }
-        // }
-        // 
-        // 진행 과정은 A 부분과 동일하다.
-        // 
-
-        cout << "## End Of Block ##\n\n";
-    }
-
-    cout << "-------------------------#04#-------------------------\n\n";
-
-    /*********************************************************
-    *      Copy & Move Operation : weak_ptr -> weak_ptr      *
-    *********************************************************/
-
-    // weak_ptr 간 복사 혹은 이동
-    {
-        shared_ptr<TestObject> sptr = make_shared<TestObject>(400);
-        weak_ptr<TestObject> wptr1 = sptr; // wptr1{ sptr };
-        
-        // A(복사 생성자)
-        weak_ptr<TestObject> wptr2 = wptr1; // wptr2{ wptr1 };
-        
-        // B(복사 대입 연산자)
-        weak_ptr<TestObject> wptr3;
-        wptr3 = wptr1;
-        
-        // C(이동 생성자)
-        weak_ptr<TestObject> wptr4 = std::move(wptr1); // wptr3{ std::move(wptr1) };
-        
-        cout << "# Separator #\n\n";
-        
-        wptr1 = sptr;
-        
-        cout << "# Separator #\n\n";
-        
-        // D(이동 대입 연산자)
-        weak_ptr<TestObject> wptr5;
-        wptr5 = std::move(wptr1);
-
-        // --------------------------------------------------
-        // 
-        // ***** A 부분 *****
-        // 
-        // --------------------------------------------------
-        // 
-        // 1. weak_ptr<TestObject> wptr2 = wptr1; // wptr2{ wptr1 };
-        // 
-        // 위 코드를 거치며 복사 생성자 호출
-        // 
-        // weak_ptr(const weak_ptr& _Other) noexcept
-        // {
-        //     this->_Weakly_construct_from(_Other); // same type, no conversion
-        // }
-        // 
-        // !! _Weakly_construct_from() 호출 !!
-        // template <class _Ty2>
-        // void _Ptr_base<T>::_Weakly_construct_from(const _Ptr_base<_Ty2>& _Other) noexcept // implement weak_ptr's ctors
-        // {
-        //     if (_Other._Rep)
-        //     {
-        //         _Ptr = _Other._Ptr;
-        //         _Rep = _Other._Rep;
-        //         _Rep->_Incwref();
-        //     }
-        //     else
-        //     {
-        //         _STL_INTERNAL_CHECK(!_Ptr && !_Rep);
-        //     }
-        // }
-        // 
-        // --------------------------------------------------
-        // 
-        // ***** B 부분 *****
-        // 
-        // --------------------------------------------------
-        // 
-        // 2. wptr3 = wptr1;
-        // 
-        // 위 과정을 거치며 복사 대입 연산자 호출
-        // 
-        // weak_ptr& operator=(const weak_ptr& _Right) noexcept
-        // {
-        //     weak_ptr(_Right).swap(*this);
-        //     return *this;
-        // }
-        // 
-        // !! 임시 객체 weak_ptr(_Right)를 생성하기 위한 복사 생성자 호출 !!
-        // weak_ptr(const weak_ptr& _Other) noexcept
-        // {
-        //     this->_Weakly_construct_from(_Other); // same type, no conversion
-        // }
-        // 
-        // !! _Weakly_construct_from() 호출 !!
-        // template <class _Ty2>
-        // void _Ptr_base<T>::_Weakly_construct_from(const _Ptr_base<_Ty2>& _Other) noexcept // implement weak_ptr's ctors
-        // {
-        //     if (_Other._Rep)
-        //     {
-        //         _Ptr = _Other._Ptr;
-        //         _Rep = _Other._Rep;
-        //         _Rep->_Incwref();
-        //     }
-        //     else
-        //     {
-        //         _STL_INTERNAL_CHECK(!_Ptr && !_Rep);
-        //     }
-        // }
-        // 
-        // --------------------------------------------------
-        // 
-        // 3. weak_ptr(_Right).swap(*this);
-        // 
-        // 임시 객체 생성 후 swap() 호출
-        // 
-        // void weak_ptr<T>::swap(weak_ptr& _Other) noexcept
-        // {
-        //     // this는 wptr1을 복사한 임시 객체이고, _Other는 wptr3임.
-        //     this->_Swap(_Other);
-        // }
-        // 
-        // !! _Swap() 호출 !!
-        // !! 코드를 보면 컨트롤 블록 _Rep가 가진 _Weaks의 값은 4로 되어 있어야 함(임시 객체에서 카운팅한 것 포함) !!
-        // void _Swap(_Ptr_base& _Right) noexcept // swap pointers
-        // {
-        //     // 임시 객체에 있는 내용와 wptr3에 있는 내용 교환
-        //     _STD swap(_Ptr, _Right._Ptr);
-        //     _STD swap(_Rep, _Right._Rep);
-        // }
-        // 
-        // --------------------------------------------------
-        // 
-        // 4. 콜 스택을 빠져나오고 임시 객체의 소멸자 호출
-        // 
-        // weak_ptr& operator=(const weak_ptr& _Right) noexcept
-        // {
-        //     // 교환 과정을 마치면 wptr3와 wptr1는 같은 _Ptr과 _Rep를 가지고 있어야 함.
-        //     // 임시 객체 weak_ptr(_Right)는 wptr3가 가지고 있던 _Ptr과 _Rep를 가리키고 있음.
-        //     weak_ptr(_Right).swap(*this);
-        //     return *this;
-        // }
-        // 
-        // !! 임시 객체의 소멸자 호출 !!
-        // ~weak_ptr() noexcept
-        // {
-        //     this->_Decwref();
-        // }
-        // 
-        // !! _Decwref() 호출 !!
-        // void _Ptr_base<T>::_Decwref() noexcept // decrement weak reference count
-        // {
-        //     // wptr3는 빈 스마트 포인터였기 때문에 _Rep는 nullptr임.
-        //     // 따라서 아래 if 문의 코드는 실행되지 않음.
-        //     if (_Rep)
-        //     {
-        //         _Rep->_Decwref();
-        //     }
-        // }
-        // 
-        // --------------------------------------------------
-        // 
-        // ***** C 부분 *****
-        // 
-        // --------------------------------------------------
-        // 
-        // 5. weak_ptr<TestObject> wptr4 = std::move(wptr1); // wptr3{ std::move(wptr1) };
-        // 
-        // 위 코드를 거치며 이동 생성자 호출
-        // 
-        // weak_ptr(weak_ptr&& _Other) noexcept
-        // {
-        //     this->_Move_construct_from(_STD move(_Other));
-        // }
-        // 
-        // !! _Move_construct_from() 호출 !!
-        // template <class _Ty2>
-        // void _Ptr_base<T>::_Move_construct_from(_Ptr_base<_Ty2>&& _Right) noexcept
-        // {
-        //     // implement shared_ptr's (converting) move ctor and weak_ptr's move ctor
-        //     _Ptr = _Right._Ptr;
-        //     _Rep = _Right._Rep;
-        // 
-        //     _Right._Ptr = nullptr;
-        //     _Right._Rep = nullptr;
-        // }
-        // 
-        // 소유권을 이전하는 개념이기 때문에 _Weaks를 증가시키는 코드는 없다.
-        // 
-        // --------------------------------------------------
-        // 
-        // ***** D 부분 *****
-        // 
-        // --------------------------------------------------
-        // 
-        // 6. wptr5 = std::move(wptr1);
-        // 
-        // 위 코드를 거치며 이동 대입 연산자 호출
-        // 
-        // weak_ptr& operator=(weak_ptr&& _Right) noexcept
-        // {
-        //     weak_ptr(_STD move(_Right)).swap(*this);
-        //     return *this;
-        // }
-        // 
-        // !! 임시 객체 weak_ptr(_Right)를 생성하기 위한 "복사 기반 변환 생성자" 호출 !!
-        // weak_ptr(weak_ptr&& _Other) noexcept
-        // {
-        //     this->_Move_construct_from(_STD move(_Other));
-        // }
-        // 
-        // !! _Move_construct_from() 호출 !!
-        // template <class _Ty2>
-        // void _Ptr_base<T>::_Move_construct_from(_Ptr_base<_Ty2>&& _Right) noexcept
-        // {
-        //     // implement shared_ptr's (converting) move ctor and weak_ptr's move ctor
-        //     _Ptr = _Right._Ptr;
-        //     _Rep = _Right._Rep;
-        // 
-        //     _Right._Ptr = nullptr;
-        //     _Right._Rep = nullptr;
-        // }
-        // 
-        // --------------------------------------------------
-        // 
-        // 7. 콜 스택을 빠져나오고 임시 객체의 소멸자 호출
-        // 
-        // !! 임시 객체의 소멸자 호출 !!
-        // ~weak_ptr() noexcept
-        // {
-        //     this->_Decwref();
-        // }
-        // 
-        // void _Ptr_base<T>::_Decwref() noexcept // decrement weak reference count
-        // {
-        //     if (_Rep)
-        // {
-        //         _Rep->_Decwref();
-        //     }
-        // }
-        // 
-
-        cout << "## End Of Block ##\n\n";
-    }
-
-    cout << "-------------------------#05#-------------------------\n\n";
-
-    /***********************************
-    *      weak_ptr<T>::expired()      *
-    ***********************************/
-
-    // expired()로 객체의 유효성을 검증하는 로직
-    {
-        shared_ptr<TestObject> sptr = make_shared<TestObject>(500);
-        
-        weak_ptr<TestObject> wptr = sptr; // wptr{ sptr };
-        
-        if (false == wptr.expired())
-        {
-            cout << "sptr is not expired...\n\n";
-        }
-        else // if (true == wptr.expired())
-        {
-            cout << "sptr is expired...\n\n";
-        }
-        
-        sptr = nullptr;
-        
-        if (false == wptr.expired())
-        {
-            cout << "sptr is not expired...\n\n";
-        }
-        else // if (true == wptr.expired())
-        {
-            cout << "sptr is expired...\n\n";
-        }
-
-        // weak_ptr의 expired()는 다음 과정을 거친다.
-        //
-        // --------------------------------------------------
-        // 
-        // 1. expired() 호출
-        // 
-        // _NODISCARD bool weak_ptr<T>::expired() const noexcept
-        // {
-        //     return this->use_count() == 0;
-        // }
-        // 
-        // !! use_count() 호출 !!
-        // _NODISCARD long _Ptr_base<T>::use_count() const noexcept
-        // {
-        //     // 스마트 포인터는 일종의 래퍼 클래스이기 때문에 컨트롤 블록이 가진 _Uses의 값을 가져와야 함. !!
-        //     return _Rep ? _Rep->_Use_count() : 0;
-        // }
-        // 
-        // !! 컨트롤 블록의 _Use_count() 호출 !!
-        // long _Ref_count_base::_Use_count() const noexcept
-        // {
-        //     return static_cast<long>(_Uses);
-        // }
-        // 
-        // weak_ptr의 expired()는 컨트롤 블록이 유효하고 _Uses 값이 0이 아니면 true를 반환하며 그 외의 경우에는 false를 반환한다.
-        // _Uses는 shared_ptr의 상태에 의존적인 값이라는 것을 명심하자.
-        // 
-    }
-
-    cout << "-------------------------#06#-------------------------\n\n";
-
-    /********************************
-    *      weak_ptr<T>::lock()      *
-    ********************************/
-
-    // lock()으로 객체에 접근하는 로직
-    {
-        shared_ptr<TestObject> sptr = make_shared<TestObject>(600);
-        
-        weak_ptr<TestObject> wptr = sptr; // wptr{ sptr };
-        
-        if (shared_ptr<TestObject> tempPtr = wptr.lock())
-        {
-            cout << "wptr.lock() returned a valid shared_ptr...\n\n";
-        }
-        else // if (nullptr == tempPtr)
-        {
-            cout << "wptr.lock() returned nullptr...\n\n";
-        }
-        
-        sptr = nullptr;
-        
-        if (shared_ptr<TestObject> tempPtr = wptr.lock())
-        {
-            cout << "wptr.lock() returned a valid shared_ptr...\n\n";
-        }
-        else // if (nullptr == tempPtr)
-        {
-            cout << "wptr.lock() returned nullptr...\n\n";
-        }
-
-        // weak_ptr의 lock()은 다음 과정을 거친다.
-        // 
-        // --------------------------------------------------
-        // 
-        // 1. weak_ptr의 lock() 호출
-        // 
-        // _NODISCARD shared_ptr<_Ty> weak_ptr<_Ty>::lock() const noexcept // convert to shared_ptr
-        // {
-        //     // 빈 스마트 포인터 생성
-        //     shared_ptr<_Ty> _Ret;
-        // 
-        //     // this를 활용해 shared_ptr의 내용을 구성
-        //     (void) _Ret._Construct_from_weak(*this);
-        // 
-        //     // 반환
-        //     return _Ret;
-        // }
-        // 
-        // --------------------------------------------------
-        // 
-        // 2. _Construct_from_weak() 호출
-        // 
-        // template <class _Ty2>
-        // bool _Ptr_base<T>::_Construct_from_weak(const weak_ptr<_Ty2>& _Other) noexcept
-        // {
-        //     // implement shared_ptr's ctor from weak_ptr, and weak_ptr::lock()
-        //     // _Incref_nz()는 원자성을 보장하는 함수임.
-        //     if (_Other._Rep && _Other._Rep->_Incref_nz())
-        //     {
-        //         _Ptr = _Other._Ptr;
-        //         _Rep = _Other._Rep;
-        // 
-        //         return true;
-        //     }
-        // 
-        //     // _Incref_nz()가 false를 반환했으면 _Ptr과 _Rep를 갱신하지 않음.
-        //     // 대상이 빈 스마트 포인터이기 때문에 이 경우 _Ptr과 _Rep에는 nullptr로 되어 있어야 함.
-        //     return false;
-        // }
-        // 
-        // --------------------------------------------------
-        // 
-        // 3. 컨트롤 블록이 유효하다면 _Incref_nz() 호출
-        // 
-        // !! 이 코드는 원자적으로 수행됨. !!
-        // bool _Ref_count_base::_Incref_nz() noexcept // increment use count if not zero, return true if successful
-        // {
-        //     // 컴파일러가 해당 _Uses 변수를 최적화하지 않게 강제함(_Volatile_uses는 _Uses를 가리키는 참조 변수일 뿐임).
-        //     auto& _Volatile_uses = reinterpret_cast<volatile long&>(_Uses);
-        // 
-        //     // https://learn.microsoft.com/ko-kr/cpp/intrinsics/arm64-intrinsics?view=msvc-170#IsoVolatileLoadStore
-        //     // MSVC 전용 내장 함수로 하드웨어 장치의 메모리를 읽을 때 사용함.
-        //     long _Count = __iso_volatile_load32(reinterpret_cast<volatile int*>(&_Volatile_uses));
-        //
-        //     // !! 주의 !!
-        //     // C++에서의 volatile은 최적화만 막기 때문에 가시성과는 무관함.
-        //     // 즉, volatile을 적용했다고 해도 CPU의 명령어 재배치 문제는 해결되지 않음.
-        // 
-        //     // _Count 값이 0이면 _Uses가 0이거나 혹은 경합 도중 0에 도달했다는 뜻임.
-        //     // 이 경우에는 false를 반환해야 함.
-        //     while (_Count != 0)
-        //     {
-        //         // CAS 연산
-        //         // MS의 Interlocked 계열의 함수는 기본적으로 메모리 배리어를 포함하고 있기에 원자성과 가시성을 모두 보장함.
-        //         const long _Old_value = _INTRIN_RELAXED(_InterlockedCompareExchange)(&_Volatile_uses, _Count + 1, _Count);
-        // 
-        //         // 해당 스레드에서 CAS를 성공적으로 수행했다면 _Old_value와 _Count는 같은 값을 가짐.
-        //         if (_Old_value == _Count)
-        //         {
-        //             return true;
-        //         }
-        // 
-        //         // 경합 과정에서 다른 스레드가 먼저 _Uses의 값을 변경했다면
-        //         // 해당 스레드에서 다시 변경 작업을 수행할 수 있게 만들어 줘야 함.
-        //         _Count = _Old_value;
-        //     }
-        // 
-        //     return false;
-        // }
-        // 
-
-        // !! 주의 !!
-        // weak_ptr의 lock() 자체는 스레드 안전을 보장한다.
-        // 하지만 멀티스레딩 환경에서 스마트 포인터(shared_ptr이나 weak_ptr)를 생성 및 갱신하는 과정이 경합되면 문제가 발생할 수 있다.
-        // 
-        // --------------------------------------------------
-        // 
-        // template <class _Ty2>
-        // void _Ptr_base<T>::_Weakly_construct_from(const _Ptr_base<_Ty2>& _Other) noexcept // implement weak_ptr's ctors
-        // {
-        //     // _Rep가 존재하기 때문에 아래 if 문에 들어가 실행됨.
-        //     if (_Other._Rep)
-        //     {
-        //         _Ptr = _Other._Ptr;
-        //         // <----- 여기서 _Other의 _Ptr과 _Rep가 갱신되었으면?
-        //         _Rep = _Other._Rep;
-        // 
-        //         // 다음 코드는 원자적으로 수행됨.
-        //         _Rep->_Incwref();
-        //     }
-        //     else
-        //     {
-        //         _STL_INTERNAL_CHECK(!_Ptr && !_Rep);
-        //     }
-        // }
-        // 
-        // --------------------------------------------------
-        // 
-        // template <class _Ty2>
-        // void _Ptr_base<T>::_Move_construct_from(_Ptr_base<_Ty2>&& _Right) noexcept
-        // {
-        //     // implement shared_ptr's (converting) move ctor and weak_ptr's move ctor
-        //     _Ptr = _Right._Ptr;
-        //     // <----- 여기서 _Other의 _Ptr과 _Rep가 갱신되었으면?
-        //     _Rep = _Right._Rep;
-        // 
-        //     _Right._Ptr = nullptr;
-        //     _Right._Rep = nullptr;
-        // }
-        // 
-        // --------------------------------------------------
-        // 
-        // 성공적으로 weak_ptr을 생성 혹은 갱신한 상태에서 lock()을 호출하는 건 문제가 되지 않지만
-        // 스마트 포인터(여기선 weak_ptr)를 생성 혹은 갱신하고 있는 도중 적용할 대상 스마트 포인터와의 갱신 작업이 경합된다면 문제가 발생할 여지가 생긴다.
-        // 
-        // weak_ptr을 생성 혹은 갱신할 때는 mutex 등을 활용해 적용 대상이 되는 스마트 포인터에 대한 접근을 막아야 한다.
-        // 
-        // 이건 lock() 뿐만 아니라 expired()에도 해당하는 문제이다.
-        // 이에 대한 자세한 내용은 smart_pointer_multi_threading_issues.cpp를 보도록 한다.
-        // 
-        // 컨트롤 블록의 해제는 _Weaks가 0으로 떨어지는 단 한 번의 순간에 진행되기 때문에 이 부분은 적어도 스레드 안전하다고 봐도 된다.
-        // 스레드 안전하지 않은 건 레퍼런스 카운팅 쪽이 아니라 _Ptr과 _Rep의 갱신이 원자적으로 이루어지지 않는 부분에서 온다.
-        //
-    }
-
-    cout << "-------------------------#07#-------------------------\n\n";
-
-    /**********************************************************
-    *      weak_ptr<T>::expired() -> weak_ptr<T>::lock()      *
-    **********************************************************/
-
-    // expired()로 객체의 유효성을 검증하고 이후 lock()으로 객체에 접근하는 로직
-    {
-        shared_ptr<TestObject> sptr = make_shared<TestObject>(700);
-        
-        weak_ptr<TestObject> wptr = sptr; // wptr{ sptr };
-        
-        if (false == wptr.expired())
-        {
-            cout << "sptr is not expired...\n\n";
-        
-            if (shared_ptr<TestObject> tempPtr = wptr.lock())
-            {
-                cout << "wptr.lock() returned a valid shared_ptr...\n\n";
-            }
-            else // if (nullptr == tempPtr)
-            {
-                cout << "wptr.lock() returned nullptr...\n\n";
-            }
-        }
-        else // if (true == wptr.expired())
-        {
-            cout << "sptr is expired...\n\n";
-        }
-        
-        // 1초 뒤 sptr에 nullptr 대입
-        thread th = thread([&] {
-            this_thread::sleep_for(1s);
-        
-            sptr = nullptr;
-        });
-        
-        if (false == wptr.expired())
-        {
-            cout << "sptr is not expired...\n\n";
-        
-            // 멀티스레딩 환경에서 expired() 체크 이후 lock()을 호출하기도 전에 sptr이 유효하지 않게 되었을 때
-            // 어떤 일이 발생하는지 확인하기 위한 코드
-            // !! 여기서 바로 nullptr을 대입하는 건 싱글스레딩 환경 같아서 번거롭지만 이렇게 진행함. !!
-            th.join();
-        
-            if (shared_ptr<TestObject> tempPtr = wptr.lock())
-            {
-                cout << "wptr.lock() returned a valid shared_ptr...\n\n";
-            }
-            else // if (nullptr == tempPtr)
-            {
-                cout << "wptr.lock() returned nullptr...\n\n";
-            }
-        }
-        else // if (true == wptr.expired())
-        {
-            cout << "sptr is expired...\n\n";
-        }
-
-        // weak_ptr을 성공적으로 생성 및 갱신했다면 lock() 자체는 스레드 안전을 보장한다.
-        // (중요) 하지만 멀티스레딩 환경이라면 expired() 이후 lock()을 거는 사이에 자원이 유효하지 않게 될 가능성이 있다.
-        //
-        // expired() 이후 lock()을 호출하여 shared_ptr을 받았으면?
-        // 1. 싱글스레딩 환경이라면 shared_ptr을 검증하지 않고 바로 사용해도 된다.
-        // 2. 멀티스레딩 환경이라면 shared_ptr이 빈 스마트 포인터인지 검증하고 사용해야 한다.
-        //
-        // 멀티스레딩 환경일 경우 항상 레이스 컨디션을 고려해야 한다.
-        //
-        // 여기서 말하는 자원이 유효하지 않게 된다는 건 _Uses가 0으로 떨어져 관리 객체가 유효하지 않게 되었단 뜻이지
-        // 컨트롤 블록이 유효하지 않게 되었다는 뜻이 아니다(_Weaks가 0으로 떨어지지 않는 이상 컨트롤 블록은 항상 유효함. !!
-        // !! 컨트롤 블록이 유효하지 않게 되는 건 _Weaks가 0으로 떨어진 시점인데 이 컨디션에 도달하게 되는 스레드는 오직 하나임. !!
-        // !! _Weaks가 0으로 떨어지려면 먼저 _Uses가 0으로 떨어져야 하며, _Uses가 0으로 떨어지는 컨디션에 도달하게 되는 스레드도 오직 하나임. !!
-        // 
-        // 스레드 안전하지 않은 건 레퍼런스 카운팅 쪽이 아니라 _Ptr과 _Rep의 갱신이 원자적으로 이루어지지 않는 부분에서 온다.
-        // 이에 대한 내용은 "weak_ptr<T>::lock()"을 설명한 코드 쪽 설명을 보도록 한다.
-        // 
-    }
-
-    cout << "-------------------------#08#-------------------------\n\n";
-
-    /**************************************
-    *      Up Casting & Down Casting      *
-    **************************************/
-
-    // 업 캐스팅과 다운 캐스팅
-    {
-        shared_ptr<TestObjectEx> sptr1 = make_shared<TestObjectEx>(800, 3.14);
-        weak_ptr<TestObjectEx>   wptr1 = sptr1;
-
-        // A) weak_ptr을 업 캐스팅해서 weak_ptr가 받는 것은 가능하다.
-        weak_ptr<TestObject> wptr2 = wptr1; // wptr2{ wptr1 };
-
-        // B) shared_ptr을 업 캐스팅해서 weak_ptr가 받는 것도 가능하다.
-        weak_ptr<TestObject> wptr3 = sptr1; // wptr3{ sptr1 };
-
-        // weak_ptr의 lock()이 반환하는 건 weak_ptr의 관리 객체 타입을 기반으로 한다.
-        auto sptr2 = wptr3.lock();
-
-        cout << "wptr1.lock() returned " << typeid(sptr2).name() << "...\n\n";
-
-        // C) weak_ptr 간 다운 캐스팅을 지원하는 기능은 없기 때문에 lock()을 통해 shared_ptr을 가지고 온 후 적절한 캐스팅 함수를 써야 한다.
-        weak_ptr<TestObjectEx> wptr4 = static_pointer_cast<TestObjectEx>(wptr1.lock());
-
-        // --------------------------------------------------
-        // 
-        // ***** A 부분 *****
-        // 
-        // --------------------------------------------------
-        // 
-        // 1. weak_ptr<TestObject> wptr2 = wptr1; // wptr2{ wptr1 };
-        // 
-        // weak_ptr<TestObjectEx>를 받는 "복사 기반 변환 생성자" 호출
-        // 
-        // template <class _Ty2, enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0>
-        // weak_ptr(const weak_ptr<_Ty2>& _Other) noexcept
-        // {
-        //     // 타입 추론을 통한 결과를 가져옴.
-        //     constexpr bool _Avoid_expired_conversions = _Must_avoid_expired_conversions_from<_Ty2>;
-        // 
-        //     // !! 컴파일 타임에서 해당 부분은 실행되지 않게 걸러짐. !!
-        //     if constexpr (_Avoid_expired_conversions)
-        //     {
-        //         this->_Weakly_convert_lvalue_avoiding_expired_conversions(_Other);
-        //     }
-        //     else
-        //     {
-        //         // !! 이쪽 로직이 실행됨. !! //
-        //         this->_Weakly_construct_from(_Other);
-        //     }
-        // }
-        // 
-        // // Primary template, the value is used when the substitution fails.
-        // template <class _Ty2, class = const _Ty2*>
-        // static constexpr bool _Must_avoid_expired_conversions_from = true;
-        // 
-        // // Template specialization, the value is used when the substitution succeeds.
-        // template <class _Ty2>
-        // static constexpr bool _Must_avoid_expired_conversions_from<_Ty2, decltype(static_cast<const _Ty2*>(static_cast<_Ty*>(nullptr)))> = false;
-        // 
-        // !! _Must_avoid_expired_conversions_from<T>는 기본 템플릿과 특수화 템플릿을 적용하여 동작하는 SFINAE를 기반으로 함. !!
-        // !! 타입 변환이 가능하거나 상속 관계가 유효하다면 false, 그 외의 경우에는 true를 반환함. !!
-        // 
-        // weak_ptr의 생성자 쪽 enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0에 의해서
-        // 타입 변환이 불가능하거나 상속 관계가 유효하지 않다면 애초에 컴파일이 되지 않는데 왜 이렇게 했는지는 파악하지 못 했다.
-        // 
-        // --------------------------------------------------
-        // 
-        // 2. _Weakly_construct_from() 호출
-        // 
-        // template <class _Ty2>
-        // void _Ptr_base<T>::_Weakly_construct_from(const _Ptr_base<_Ty2>& _Other) noexcept // implement weak_ptr's ctors
-        // {
-        //     // "wptr2 = wptr1"
-        //     // wptr1에 있는 내용을 wptr2에 복사하고 _Weaks의 값을 1 증가
-        //     if (_Other._Rep)
-        //     {
-        //         _Ptr = _Other._Ptr; // _Ptr의 타입이 달라도 상속 관계에 따라 업 캐스팅으로 받는 것이 가능
-        //         _Rep = _Other._Rep;
-        //         _Rep->_Incwref();
-        //     }
-        //     else
-        //     {
-        //         _STL_INTERNAL_CHECK(!_Ptr && !_Rep);
-        //     }
-        // }
-        // 
-        // --------------------------------------------------
-        // 
-        // ***** B 부분 *****
-        // 
-        // --------------------------------------------------
-        // 
-        // 3. weak_ptr<TestObject> wptr3 = sptr1; // wptr3{ sptr1 };
-        // 
-        // shared_ptr<TestObjectEx>를 받는 "복사 기반 변환 생성자" 호출
-        // 
-        // template <class _Ty2, enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0>
-        // weak_ptr(const shared_ptr<_Ty2>& _Other) noexcept
-        // {
-        //     this->_Weakly_construct_from(_Other); // shared_ptr keeps resource alive during conversion
-        // }
-        // 
-        // _Weakly_construct_from()을 호출하는 건 A에 있는 내용과 동일하다.
-        // 
-        // --------------------------------------------------
-        // 
-        // ***** C 부분 *****
-        // 
-        // --------------------------------------------------
-        // 
-        // 4. weak_ptr<TestObjectEx> wptr4 = static_pointer_cast<TestObjectEx>(wptr1.lock());
-        // 
-        // !! lock()을 호출해서 shared_ptr로 가져옴. !!
-        // _NODISCARD shared_ptr<_Ty> weak_ptr<_Ty>::lock() const noexcept // convert to shared_ptr
-        // {
-        //     shared_ptr<_Ty> _Ret;
-        //     (void) _Ret._Construct_from_weak(*this);
-        // 
-        //     // 자기 자신(weak_ptr<_Ty>)으로부터 적절한 shared_ptr을 구성하고 반환
-        //     return _Ret;
-        // }
-        // 
-        // !! static_pointer_cast<T1, T2>()을 호출하여 캐스팅 진행 !!
-        // _EXPORT_STD template <class _Ty1, class _Ty2>
-        // _NODISCARD shared_ptr<_Ty1> static_pointer_cast(shared_ptr<_Ty2>&& _Other) noexcept
-        // {
-        //     // static_cast for shared_ptr that properly respects the reference count control block
-        //     // _Other.get()으로 관리 객체의 포인터를 받고 static_cast<T1>()으로 캐스팅함.
-        //     const auto _Ptr = static_cast<typename shared_ptr<_Ty1>::element_type*>(_Other.get());
-        // 
-        //     // 캐스팅한 포인터와 컨트롤 블록이 분리되어 있기 때문에 이를 묶어서 shared_ptr로 반환함.
-        //     return shared_ptr<_Ty1>(_STD move(_Other), _Ptr);
-        // }
-        // 
-        // !! 반환된 shared_ptr을 받기 위해 weak_ptr에서 변환 생성자 호출 !!
-        // template <class _Ty2, enable_if_t<_SP_pointer_compatible<_Ty2, _Ty>::value, int> = 0>
-        // weak_ptr(const shared_ptr<_Ty2>& _Other) noexcept
-        // {
-        //     this->_Weakly_construct_from(_Other); // shared_ptr keeps resource alive during conversion
-        // }
-        // 
-        // !! _Weakly_construct_from() 호출 !!
-        // template <class _Ty2>
-        // void _Ptr_base<T>::_Weakly_construct_from(const _Ptr_base<_Ty2>& _Other) noexcept // implement weak_ptr's ctors
-        // {
-        //     if (_Other._Rep)
-        //     {
-        //         _Ptr = _Other._Ptr;
-        //         _Rep = _Other._Rep;
-        //         _Rep->_Incwref();
-        //     }
-        //     else
-        //     {
-        //         _STL_INTERNAL_CHECK(!_Ptr && !_Rep);
-        //     }
-        // }
-        // 
-        // weak_ptr<TestObjectEx> wptr4 = static_pointer_cast<TestObjectEx>(wptr1.lock());
-        // 
-        // 위 코드는 받는 타입과 반환되는 타입이 다르기 때문에 반환 결과가 wptr4에 바로 반영되지 않고 따로 생성자를 호출한다.
-        // !! RVO가 적용되는 것이 아니라는 의미임. !!
-        //
-    }
-
-    cout << "------------------------------------------------------\n\n";
+    // shared_ptr이 생성되는 순간 기본적으로 컨트롤 블록에 설정되는 레퍼런스 카운팅 값은 [1 strong refs, 1 weak refs]이다.
+    // shared_ptr의 소멸자 로직에 따르면 강한 참조(storng refs) 값을 하나 줄이고 이 값이 0에 도달했을 때 약한 참조(weak refs) 값을 줄인다.
+    // 
+    // 관리 객체에 enable_shared_from_this<T>가 적용된 경우 최초 스마트 포인터를 생성했을 시 레퍼런스 카운팅 값은
+    // _Wptr로 복사하는 과정에 의해 [1 strong refs, 2 weak refs]가 된다.
+    // 
+    // enable_shared_from_this<T>를 적용한 shared_ptr의 소멸자 호출 과정을 보면 [0 strong refs, 1 weak refs]가 되어 누수가 날 것 같지만
+    // 강한 참조 값인 _Uses가 0에 도달하여 관리 객체의 소멸 과정을 거쳤을 때 enable_shared_from_this<T>의 멤버 변수인 weak_ptr의 소멸자도 같이 호출된다.
+    // 
+    // 이런 이유로 최종적으로 레퍼런스 카운팅이 [0 strong refs, 0 weak refs]에 도달하여 정상적으로 컨트롤 블록을 해제할 수 있는 것이다.
+    //
+    // --------------------------------------------------
+    // 
+    // enable_shared_from_this<T>를 적용한 스마트 포인터를 단독으로 사용하고 이를 Inspector로 관찰했을 때
+    // [1 strong refs, 2 weak refs]가 아닌 [1 strong refs, 1 weak refs]로 나올 것이다.
+    // 
+    // 하지만 조사식을 통해 sptr._Rep->_Uses와 sptr._Rep->_Weaks를 관찰하면 각각 1과 2가 나오는 것을 볼 수 있다.
+    // 
+    // 값 뿐만 아닌 sptr._Rep를 메모리로 조회하면 "01 00 00 00 02 00 00 00"로 되어 있는 것도 확인할 수 있다.
 
     return 0;
 }
