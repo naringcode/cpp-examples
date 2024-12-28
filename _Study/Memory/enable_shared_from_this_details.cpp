@@ -30,6 +30,10 @@ using namespace std;
 // 10. allocation_aligned_byte_boundaries.cpp(사전지식)
 // 11. (중요) smart_pointer_multi_threading_issues.cpp
 
+/***************************
+*      Object Classes      *
+***************************/
+
 class FooObjectA : public enable_shared_from_this<FooObjectA>
 {
 public:
@@ -94,6 +98,10 @@ public:
     int val = 0x5678;
 };
 
+/*****************
+*      Main      *
+*****************/
+
 int main()
 {
     // !! 중단점을 걸고 레퍼런스 카운팅을 확인 및 분석을 진행할 것. !!
@@ -105,16 +113,16 @@ int main()
     // enable_shared_from_this<T>를 사용
     shared_ptr<FooObjectA> fooASharedPtr = make_shared<FooObjectA>();
 
-    //shared_ptr<FooObjectA> fooASharedFromThisPtr = fooASharedPtr->GetSharedPtr();
-    //weak_ptr<FooObjectA>   fooAWeakFromThis      = fooASharedPtr->GetWeakPtr();
-    //
-    //// --------------------------------------------------
-    //
-    //// enable_shared_from_this<T>를 미사용
-    //shared_ptr<FooObjectB> fooBSharedPtr = make_shared<FooObjectB>();
-    //
-    //shared_ptr<FooObjectB> fooBSharedPtrPlain = fooBSharedPtr;
-    //weak_ptr<FooObjectB>   fooBWeakPtrPlain   = fooBSharedPtr;
+    shared_ptr<FooObjectA> fooASharedFromThisPtr = fooASharedPtr->GetSharedPtr();
+    weak_ptr<FooObjectA>   fooAWeakFromThis      = fooASharedPtr->GetWeakPtr();
+    
+    // --------------------------------------------------
+    
+    // enable_shared_from_this<T>를 미사용
+    shared_ptr<FooObjectB> fooBSharedPtr = make_shared<FooObjectB>();
+    
+    shared_ptr<FooObjectB> fooBSharedPtrPlain = fooBSharedPtr;
+    weak_ptr<FooObjectB>   fooBWeakPtrPlain   = fooBSharedPtr;
 
     // --------------------------------------------------
 
