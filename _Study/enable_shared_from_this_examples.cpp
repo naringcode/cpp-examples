@@ -38,7 +38,7 @@ using namespace std;
 // 10. allocation_aligned_byte_boundaries.cpp(사전지식)
 // 11. (중요) smart_pointer_multi_threading_issues.cpp
 
-BEGIN_NS(Run01)
+BEGIN_NS(GetThisSmartPointerToUseItAsAnArgument)
 
 /***********************************************************
 *      Get This Smart Pointer To Use It As An Argument     *
@@ -71,7 +71,7 @@ private:
     int _id = -1;
 };
 
-void Run_GetThisSmartPointerToUseItAsAnArgument()
+void Run()
 {
     shared_ptr<GraphNode> node = make_shared<GraphNode>(1);
 
@@ -80,7 +80,7 @@ void Run_GetThisSmartPointerToUseItAsAnArgument()
 
 END_NS
 
-BEGIN_NS(Run02)
+BEGIN_NS(MakeAWorkerThreadAndCaptureThisSmartPointer)
 
 /****************************************************************
 *      Make A Worker Thread And Capture This Smart Pointer      *
@@ -118,7 +118,7 @@ private:
     std::thread _thread;
 };
 
-void Run_MakeAWorkerThreadAndCaptureThisSmartPointer()
+void Run()
 {
     shared_ptr<WorkerThread> workerTh = make_shared<WorkerThread>();
 
@@ -129,7 +129,7 @@ void Run_MakeAWorkerThreadAndCaptureThisSmartPointer()
 
 END_NS
 
-BEGIN_NS(Run03)
+BEGIN_NS(MakeAnAsyncTaskAndCaptureThisSmartPointer)
 
 /**************************************************************
 *      Make An Async Task And Capture This Smart Pointer      *
@@ -186,7 +186,7 @@ private:
     bool _isDone = false;
 };
 
-void Run_MakeAnAsyncTaskAndCaptureThisSmartPointer()
+void Run()
 {
     shared_ptr<AsyncTask> asyncTask = make_shared<AsyncTask>();
 
@@ -220,7 +220,7 @@ void Run_MakeAnAsyncTaskAndCaptureThisSmartPointer()
 
 END_NS
 
-BEGIN_NS(Run04)
+BEGIN_NS(DeliverThisSmartPointerAsAnArgumentOfACallback)
 
 /*******************************************************************
 *      Deliver This Smart Pointer As An Argument Of A Callback     *
@@ -262,7 +262,7 @@ public:
     Callback _callback;
 };
 
-void Run_DeliverThisSmartPointerAsAnArgumentOfACallback()
+void Run()
 {
     shared_ptr<CallbackHandler> handler = make_shared<CallbackHandler>(1);
 
@@ -275,7 +275,7 @@ void Run_DeliverThisSmartPointerAsAnArgumentOfACallback()
 
 END_NS
 
-BEGIN_NS(Run05)
+BEGIN_NS(CooperateWithOneAnotherCouplingOnSmartPointers)
 
 /*****************************************************************
 *      Cooperate With One Another Coupling On Smart Pointers     *
@@ -407,7 +407,7 @@ void Player::EnterRoom(shared_ptr<Room> room)
     _room = room;
 }
 
-void Run_CooperateWithOneAnotherCouplingOnSmartPointers()
+void Run()
 {
     shared_ptr<Room> room = make_shared<Room>("GameRoom");
 
@@ -430,7 +430,7 @@ void Run_CooperateWithOneAnotherCouplingOnSmartPointers()
 
 END_NS
 
-BEGIN_NS(Run06)
+BEGIN_NS(DeliverThisSmartPointerToRegisterToModuleSystems)
 
 /**********************************************************************
 *      Deliver This Smart Pointer To Register For Module Systems      *
@@ -510,7 +510,7 @@ void Subscriber::Subscribe(shared_ptr<class Publisher> publisher)
     publisher->Attach(this->shared_from_this());
 }
 
-void Run_DeliverThisSmartPointerToRegisterToModuleSystems()
+void Run()
 {
     shared_ptr<Subscriber> subscriberA = make_shared<Subscriber>("Subscriber A");
     shared_ptr<Subscriber> subscriberB = make_shared<Subscriber>("Subscriber B");
@@ -540,22 +540,22 @@ END_NS
 
 int main()
 {
-    Run01::Run_GetThisSmartPointerToUseItAsAnArgument();
+    GetThisSmartPointerToUseItAsAnArgument::Run();
     cout << "\n------------------------------------------------------\n\n";
 
-    Run02::Run_MakeAWorkerThreadAndCaptureThisSmartPointer();
+    MakeAWorkerThreadAndCaptureThisSmartPointer::Run();
     cout << "\n------------------------------------------------------\n\n";
     
-    Run03::Run_MakeAnAsyncTaskAndCaptureThisSmartPointer();
+    MakeAnAsyncTaskAndCaptureThisSmartPointer::Run();
     cout << "\n------------------------------------------------------\n\n";
     
-    Run04::Run_DeliverThisSmartPointerAsAnArgumentOfACallback();
+    DeliverThisSmartPointerAsAnArgumentOfACallback::Run();
     cout << "\n------------------------------------------------------\n\n";
     
-    Run05::Run_CooperateWithOneAnotherCouplingOnSmartPointers();
+    CooperateWithOneAnotherCouplingOnSmartPointers::Run();
     cout << "\n------------------------------------------------------\n\n";
     
-    Run06::Run_DeliverThisSmartPointerToRegisterToModuleSystems();
+    DeliverThisSmartPointerToRegisterToModuleSystems::Run();
     cout << "\n------------------------------------------------------\n\n";
 
     return 0;
