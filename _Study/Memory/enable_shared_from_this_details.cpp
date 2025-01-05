@@ -28,7 +28,8 @@ using namespace std;
 //
 // # shared_ptr을 멀티스레딩 환경에서 사용할 때 발생할 수 있는 문제점을 기술한 내용
 // 10. allocation_aligned_byte_boundaries.cpp(사전지식)
-// 11. (중요) smart_pointer_multi_threading_issues.cpp
+// 11. volatile_atomic_cache_coherence_and_memory_order.cpp(사전지식)
+// 12. (중요) shared_ptr_multi_threading_issues.cpp
 
 /***************************
 *      Object Classes      *
@@ -493,8 +494,8 @@ int main()
     // enable_shared_from_this<T>는 스마트 포인터가 아니라 내부에 weak_ptr<T>를 가지는 클래스이다.
     // enable_shared_from_this<T>는 객체를 확장하는 개념이라기보단 특정 기능을 개방하는 느낌에 가깝다.
     // 
-    // 일반적으로 객체를 shared_ptr로 생성하면 컨트롤 블록의 레퍼런스 카운팅은 [1 strong refs, 1 weak refs]이지만,
-    // enable_shared_from_this<T>를 적용한 객체는 내부에서 _Wptr을 대상으로 복사하는 과정을 거치기 때문에 해당 카운팅은 [1 strong refs, 2 weak refs]가 된다.
+    // 일반적으로 객체를 shared_ptr로 생성하면 컨트롤 블록의 레퍼런스 카운팅은 [1 strong ref, 1 weak ref]이지만,
+    // enable_shared_from_this<T>를 적용한 객체는 내부에서 _Wptr을 대상으로 복사하는 과정을 거치기 때문에 해당 카운팅은 [1 strong ref, 2 weak refs]가 된다.
     // 
     // 이해가 되지 않는다면 _Set_ptr_rep_and_enable_shared()의 동작 방식을 설명한 코드를 다시 보도록 하자.
     // 
@@ -616,21 +617,21 @@ int main()
     // }
     //
 
-    // shared_ptr이 생성되는 순간 기본적으로 컨트롤 블록에 설정되는 레퍼런스 카운팅 값은 [1 strong refs, 1 weak refs]이다.
+    // shared_ptr이 생성되는 순간 기본적으로 컨트롤 블록에 설정되는 레퍼런스 카운팅 값은 [1 strong ref, 1 weak ref]이다.
     // shared_ptr의 소멸자 로직에 따르면 강한 참조(storng refs) 값을 하나 줄이고 이 값이 0에 도달했을 때 약한 참조(weak refs) 값을 줄인다.
     // 
     // 관리 객체에 enable_shared_from_this<T>가 적용된 경우 최초 스마트 포인터를 생성했을 시 레퍼런스 카운팅 값은
-    // _Wptr로 복사하는 과정에 의해 [1 strong refs, 2 weak refs]가 된다.
+    // _Wptr로 복사하는 과정에 의해 [1 strong ref, 2 weak refs]가 된다.
     // 
-    // enable_shared_from_this<T>를 적용한 shared_ptr의 소멸자 호출 과정을 보면 [0 strong refs, 1 weak refs]가 되어 누수가 날 것 같지만
+    // enable_shared_from_this<T>를 적용한 shared_ptr의 소멸자 호출 과정을 보면 [0 strong ref, 1 weak ref]가 되어 누수가 날 것 같지만
     // 강한 참조 값인 _Uses가 0에 도달하여 관리 객체의 소멸 과정을 거쳤을 때 enable_shared_from_this<T>의 멤버 변수인 weak_ptr의 소멸자도 같이 호출된다.
     // 
-    // 이런 이유로 최종적으로 레퍼런스 카운팅이 [0 strong refs, 0 weak refs]에 도달하여 정상적으로 컨트롤 블록을 해제할 수 있는 것이다.
+    // 이런 이유로 최종적으로 레퍼런스 카운팅이 [0 strong ref, 0 weak ref]에 도달하여 정상적으로 컨트롤 블록을 해제할 수 있는 것이다.
     //
     // --------------------------------------------------
     // 
     // enable_shared_from_this<T>를 적용한 스마트 포인터를 단독으로 사용하고 이를 Inspector로 관찰했을 때
-    // [1 strong refs, 2 weak refs]가 아닌 [1 strong refs, 1 weak refs]로 나올 것이다.
+    // [1 strong ref, 2 weak refs]가 아닌 [1 strong ref, 1 weak ref]로 나올 것이다.
     // 
     // 하지만 조사식을 통해 sptr._Rep->_Uses와 sptr._Rep->_Weaks를 관찰하면 각각 1과 2가 나오는 것을 볼 수 있다.
     // 

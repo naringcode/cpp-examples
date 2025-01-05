@@ -9,30 +9,6 @@
 
 using namespace std;
 
-// 순서대로 볼 것
-// 
-// # shared_ptr을 사용할 경우 알아야 할 기본적인 내용
-// 1. shared_ptr_with_deleter.cpp
-// 2. shared_ptr_with_allocator.cpp
-// 3. shared_ptr_with_deleter_and_allocator.cpp
-// 4. (중요) shared_ptr_details.cpp (SFINAE 내용 포함)
-// 
-// # weak_ptr의 유효성 검증 로직에 대한 내용
-// 5. weak_ptr.cpp
-// 6. weak_ptr_details.cpp
-//
-// # shared_ptr의 관리 객체에서 자신을 반환할 때 필요한 내용
-// 7. enable_shared_from_this.cpp
-// 8. enable_shared_from_this_details.cpp
-// 9. enable_shared_from_this_examples.cpp
-//
-// # shared_ptr을 멀티스레딩 환경에서 사용할 때 발생할 수 있는 문제점을 기술한 내용
-// 10. allocation_aligned_byte_boundaries.cpp(사전지식) <-----
-// 11. (중요) smart_pointer_multi_threading_issues.cpp
-
-// 이 코드는 단독으로 따로 봐도 된다.
-// "순서대로 볼 것"은 스마트 포인터를 분석할 때 차례대로 봐야할 것을 나열한 것일 뿐이다.
-
 int main()
 {
     // 동적할당의 바이트 경계를 확인하기 위한 코드
@@ -44,7 +20,7 @@ int main()
         char* ch = new char{ 'C' };
     
         uint64_t ptr = reinterpret_cast<uint64_t>(ch);
-        cntA[ptr & 0xf]++; // 8바이트 경계를 맞춘다면 cntA[0x8]를 대상으로 카운팅이 되어야 함.
+        cntA[ptr & 0xf]++; // 8바이트 경계를 맞춘다면 cntA[0x8]을 대상으로도 카운팅이 되어야 함.
     
         ptr = ptr >> 4; // 16진수 자릿수 하나 내리기
         cntB[ptr & 0xf]++;

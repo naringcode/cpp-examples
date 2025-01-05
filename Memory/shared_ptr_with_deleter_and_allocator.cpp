@@ -34,7 +34,8 @@ using namespace std;
 //
 // # shared_ptr을 멀티스레딩 환경에서 사용할 때 발생할 수 있는 문제점을 기술한 내용
 // 10. allocation_aligned_byte_boundaries.cpp(사전지식)
-// 11. (중요) smart_pointer_multi_threading_issues.cpp
+// 11. volatile_atomic_cache_coherence_and_memory_order.cpp(사전지식)
+// 12. (중요) shared_ptr_multi_threading_issues.cpp
 
 // 용어 정리
 // 

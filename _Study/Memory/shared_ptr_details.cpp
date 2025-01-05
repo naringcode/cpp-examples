@@ -31,7 +31,8 @@ using namespace std;
 //
 // # shared_ptr을 멀티스레딩 환경에서 사용할 때 발생할 수 있는 문제점을 기술한 내용
 // 10. allocation_aligned_byte_boundaries.cpp(사전지식)
-// 11. (중요) smart_pointer_multi_threading_issues.cpp
+// 11. volatile_atomic_cache_coherence_and_memory_order.cpp(사전지식)
+// 12. (중요) shared_ptr_multi_threading_issues.cpp
 
 // 용어 정리
 // 
@@ -521,8 +522,8 @@ int main()
     //     virtual void _Destroy() noexcept     = 0; // destroy managed resource
     //     virtual void _Delete_this() noexcept = 0; // destroy self
     // 
-    //     _Atomic_counter_t _Uses  = 1; // 4바이트, strong ref
-    //     _Atomic_counter_t _Weaks = 1; // 4바이트, weak ref
+    //     _Atomic_counter_t _Uses  = 1; // 4바이트, strong ref(s)
+    //     _Atomic_counter_t _Weaks = 1; // 4바이트, weak ref(s)
     //     ...
     // };
     // 
@@ -634,7 +635,7 @@ int main()
     // "return 0;" 라인에 중단점을 걸고 메모리에서 "sptr._Rep"를 조회하면 레퍼런스 카운팅 블록과 Test의 멤버 변수 값이 들어간 것을 확인할 수 있다.
     //
     // 0x000002B799433860  [10 bd f5 8d f6 7f 00 00]    // 가상 함수 테이블(std::_Ref_count_obj2<Test>::`vftable')
-    // 0x000002B799433868  [02 00 00 00] [01 00 00 00]  // strong ref : 2, weak ref : 1
+    // 0x000002B799433868  [02 00 00 00] [01 00 00 00]  // strong refs : 2, weak ref : 1
     // 0x000002B799433870  [11 11 11 11 11 11 11 11]    // Test의 valA | 상속 구역
     // 0x000002B799433878  [22 22 22 22 22 22 22 22]    // Test의 valB | 상속 구역
     // 

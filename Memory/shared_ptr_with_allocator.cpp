@@ -20,7 +20,7 @@ using namespace std;
 // 1. shared_ptr_with_deleter.cpp
 // 2. shared_ptr_with_allocator.cpp <-----
 // 3. shared_ptr_with_deleter_and_allocator.cpp
-// 4. (중요) shared_ptr_details.cpp (SFINAE 내용 포함)
+// 4. (중요) shared_ptr_details.cpp (SFINAE 내용 포함)volatile_atomic_cache_coherence_and_memory_order.cpp
 // 
 // # weak_ptr의 유효성 검증 로직에 대한 내용
 // 5. weak_ptr.cpp
@@ -33,7 +33,8 @@ using namespace std;
 //
 // # shared_ptr을 멀티스레딩 환경에서 사용할 때 발생할 수 있는 문제점을 기술한 내용
 // 10. allocation_aligned_byte_boundaries.cpp(사전지식)
-// 11. (중요) smart_pointer_multi_threading_issues.cpp
+// 11. volatile_atomic_cache_coherence_and_memory_order.cpp(사전지식)
+// 12. (중요) shared_ptr_multi_threading_issues.cpp
 
 // 용어 정리
 // 
@@ -376,7 +377,7 @@ int main()
         // template <class _Ty2>
         // void _Copy_construct_from(const shared_ptr<_Ty2>& _Other) noexcept {
         //     // implement shared_ptr's (converting) copy ctor
-        //     _Other._Incref(); // _Rep의 _Uses(strong ref)를 1 증가시킨다.
+        //     _Other._Incref(); // _Rep의 _Uses(strong refs)를 1 증가시킨다.
         // 
         //     _Ptr = _Other._Ptr; // 관리 객체의 메모리(_Storage._Value의 주소를 지정하여 사용함)
         //     _Rep = _Other._Rep; // 컨트롤 블록(컨트롤 블록에는 Allocator가 묶여 있음)
