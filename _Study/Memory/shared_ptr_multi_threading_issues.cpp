@@ -1,4 +1,5 @@
-// Update Date : 2025-01-06
+// Update Date : 2025-01-10
+// OS : Windows 10 64bit
 // Program : Visual Studio 2022
 // Version : C++20
 // Configuration : Release-x64
@@ -576,13 +577,16 @@ void Run()
     } };
 
     // ## 어셈블리 명령어 앞에 붙는 LOCK 접두사 ##
-    // https://en.wikipedia.org/wiki/Cache_coherency_protocols_(examples)
     // https://hackmd.io/@vesuppi/Syvoiw1f8
-    // 명령어 앞에 LOCK 접두사가 붙으면 명령어가 접근하는 메모리에 대한 처리가 원자적으로 이루어지게 한다.
+    // https://modoocode.com/en/inst/lock
+    // https://stackoverflow.com/questions/8891067/what-does-the-lock-instruction-mean-in-x86-assembly
+    //
+    // 명령어 앞에 LOCK 접두사가 붙으면 해당 명령어가 원자적으로 처리될 수 있게 힌트를 제공한다.
     // 이를 통해 데이터 레이스로 인해 발생하는 문제를 막아 스레드의 캐시 동기화 및 일관성을 유지할 수 있게 해준다.
-    // 정확하게 말하자면 LOCK 접두사는 명령어가 처리하는 특정 메모리(캐시 라인 단위)의 메모리 버스를 잠가서 배타적인(exclusive) 처리와 원자적인 접근을 보장한다.
-    // 캐시 일관성 프로토콜이 적용되기 때문에 연산이 이루어지는 코어의 레지스터만 갱신되는 것이 아닌 다른 코어의 레지스터나 주기억장치에도 결과가 반영된다.
-
+    // 정확히 말하자면 LOCK 접두사가 붙은 명령어는 처리 대상이 되는 특정 프로세서의 캐시 메모리(캐시 라인 단위)를 잠가서 배타적인(exclusive) 처리와 원자적인 접근을 보장한다.
+    // 캐시 일관성 프로토콜이 적용되기 때문에 연산이 이루어지는 코어의 레지스터만 갱신하는 것이 아닌 다른 코어의 캐시나 주기억장치에도 결과가 반영된다.
+    //
+    // 과거의 CPU는 LOCK은 Bus Lock을 통해서 동작했지만 현대 CPU는 성능상의 이슈로 프로세서의 캐시 라인을 락으로 보호하는 정책을 사용한다.
     while (true)
     {
         auto tempSPtr = make_shared<int64_t>(100);
@@ -774,8 +778,8 @@ void Run()
             // <----- A-01을 거쳐 rax에 dataRacingSPtr의 컨트롤 블록의 포인터를 저장한 상태임.
             // <----- 그런데 A-04를 수행하기 이전에 다른 스레드에서 dataRacingSPtr의 갱신 과정이 이루어졌고 이전 dataRacingSPtr의 컨트롤 블록까지 해제한 상태면?
             // A-04. lock inc    dword ptr [rax+8] // 컨트롤 블록의 레퍼런스 카운터 _Uses에 접근해서 값을 1 증가
-            // <----- lock 접두사가 붙어서 A-04가 수행 단계에 있을 때 대상 메모리의 메모리 버스를 잠근 다음 값을 증가시킨다고 해도 문제는 사라지지 않음.
-            // <----- 메모리 버스를 잠근다고 해도 dataRacingSPtr가 갱신된 상태라면 이를 인지할 방법이 없음.
+            // <----- lock 접두사가 붙어서 A-04가 수행 단계에 있을 때 대상 메모리의 값을 원자적으로 증가시킨다고 해도 문제는 사라지지 않음.
+            // <----- 프로세서 코어의 캐시 라인을 잠근다고 해도 dataRacingSPtr가 갱신된 상태라면 이 단계에서는 해당 상황을 인지할 방법이 없음.
             // <----- 이런 문제가 발생하면 차라리 Crash가 떠야 하는데 Crash는 메모리 해제 작업을 거쳤어도 페이지가 Committed 상태라면 발생하지 않음.
             // <----- 해제된 메모리가 속한 페이지가 Reserved 혹은 Free 상태일 때 접근해야 Crash가 발생하는 구조라는 것을 명심해야 함.
             // <----- 낮은 확률이긴 하나 메모리가 재사용되었고 페이지 또한 Committed 상태라면 누군가 사용하고 있는 메모리에 접근하여 값을 갱신하게 될 소지가 있음.
