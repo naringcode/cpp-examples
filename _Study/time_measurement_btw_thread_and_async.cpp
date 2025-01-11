@@ -1,3 +1,13 @@
+// Update Date : 2023-12-06
+// OS : Windows 10 64bit
+// Program : Visual Studio 2022
+// Version : C++20
+// Configuration : Debug-x64, Release-x64
+
+// 사양
+// CPU : AMD Ryzen 5 7600 6-Core Processor 3.80 GHz
+// RAM : 32GB
+
 #include <iostream>
 #include <sstream>
 
@@ -6,7 +16,7 @@
 
 // Debug 모드에서는 20 ~ 40배, Release 모드에서는 100배가 넘게 차이가 난다.
 // 스레드의 개수를 늘리면 늘릴 수록 이 수치는 점점 더 벌어진다.
-// 내가 병렬적으로 무언가를 관리할 것이 아니라 단순 일감을 던지는 용도라면 std::async를 쓰도록 하자.
+// 내가 병렬적으로 무언가를 관리할 것이 아니라 단순 일감을 던지는 용도라면 std::async()를 쓰도록 하자.
 
 using namespace std;
 

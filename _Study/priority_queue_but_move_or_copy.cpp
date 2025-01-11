@@ -1,3 +1,9 @@
+// Update Date : 2024-10-23
+// OS : Windows 10 64bit
+// Program : Visual Studio 2022
+// Version : C++20
+// Configuration : Debug-x64, Release-x64
+
 #include <iostream>
 #include <queue>
 
@@ -6,7 +12,7 @@ using namespace std;
 #define COMP_MODE 1
 #define USE_LESS_COMP 1
 
-// !! PriorityQueue를 사용하면 Move 계열 연산이 일어남. !!
+// !! std::priority_queue를 사용하면 Move 계열 연산이 일어남. !!
 // !! 경험상 컴파일러에 따라 Copy 연산이 일어나는 것을 본 적이 있으니 이 부분은 설계할 때 약간 주의할 필요가 있음. !!
 //
 // 예약 시스템과 같은 기능을 제작할 때 예약 대상의 정보를 구조체나 클래스의 멤버 형태로 들고 있게 하면 Pop과 Push 시 Move로 인해 코스트가 낭비될 수 있다.
@@ -25,10 +31,10 @@ using namespace std;
 //     // Bad
 //     // ReservedData data;
 // 
-//     // Bad(컴파일러에 따라 복사 연산이 일어날 수도 있음 -> 스마트 포인터의 레퍼런스 카운팅은 메모리 버스를 대상으로 lock을 건다는 사실을 잊으면 안 됨)
+//     // Good(컴파일러에 따라 복사 연산이 일어날 수 있음 -> 스마트 포인터의 레퍼런스 카운팅은 느린 연산에 속함)
 //     shared_ptr<ReservedData> data;
 // 
-//     // Good
+//     // Good(속도는 빠르지만 안전하게 다루기 위한 조치가 필요함)
 //     ReservedData* data = nullptr;
 // };
 //
@@ -36,7 +42,7 @@ using namespace std;
 // 하지만 PQ를 쓸 때 Copy와 Move 연산으로 인한 코스트를 최소화할 방법을 모색해야 한다는 것을 기억하자.
 //
 // 데이터가 적다면 동적할당으로 인한 코스트가 더 들 수 있으나 규모가 큰 시스템을 만들 것을 상정해야 한다.
-// 무엇보다 규모가 큰 프로그램이라면 자체적인 할당자를 제작하여 사용할 확률이 높기에 이 부분은 큰 문제가 되지 않는다.
+// 무엇보다 규모가 큰 프로그램이라면 자체적인 할당자를 제작하여 사용할 확률이 높기에 이 부분은 큰 문제가 되지 않을 확률이 높다.
 
 struct Item
 {

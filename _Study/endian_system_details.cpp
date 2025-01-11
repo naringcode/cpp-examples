@@ -1,3 +1,9 @@
+// Update Date : 2024-09-21
+// OS : Windows 10 64bit
+// Program : vscode(gcc-13.1.0)
+// Version : C++20
+// Configuration : Debug-x64
+
 #include <bits/stdc++.h>
 #include <WinSock2.h>
 

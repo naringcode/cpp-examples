@@ -1,3 +1,9 @@
+// Update Date : 2025-01-09
+// OS : Windows 10 64bit
+// Program : Visual Studio 2022
+// Version : C++20
+// Configuration : Debug-x64, Release-x64
+
 #include <iostream>
 
 #include <vector>
@@ -147,7 +153,7 @@ int main()
 
     // Test Code
     {
-        std::cout << "1) ---------------------------\n";
+        cout << "-------------------------#01#-------------------------\n";
 
         std::vector<TestObject> vec;
 
@@ -155,31 +161,31 @@ int main()
         vec.reserve(10);
 
         TestObject obj;
-        cout << "----\n";
+        cout << "----------\n";
 
         vec.emplace_back(obj);
-        cout << "----\n";
+        cout << "----------\n";
 
         vec.emplace_back(std::ref(obj));
-        cout << "----\n";
+        cout << "----------\n";
 
         vec.emplace_back(std::move(obj));
-        cout << "----\n";
+        cout << "----------\n";
 
         vec.push_back(obj);
-        cout << "----\n";
+        cout << "----------\n";
 
         vec.push_back(std::ref(obj));
-        cout << "----\n";
+        cout << "----------\n";
 
         vec.push_back(std::move(obj));
     }
 
-    std::cout << "------------------------------\n";
+    cout << "------------------------------------------------------\n";
 
     // Test Code(중단점 걸고서 테스트할 것)
     {
-        std::cout << "2) ---------------------------\n";
+        cout << "-------------------------#02#-------------------------\n";
 
         int testVal = 100;
 
@@ -191,7 +197,7 @@ int main()
         testStackUniv.WrapPush(10);
         testStackUniv.WrapPush(testVal);
 
-        cout << "----\n";
+        cout << "----------\n";
 
         OverloadingStack<int> testStackOver;
 
@@ -199,17 +205,17 @@ int main()
         testStackOver.Push(testVal);
     }
 
-    std::cout << "------------------------------\n";
+    cout << "------------------------------------------------------\n";
 
     // Test Code(중단점 걸고서 테스트할 것)
     {
-        std::cout << "3) ---------------------------\n";
+        cout << "-------------------------#18#-------------------------\n";
 
         UnivRefStack<TestObject> testStackUniv;
 
         TestObject testObj;
 
-        cout << "----\n";
+        cout << "----------\n";
 
         testStackUniv.DirectPush(testObj);
         testStackUniv.DirectPush(std::ref(testObj));
@@ -219,7 +225,7 @@ int main()
         testStackUniv.WrapPush(std::ref(testObj));
         testStackUniv.WrapPush(std::move(testObj));
 
-        cout << "----\n";
+        cout << "----------\n";
 
         OverloadingStack<TestObject> testStackOver;
 
@@ -228,7 +234,7 @@ int main()
         testStackOver.Push(std::move(testObj));
     }
 
-    std::cout << "------------------------------\n";
+    cout << "------------------------------------------------------\n";
 
     return 0;
 }

@@ -1,3 +1,9 @@
+// Update Date : 2025-01-10
+// OS : Windows 10 64bit
+// Program : Visual Studio 2022
+// Version : C++20
+// Configuration : Debug-x64, Release-x64
+
 #include <iostream>
 #include <sstream>
 
@@ -20,7 +26,7 @@ using namespace std;
 // 4. 작업의 비동기성에 초점
 // 5. 스레드 로컬 저장소를 사용하기에 부적절
 
-// 병렬성과 비동기성이 무슨 차이인지?
+// 병렬성과 비동기성의 차이가 무엇인지??
 // CPU 코어가 하나만 있다고 해보자.
 // - thread가 여러 개 있어도 실제로 수행되는 건 하나 뿐이라 병렬성을 달성하지 못 한다.
 // - 반면에 일감을 던지고 이후에 받는 비동기적인 작업은 수행 가능하다.
@@ -29,7 +35,7 @@ using namespace std;
 //   - 작업 병렬성 : 여러 작업을 독립적으로 실행.
 // - 비동기 : 나는 할 거 하러 갈테니 나중에 결과만 알려줘.
 
-// 주의 : std::async()는 클래스가 아닌 함수임.
+// (주의) std::async()는 클래스가 아닌 함수임.
 
 void RunThread()
 {

@@ -1,4 +1,5 @@
-// Update Date : 2024-08-14
+// Update Date : 2024-10-10
+// OS : Windows 10 64bit
 // Program : Visual Studio 2022
 // Version : C++14
 // Configuration : Debug-x64, Release-x64
@@ -57,22 +58,22 @@
 //   - LValue Reference와 마찬가지로 환경에 저장되는 식별자는 LValue로 취급하니 혼동하지 말 것.
 // - 환경에 저장된 RValue Reference Type은 환경이란 저장소의 메모리 주소와 대응됨(타입 -> 자료형).
 // - 환경에 저장된 RValue Reference Type은 LValue이기에 참조한 값을 수정할 수 있음(중요).
-// - code) --------------
-//   // int&&는 RValue Reference Type, rref는 LValue, 10은 RValue
-//   // 상수 10을 직접 참조하는 것이 아닌 표현식을 평가하여 생성한 임시 값 10을 참조하는 것(의미가 다르니 혼동주의)
-//   int&& rref = 10;
-//   rref = 200; // 수정 가능(환경에 저장된 LValue로 보기 때문이라고 생각하자).
-//
-//   // 에러 발생(캐스팅하는 순간은 LValue가 아닌 RValue로 보기 때문이라고 생각하자).
-//   (int&&)rref = 300;
-//
-//   int testNum = 400;
-//
-//   ReadFunc(100); // int&&
-//   ReadFunc(rref); // ## int& ##
-//   ReadFunc(std::move(rref)); // int&&
-//   ReadFunc(testNum); // int&
-//   --------------------
+//  code)---------------------------------------------
+//  // int&&는 RValue Reference Type, rref는 LValue, 10은 RValue
+//  // 상수 10을 직접 참조하는 것이 아닌 표현식을 평가하여 생성한 임시 값 10을 참조하는 것(의미가 다르니 혼동주의)
+//  int&& rref = 10;
+//  rref = 200; // 수정 가능(환경에 저장된 LValue로 보기 때문이라고 생각하자).
+// 
+//  // 에러 발생(캐스팅하는 순간은 LValue가 아닌 RValue로 보기 때문이라고 생각하자).
+//  (int&&)rref = 300;
+// 
+//  int testNum = 400;
+// 
+//  ReadFunc(100); // int&&
+//  ReadFunc(rref); // ## int& ##
+//  ReadFunc(std::move(rref)); // int&&
+//  ReadFunc(testNum); // int&
+//  --------------------------------------------------
 //
 // # RValue Reference Casting(RValue Reference와 내용이 일부 겹침)
 // - 객체를 RValue Reference Type으로 변환하는 작업을 의미.
@@ -80,12 +81,12 @@
 //   - RValue Reference Casting에 영향을 받는 식의 결과는 RValue로 취급함.
 // - RValue를 받는 함수를 호출하기 위한 용도나 객체의 소유권을 실질적으로 이전하기 위해서 사용함(중요).
 // - std::move(), static_cast<T&&>(), 강제형변환을 통해 변환을 수행함.
-// - code) --------------
-//   int x = 10;
-//   int&& rref1 = std::move(x);
-//   int&& rref2 = static_cast<int&&>(x);
-//   int&& rref3 = (int&&)x;
-//   --------------------
+//  code)---------------------------------------------
+//  int x = 10;
+//  int&& rref1 = std::move(x);
+//  int&& rref2 = static_cast<int&&>(x);
+//  int&& rref3 = (int&&)x;
+//  --------------------------------------------------
 //
 // ## 참조 타입과 최적화 ##
 // - 참조 타입은 환경에 별도의 공간을 할당하는 방식으로 동작한다.
@@ -120,15 +121,15 @@
 // - Move는 복사가 아닌 소유권의 이전임.
 
 // std::move() 구현 코드
-// -------------------------
+// --------------------------------------------------
 // template <class _Ty>
 // _NODISCARD constexpr remove_reference_t<_Ty>&& move(_Ty&& _Arg) noexcept { 
 //     return static_cast<remove_reference_t<_Ty>&&>(_Arg);
 // }
-// -------------------------
+// --------------------------------------------------
 // * constexpr 유형 : 컴파일 타임에 완료될 수 있음.
 // * noexcept 유형 : 예외를 던지지 않는 함수임.
-// -------------------------
+// --------------------------------------------------
 // * 반환형(remove_reference_t<_Ty>&&) : _Ty에서 참조를 제거한 기본 타입의 RValue Reference임.
 //   - LValue Reference(&)든, RValue Reference(&&)든 참조를 제거하여 원래 타입을 구한 후 RValue Reference로 만듦.
 //
@@ -137,24 +138,24 @@
 //
 // * 구현부의 반환 코드(return static_cast<remove_reference_t<_Ty>&&>(_Arg);)
 //   - _Arg를 _Ty에서 참조를 제거한 기본 타입의 RValue Reference로 캐스팅하여 반환함.
-// -------------------------
+// --------------------------------------------------
 // std::move()는 인자로 받은 대상을 RValue Reference로 캐스팅하여 반환하는 함수이다.
 // RValue가 아닌 RValue Reference로 캐스팅하는 함수니까 차이를 인지해야 한다(RValue와 RValue Reference는 다르다).
 //
 // 개발자는 std::move() 여부를 통해 Copy Semantics를 사용할지 Move Semantics를 사용할지 결정할 수 있다.
 // RValue Reference Type이 환경에 저장되면 이건 LValue로 취급하니 주의할 것.
-// -------------------------
+// --------------------------------------------------
 // 보편 참조는 완벽한 전달(Perfect Forwarding)을 처리하기 위한 개념이며 전달된 인수의 유형에 따라 LValue Reference나 RValue Reference 중 하나로 해석됨.
 // 보편 참조를 위한 기호는 &&로 RValue Reference를 표현하기 위한 기호 &&와 동일하며,
 // 처음 마주하면 굉장히 혼동되는 개념이기 때문에 structured_binding_with_auto.cpp를 함께 보도록 할 것.
-// -------------------------
+// --------------------------------------------------
 // # 굳이 std::move()를 사용하지 않더라도 RValue라는 것이 확실하다면 RValue Reference로 받는다.
 // # MyClass는 임시 객체(일회용) -> RValue Reference(보편 참조) -> push_back() 내부에서 forward()로 전달 -> Move Constructor
 // vec.push_back(MyClass{ });
-// -------------------------
+// --------------------------------------------------
 
 // RValue와 RValue Reference는 다른 개념이니까 반드시 구분하고 넘어갈 것.
-// RValue는 Assignment 식의 오른쪽에 있는 값을 의미하고, RValue Reference는 어떠한 임시 값을 참조하는 형태를 의미하.
+// RValue는 Assignment 식의 오른쪽에 있는 값을 의미하고, RValue Reference는 어떠한 임시 값을 참조하는 형태를 의미함.
 //
 // std::move()는 인자로 받은 대상을 RValue Reference로 캐스팅하여 반환함.
 // 임시 값을 참조하는 것과 RValue Reference로 캐스팅하는 것은 의미가 미묘하게 다르니 짚고 넘어갈 것.
@@ -166,7 +167,7 @@
 //
 // std::move()는 단순히 캐스팅 함수일 뿐이며 이것을 호출하는 것만으로는 소유권의 상실까지 이어지진 않는다.
 // 자원의 소유권을 이전(이동)해서 이전 객체가 가진 자원의 소유권을 상실시키는 로직은 직접 작성해줘야 한다.
-// -------------------------
+// --------------------------------------------------
 // MyClass(MyClass&& other) noexcept : data(other.data) {
 //     other.data = nullptr; // 이동 후 원래 객체는 자원의 소유권을 상실
 //     std::cout << "Move Constructor" << std::endl;
@@ -181,7 +182,7 @@
 //     }
 //     return *this;
 // }
-// -------------------------
+// --------------------------------------------------
 
 // RValue Reference를 환경에 저장했다고 해서 이걸 곧바로 Move Semantics에 적용할 수 있는 것은 아니다.
 // 환경에 저장된 RValue Reference는 LValue이다.
@@ -325,6 +326,8 @@ void CallFunc(MyClass&& myClass)
 
     whatSemantics = myClass; // 복사 대입 연산자
     whatSemantics = std::move(myClass); // 이동 대입 연산자
+
+    // RValue Reference Type으로 받는 것 또한 참조 형식이기 때문에 myClass에 대한 소멸자는 호출되지 않는다.
 }
 
 int main()
@@ -340,7 +343,7 @@ int main()
         CallFunc(myClass);
     }
 
-    std::cout << "------------------------------\n";
+    std::cout << "--------------------------------------------------\n";
     
     {
         std::cout << "2) ---------------------------\n";
@@ -352,7 +355,7 @@ int main()
         CallFunc(std::move(myClass));
     }
     
-    std::cout << "------------------------------\n";
+    std::cout << "--------------------------------------------------\n";
 
     {
         std::cout << "3) ---------------------------\n";
@@ -363,7 +366,7 @@ int main()
         CallFunc(MyClass{ });
     }
 
-    std::cout << "------------------------------\n";
+    std::cout << "--------------------------------------------------\n";
 
     {
         std::cout << "4) ---------------------------\n";
@@ -386,16 +389,16 @@ int main()
          * LValue Reference로 참조했다고 해도 std::move()를 쓰면 RValue Reference로 캐스팅하여 이동 생성자가 호출되게 유도할 수 있다(CallFunc(MyClass& myClass) 참고).
          * 함수의 인자를 std::move()를 통해 RValue Reference로 캐스팅하여 받았다고 해도 환경에 저장되는 순간은 LValue로 취급한다.
          * 
-         * ------------------------------
+         * --------------------------------------------------
          * 
          * std::move()는 이동 연산을 수행하는 것이 아닌 단순하게 우측값으로 캐스팅하는 것이 전부인 함수이다.
          * 차라리 move() 대신 명칭을 rvalue() 혹은 cast_rvalue()로 지었다면 덜 헷갈렸을 것이다.
          * 
-         * C++의 창시자 Bjarne Stroustroup은 우측값 캐스팅을 수행하는 함수의 이름을 move()라고 지은 것을 후회한다고 했다.
+         * C++의 창시자 Bjarne Stroustroup은 우측값 캐스팅을 수행하는 함수의 이름을 move()라고 지은 것을 후회한다고 언급한 적이 있다.
          */
     }
 
-    std::cout << "------------------------------\n";
+    std::cout << "--------------------------------------------------\n";
 
     return 0;
 }

@@ -1,4 +1,5 @@
 // Update Date : 2024-10-07
+// OS : Windows 10 64bit
 // Program : Visual Studio 2022
 // Version : C++14
 // Configuration : Debug-x64, Release-x64

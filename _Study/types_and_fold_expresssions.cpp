@@ -1,3 +1,9 @@
+// Update Date : 2024-12-23
+// OS : Windows 10 64bit
+// Program : Visual Studio 2022
+// Version : C++20
+// Configuration : Debug-x64, Release-x64
+
 #include <iostream>
 #include <typeinfo>
 
@@ -160,7 +166,7 @@ int main()
 {
     Run01();
 
-    std::cout << "--------------------\n";
+    std::cout << "--------------------------------------------------\n";
 
     Run02();
 

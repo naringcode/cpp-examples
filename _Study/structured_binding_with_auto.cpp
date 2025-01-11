@@ -1,3 +1,9 @@
+// Update Date : 2024-08-02
+// OS : Windows 10 64bit
+// Program : Visual Studio 2022
+// Version : C++20
+// Configuration : Debug-x64, Release-x64
+
 #include <iostream>
 #include <vector>
 
@@ -9,13 +15,13 @@
 // 3. auto&& [] : **Universal Reference** (RValue Reference 아님)
 //
 // int&& 이런 형태는 RValue Reference로 Universal Reference 형태가 아니다.
-// auto&&는 Universal Reference이기 때문에 참으로 헷갈리는 부분.
+// auto&&는 Universal Reference인데 이건 참으로 헷갈리는 부분.
 //
 // 보편 참조는 완벽한 전달(Perfect Forwarding)을 처리하기 위한 문법이다.
 // 완벽한 전달이란 문맥에 따라서 왼쪽값 참조(LValue Refefence)와 오른값 참조(RValue Reference) 중 하나로 적절하게 처리하는 방식을 말한다.
 // 보편 참조는 일반적으로 템플릿에서 유용하게 활용된다(이 경우에는 std::move()가 아닌 std::forward()를 사용해야 함).
 //
-// 이 부분에 대한 자세한 사항은 "Modern Effective C++"의 "5장 오른값 참조, 이동 의미론, 완벽 전달"을 참고하도록 함.
+// 이 부분에 대한 자세한 사항은 "Modern Effective C++"의 "5장 오른값 참조, 이동 의미론, 완벽 전달"을 참고하도록 한다.
 //
 // 보편 참조는 템플릿 함수의 매개변수 "T&&"와 키워드 "auto&&"로만 가능하다.
 // 이 외에 &&를 사용하면 RValue Reference로 동작한다고 보면 된다.
@@ -283,19 +289,19 @@ int main()
 {
     Run01();
 
-    std::cout << "----------------------------------------\n";
+    std::cout << "--------------------------------------------------\n";
 
     Run02();
 
-    std::cout << "----------------------------------------\n";
+    std::cout << "--------------------------------------------------\n";
 
     Run03();
 
-    std::cout << "----------------------------------------\n";
+    std::cout << "--------------------------------------------------\n";
 
     Run04();
 
-    std::cout << "----------------------------------------\n";
+    std::cout << "--------------------------------------------------\n";
 
     Run05();
 

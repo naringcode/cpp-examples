@@ -1,3 +1,13 @@
+// Update Date : 2024-10-11
+// OS : Windows 10 64bit
+// Program : Visual Studio 2022
+// Version : C++20
+// Configuration : Debug-x64, Release-x64
+
+// 사양
+// CPU : AMD Ryzen 5 7600 6-Core Processor 3.80 GHz
+// RAM : 32GB
+
 #include <iostream>
 #include <chrono>
 #include <iomanip>
@@ -10,10 +20,6 @@
 #include <WinSock2.h>
 
 using namespace std;
-
-// 사양
-// CPU : AMD Ryzen 5 7600 6-Core Processor 3.80 GHz
-// RAM : 32GB
 
 int main()
 {

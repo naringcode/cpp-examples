@@ -1,4 +1,5 @@
-// Update Date : 2024-08-14
+// Update Date : 2024-10-10
+// OS : Windows 10 64bit
 // Program : Visual Studio 2015, Visual Studio 2019, Visual Studio 2022
 // Version : C++14
 // Configuration : Debug-x64, Release-x64
@@ -190,20 +191,20 @@ int main()
         //
         MyClass myClassA = make_my_class(10);
 
-        cout << "----\n";
+        cout << "-----\n";
 
         // Copy Constructor가 아닌 Move Constructor 발생
         MyClass myClassB(std::move(myClassA));
 
-        cout << "----\n"; // Destructor 경계
+        cout << "-----\n"; // Destructor 경계
     }
 
-    std::cout << "--------------------\n";
+    cout << "--------------------------------------------------\n";
 
     {
         MyClass myClassA = make_my_class(10);
 
-        cout << "----\n";
+        cout << "-----\n";
 
         // 환경에 생성된 MyClass를 대상으로 Assignment를 적용하는 예시.
         //
@@ -215,10 +216,10 @@ int main()
         myClassB = myClassA;
         myClassB = std::move(myClassA); // LValue를 대상으로 이동 대입 연산자를 호출하고 싶다면 명시적으로 std::move()를 써야 한다.
 
-        cout << "----\n"; // Destructor 경계
+        cout << "-----\n"; // Destructor 경계
     }
 
-    std::cout << "--------------------\n";
+    cout << "--------------------------------------------------\n";
 
     {
         // ## RVO가 적용되었어도 다음과 같이 출력된다. ##
@@ -231,7 +232,7 @@ int main()
         // 가능하면 컴파일러의 성능을 믿고 Reference Type으로 반환하는 것은 지양하도록 한다.
         MyClass myClassA = make_my_class_rvalue(100);
 
-        cout << "----\n"; // Destructor 경계
+        cout << "-----\n"; // Destructor 경계
 
         // 컴파일러 버전에 따라 약간 상이하지만 보통은 함수의 결과를 반환할 때 std::move()를 쓰지 않고 그냥 넘겼을 때 더 나은 성능을 보인다.
         // RVO를 의식하지 않는다면 "복사 생성자보단 이동 생성자를 호출해서 넘기면 더 좋지 않을까?"하는 함정에 빠질 수 있다.
@@ -240,7 +241,7 @@ int main()
         // 따라서 세부적인 최적화는 머신에 따라, 컴파일러에 따라 달라질 수 있음을 고려해야 한다.
     }
 
-    std::cout << "--------------------\n";
+    cout << "--------------------------------------------------\n";
 
     {
         std::vector<MyClass> vec;
@@ -262,7 +263,7 @@ int main()
         //
         MyClass myClass = make_my_class(10000);
 
-        cout << "----\n";
+        cout << "-----\n";
 
         // 1. push_back() -> 함수 오버로딩 : LValue Reference -> "Copy Constructor"
         // 2. emplace_back() -> 보편 참조 : LValue Reference -> forward() -> "Copy Constructor"
@@ -271,7 +272,7 @@ int main()
 
         for (int i = 0; i < 9; i++)
         {
-            cout << "---\n";
+            cout << "-----\n";
 
             // 아래 push_back()도 Return Value Optimization 여부에 따라 다르게 동작함.
             //
@@ -305,10 +306,11 @@ int main()
             //
             // 다음 코드처럼 함수의 반환값을 환경에 저장하여 push_back()에 식별자로 넘길 경우에는
             // LValue Reference로 받아서 Copy Constructor가 호출된다.
-            // ----------------------------------------
+            //
+            // code)---------------------------------------------
             // auto myClass = make_my_class(100);
             // vec.push_back(myClass); // 함수 오버로딩 : LValue Reference -> "Copy Constructor"
-            // ----------------------------------------
+            // --------------------------------------------------
             // 
             // code : 함수의 반환값을 그대로 push_back()에 넘기기
             // vec.push_back(make_my_class(10 + i));
@@ -347,7 +349,7 @@ int main()
             // 4. Destructor : ~MyClass() : nullptr
         }
 
-        cout << "----\n";
+        cout << "-----\n";
     }
 
     return 0;

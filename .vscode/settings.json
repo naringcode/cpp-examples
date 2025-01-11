@@ -93,7 +93,10 @@
         "queue": "cpp",
         "regex": "cpp",
         "stack": "cpp",
-        "any": "cpp"
+        "any": "cpp",
+        "barrier": "cpp",
+        "coroutine": "cpp",
+        "resumable": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

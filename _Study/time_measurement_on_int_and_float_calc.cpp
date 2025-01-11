@@ -1,12 +1,18 @@
+// Update Date : 2024-01-01
+// OS : Windows 10 64bit
+// Program : Visual Studio 2022
+// Version : C++20
+// Configuration : Debug-x64, Release-x64
+
+// 사양
+// CPU : AMD Ryzen 5 7600 6-Core Processor 3.80 GHz
+// RAM : 32GB
+
 #include <iostream>
 #include <Windows.h>
 
 #include <vector>
 #include <algorithm>
-
-// 사양
-// CPU : AMD Ryzen 5 7600 6-Core Processor 3.80 GHz
-// RAM : 32GB
 
 // 10억 번 연산을 한다고 했을 때 걸리는 시간
 // 
