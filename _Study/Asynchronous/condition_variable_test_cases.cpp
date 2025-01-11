@@ -171,7 +171,7 @@ void Run()
         // 조건 대상 변수는 여전히 false
         cv.notify_one();
 
-        cout << "Thread 01 Done\n";
+        cout << "Thread 01 Done.\n";
     } };
     
     // 4초 뒤에 notify_one() 호출(조건 대상 변수 수정 함)
@@ -188,7 +188,7 @@ void Run()
         // 조건 대상 변수를 true로 바꾸고 호출
         cv.notify_one();
         
-        cout << "Thread 02 Done\n";
+        cout << "Thread 02 Done.\n";
     } };
 
     unique_lock<mutex> lock(mtx);
@@ -220,7 +220,7 @@ void Run()
         cout << "lock(mtx) is locked by the calling thread[" << this_thread::get_id() << "] (2).\n";
     }
 
-    cout << "Main Done\n";
+    cout << "Main Done.\n";
 
     // !! 중요 !!
     // 조건 변수에 넣는 lock 변수는 조건 변수 자체에 대한 경합에 대한 순차적 접근 및 Predicate에서 사용하는 공유 자원에 대한 안전한 접근을 위한 목적으로 사용한다.
@@ -263,7 +263,7 @@ void Run()
     // 사전에 notify_one()을 호출했다고 해도 wait()를 호출하면 대기 상태에 진입한다(Windows의 Event 방식과는 다른 부분).
     // 
     // 결론 : notify_one()을 먼저 호출한다고 해도 뒤늦게 wait()를 호출한다면 대기 상태에 진입함.
-    cout << "Main Done\n";
+    cout << "Main Done.\n";
 
     th.join();
 }
@@ -314,7 +314,7 @@ void Run()
     // 
     // 결론 : 조건 없는 wait() 또한 mutex의 lock을 물리지 않고(unlock을 진행하고) 대기 상태에 돌입함.
     // 결론 : 당연하겠지만 lock(mtx)를 획득한 스레드의 ID를 조회하면 생성된 스레드와 메인 스레드의 ID가 각각 조회됨.
-    cout << "Main Done\n";
+    cout << "Main Done.\n";
 
     th.join();
 }
@@ -343,17 +343,17 @@ void Run()
     // 상단의 스레드가 lock을 소유할 때까지 대기
     this_thread::sleep_for(1s); // chrono::seconds(1));
 
-    cout << "Before unique_lock<mutex> lock(mtx)\n";
+    cout << "Before unique_lock<mutex> lock(mtx).\n";
     
     unique_lock<mutex> lock(mtx);
     
-    cout << "After unique_lock<mutex> lock(mtx)\n";
+    cout << "After unique_lock<mutex> lock(mtx).\n";
 
     // 상단의 스레드가 mutex의 lock을 풀 때까지 대기
     cv.wait(lock);
 
     // 이건 mutex의 lock을 소유하는 과정에서 생긴 대기 상태이기 때문에 조건 변수와의 연관성이 있는 것은 아니다.
-    cout << "Main Done\n";
+    cout << "Main Done.\n";
 
     th.join();
 }
@@ -419,7 +419,7 @@ void Run()
     // Thread OK 1 -> Thread OK 2 -> Main Done(생성한 스레드 쪽에서 반환한 lock을 빠르게 잡고 먼저 출력까지 한다면 희박한 확률로 이 순서대로 출력될 것임)
     // 
     // 결론 : 조건 변수는 Predicate가 false를 반환하면 lock의 소유권을 반납하고 다시 notify 계열의 함수를 호출했을 때 lock의 소유권을 획득함.
-    cout << "Main Done\n";
+    cout << "Main Done.\n";
 
     th.join();
 }
@@ -466,7 +466,7 @@ void Run()
     // 신호 상태에 따라 대기 중인 스레드들을 한 번에 깨우는 기능이 있는 Windows의 Event와 같이 동작할 줄 알았는데 아니었음.
     // 
     // 결론 : 조건 변수에 의해 대기하고 있는 스레드는 한 번에 깨어나는 것이 아닌 lock을 소유할 때까지 기다리면서 순차적으로 깨어남.
-    cout << "Main Done\n";
+    cout << "Main Done.\n";
 }
 
 END_NS
@@ -501,7 +501,7 @@ void Run()
     // !! 이건 정의되지 않은 동작이기 때문에 컴파일러마다 차이가 있을 것으로 예상됨. !!
     //
     // 결론 : 조건 변수에 전달되는 lock 변수는 반드시 소유권을 획득한 상태(잠긴 상태)로 전달되어야 함.
-    cout << "Main Done\n";
+    cout << "Main Done.\n";
 
     th.join();
 }
