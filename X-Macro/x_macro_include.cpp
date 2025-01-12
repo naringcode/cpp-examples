@@ -10,7 +10,6 @@
  * Stats.def에는 이름과 자료형이 STAT(NumGames, INT)과 같은 형식으로 작성되어 있다.
  * 이렇게 정의 내용을 파일 한 군데 몰아서 작성하면 다른 여러 곳에서 각기 다른 문맥으로 인클루드해서 재사용할 수 있다.
  */
-
 enum class StatType
 {
     INT,
@@ -27,7 +26,7 @@ enum Stat
     MAX_STAT
 
     // 최종적으로는 다음 열거 데이터가 나열됨.
-    /*
+    /**
      * Stat_NumGames,
      * Stat_NumWins,
      * Stat_NumLosses,
@@ -68,7 +67,6 @@ int main()
 
     // 통계 정보를 수신하는 내용은 책을 참고하도록 하기
     // 멀티플레이어 게임 프로그래밍 | 챕터 12 | 조슈아 글레이저, 산자이 마드하브
-
     for (int idx = 0; idx < MAX_STAT; idx++)
     {
         StatData& stat = statArr[idx];

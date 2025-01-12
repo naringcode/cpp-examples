@@ -1,13 +1,13 @@
 #include <bits/stdc++.h>
 
+using namespace std;
+
 // X macro
 // https://en.wikipedia.org/wiki/X_macro
 // https://www.geeksforgeeks.org/x-macros-in-c/
 
 // X 매크로의 진가는 같은 데이터 셋을 어디선가 재사용하고자 할 때 드러난다.
 // 다만 과도하게 사용하면 코드를 읽기 힘든 코드가 되니 적당히 사용하도록 한다.
-
-using namespace std;
 
 // FOREACH_COLORS는 X_MACRO_LIST라고 보면 된다.
 // DO는 일종의 생성 Pattern이다.

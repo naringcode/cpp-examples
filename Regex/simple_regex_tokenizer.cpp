@@ -66,7 +66,7 @@ int main()
 
                 std::cout << regUnit.type << '\n';
                 std::cout << smResult.str() << '\n';
-                std::cout << "--------------------\n";
+                std::cout << "-------------------------\n";
 
                 break;
             }

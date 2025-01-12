@@ -1,13 +1,13 @@
 #include <bits/stdc++.h>
 
+using namespace std;
+
 /**
  * x_macro_1.cpp와 동일한 기능을 수행하지만 FOREACH_COLORS(DO)를 간소화한 형태
  * FOREACH_COLORS(DO) -> FOREACH_COLORS
  * 
  * DO라는 패턴을 명시하지 않고 최초 리스트 나열 시 X가 사용될 것임을 이용한 방식.
  */
-
-using namespace std;
 
 // DO라는 생성 패턴을 작성하지 않고 임의의 기능 X를 사용하는 방식
 #define FOREACH_COLORS \

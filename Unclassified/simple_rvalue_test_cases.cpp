@@ -85,7 +85,7 @@ int main()
     copyClass2 = rrefClass; // 복사 할당
     moveClass2 = (SomeClass&&)rrefClass; // 이동 할당
 
-    std::cout << "--------------------\n";
+    std::cout << "-------------------------\n";
 
     ReadFunc(someClass); // SomeClass&로 받음
     ReadFunc(rrefClass); // ## SomeClass&로 받음 ##
@@ -100,12 +100,12 @@ int main()
     ReadFunc(SomeClass{ }); // SomeClass&&로 받음
     ReadFunc(MakeFunc()); // ## SomeClass&&로 받음 ##
 
-    std::cout << "--------------------\n";
+    std::cout << "-------------------------\n";
 
     SomeClass retClassA = MoveFunc(someClass); // 이동 생성자
     SomeClass retClassB = MoveFunc(rrefClass); // 이동 생성자
 
-    std::cout << "--------------------\n";
+    std::cout << "-------------------------\n";
 
     // 캐스팅 테스트
     char* ptr = new char[128];

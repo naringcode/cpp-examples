@@ -1,9 +1,8 @@
 #include <iostream>
 #include <tuple>
-
 #include <string>
 
-// 동일한 내용이 _Study/enable_shared_from_this_with_refCnt.cpp에 있음.
+// 동일한 내용이 _Study/Template/template_implementation_of_tuple.cpp에 있음.
 // 이건 북마크 용도임.
 
 // !! 컴파일러에 따라 C++11을 사용할 때 MyTuple의 함수 GetHead()와 GetRest()에 붙은 constexpr 때문에 에러가 날 수 있음. !!

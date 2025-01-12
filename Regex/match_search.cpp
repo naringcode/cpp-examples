@@ -57,7 +57,6 @@ int main()
         cout << '\n';
     }
 
-
     if (std::regex_match(str, smResult, patternFull))
     {
         std::cout << "Full Match\n";
