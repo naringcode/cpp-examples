@@ -106,6 +106,13 @@ void Run()
     cout << funcValA << '\n';
     cout << funcValB << '\n';
     // cout << funcValC << '\n';
+
+    // constinit은 변수를 const화하는 것이 아니기 때문에 수정할 수 있다.
+    g_ValA = 1111;
+    g_ValB = 2222;
+
+    cout << g_ValA << '\n';
+    cout << g_ValB << '\n';
 }
 
 END_NS
