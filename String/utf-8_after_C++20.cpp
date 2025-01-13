@@ -23,6 +23,7 @@ void PrintString(const char* pStr)
 void PrintString(const char8_t* u8pStr)
 {
     // C++20 기준 iostream은 UTF-8을 다루는 방법을 제공하지 않기에 캐스팅해서 사용해야 한다.
+    // UTF-8의 특성을 고려하면 char8_t을 char로 캐스팅하는 건 문제가 생길 소지가 ASCII 범위 내라면 문제가 생기진 않는다. 
     cout << "PrintString(const char8_t* u8pStr) : " << reinterpret_cast<const char*>(u8pStr) << '\n';
 }
 #endif
