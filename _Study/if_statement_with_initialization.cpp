@@ -1,9 +1,15 @@
+// Update Date : 2025-01-13
+// OS : Windows 10 64bit
+// Program : Visual Studio 2022
+// Version : C++20
+// Configuration : Debug-x64, Release-x64
+
 #include <iostream>
 #include <mutex>
 #include <vector>
 #include <set>
 
-// If Statement with Initializer (C++ 17)
+// if statement with initializer (C++17)
 // https://en.cppreference.com/w/cpp/language/if
 // https://learn.microsoft.com/en-us/cpp/cpp/if-else-statement-cpp?view=msvc-170
 // https://www.tutorialspoint.com/cplusplus17-if-statement-with-initializer
