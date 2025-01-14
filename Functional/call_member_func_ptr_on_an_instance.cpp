@@ -1,3 +1,9 @@
+// Update Date : 2023-11-19
+// OS : Windows 10 64bit
+// Program : Visual Studio 2022
+// Version : C++20
+// Configuration : Debug-x64, Release-x64
+
 #include <iostream>
 
 class MyClass
