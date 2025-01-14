@@ -204,7 +204,7 @@ int main()
         cout << "Failed - ConvertToInt64()\n";
     }
 
-    cout << "-------------------------\n";
+    cout << "--------------------------------------------------\n";
 
     wchar_t wBigNumStr[] = L"111222333444555666777888999";
 
@@ -217,7 +217,7 @@ int main()
         cout << "Failed - ConvertToInt64()\n";
     }
 
-    cout << "-------------------------\n";
+    cout << "--------------------------------------------------\n";
 
     wchar_t wStrCombined1[] = L"111abc";
     wchar_t wStrCombined2[] = L"abc111";
@@ -240,7 +240,7 @@ int main()
         cout << "Failed - ConvertToInt64()\n";
     }
 
-    cout << "-------------------------\n";
+    cout << "--------------------------------------------------\n";
 
     wchar_t wRealNum[] = L"3.14";
 
@@ -265,7 +265,7 @@ int main()
         cout << "Failed - ConvertToDouble()\n";
     }
 
-    cout << "-------------------------\n";
+    cout << "--------------------------------------------------\n";
 
     wchar_t wMultiRealNum[] = L"3.14 1.4141";
 
