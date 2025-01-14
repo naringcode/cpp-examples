@@ -226,6 +226,7 @@ END_NS
 BEGIN_NS(Case04)
 
 // https://en.cppreference.com/w/cpp/language/constraints
+// https://en.cppreference.com/w/cpp/concepts
 
 // 여담이긴 하나 C++20에서 제공하는 제약 조건을 사용해서 explicit 적용 여부를 결정하는 것도 가능하다.
 template <typename T>
