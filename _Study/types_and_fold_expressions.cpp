@@ -7,6 +7,9 @@
 #include <iostream>
 #include <typeinfo>
 
+// https://en.cppreference.com/w/cpp/language/pack
+// https://en.cppreference.com/w/cpp/language/fold
+
 // common_type은 여러 타입 중 공통된 타입을 찾기 위해서 사용함.
 // 산술 연산이나 비교 연산에서 사용될 수 있는 타입을 대상으로 한다.
 // 연산했을 때 구해지는 공통된 타입을 구하기 위해서 사용한다고 보면 된다(표현 범위가 가장 넓은 자료형을 찾아줌).
