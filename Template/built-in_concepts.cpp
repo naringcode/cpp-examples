@@ -25,6 +25,7 @@ using namespace std;
 // 7. concepts_details.cpp
 //
 // Concepts을 학습한 다음 Ranges를 학습하도록 한다.
+// Ranges의 동작 방식을 잘 이해하기 위해선 Concepts에 대한 선행 학습이 필요하다.
 //
 
 // C++이 제공하는 built-in concepts은 다음 링크에서 확인할 수 있다.
