@@ -10,7 +10,7 @@
 
 using namespace std;
 
-// https://en.cppreference.com/w/cpp/language/enum
+// https://en.cppreference.com/w/cpp/language/enum#using_enum_declaration
 // https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1099r5.html
 
 // C++20부터 using enum declaration을 사용하는 것이 가능하다.
