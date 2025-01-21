@@ -209,8 +209,8 @@ https://en.cppreference.com/w/cpp/language/language_linkage
   - External Linkage : export를 적용하면 코드는 외부로 결합될 수 있기 때문에 바깥에서 사용할 수 있음.
   - (주의) 익명 네임스페이스나 static 키워드 같이 Internal Linkage가 적용되는 요소를 대상으로는 export를 적용할 수 없음.
 
-external linkage﻿, module linkage, internal linkage는 방식이 각기 다르니까 혼동하지 않게 주의해야 한다.
-원문 : A name can have external linkage ﻿, module linkage(since C++20), internal linkage, or no linkage:
+external linkage, module linkage, internal linkage는 방식이 각기 다르니까 혼동하지 않게 주의해야 한다.
+원문 : A name can have external linkage, module linkage(since C++20), internal linkage, or no linkage:
 원문 : Even though names in an unnamed namespace may be declared with external linkage, ...
 
 # Private Module Fragment
@@ -425,6 +425,9 @@ C언어를 기반으로 만든 <cstdio>나 <cstring> 같은 건 헤더 유닛으
 따라서 헤더 파일의 동작이 외부의 전처리기 지시자에 의존적이라면 해당 헤더 파일은 헤더 유닛으로 사용하는 것이 불가능하다.
 즉, 모든 헤더 파일은 헤더 유닛이 될 수 있으나 그걸 쓸 수 없는 경우가 생긴다.
 
+!! 혼동 !!
+헤더에서 구성된 전처리기 지시자는 이걸 헤더 유닛으로 import하는 쪽에서 사용할 수 있으나,
+반대로 모듈 내에서 구성된 전처리기 지시자는 해당 모듈을 import하는 쪽에서 사용할 수 없다(그것이 #include라고 해도).
 
 개발자는 모듈 파일을 작성할 때 Global module fragment에 #include 통해 헤더 파일을 적용할 것인지,
 
