@@ -4,6 +4,23 @@
 // Version : C++20
 // Configuration : Debug-x64, Release-x64
 
+다음 순서대로 보도록 하자.
+
+1. modules_intro
+2. basic_modules
+3. export_entities
+4. implement_a_module_on_different_files
+5. separate_declaration_and_definition
+6. export_import
+7. naming_module_and_submodules
+8. partition_modules
+9. modules_with_namespaces
+10. private_module_fragments
+11. header_units
+12. visibility_and_reachability
+
+##################################################
+
 https://en.cppreference.com/w/cpp/language/modules
 
 C++20부터는 기존의 헤더 파일 방식의 문제점을 개선한 모듈이라는 새로운 컴파일 방식을 지원한다.
