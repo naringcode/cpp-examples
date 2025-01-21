@@ -156,6 +156,7 @@ C++20에 도입된 Modules는 다음과 같은 특징이 있다.
 
 https://www.albertogramaglia.com/modern-cpp-modules-theory/
 https://learn.microsoft.com/en-us/cpp/cpp/tutorial-named-modules-cpp?view=msvc-170#anatomy-of-a-module
+https://vector-of-bool.github.io/2019/03/31/modules-2.html
 https://vector-of-bool.github.io/2019/10/07/modules-3.html
 https://gcc.gnu.org/pipermail/gcc-cvs/2020-August/317609.html
 https://en.cppreference.com/w/cpp/language/storage_duration#Module_linkage
@@ -179,7 +180,7 @@ https://en.cppreference.com/w/cpp/language/language_linkage
 +----+----+----+----+----+----+----+----+----+----+----+
 | export <namespace, function, class>;                 |
 | export { ... }                                       |
-| entities only visible in this module;                |
+| entities only visible in this and same named module; |
 |                                                      |
 |   ( Module Purview / Module Interface : Optional )   |
 |                                                      |
