@@ -1,0 +1,143 @@
+// Update Date : 2025-01-21
+// OS : Windows 10 64bit
+// Program : Visual Studio 2022
+// Version : C++20
+// Configuration : Debug-x64, Release-x64
+
+https://www.albertogramaglia.com/modern-cpp-modules-theory/
+https://learn.microsoft.com/en-us/cpp/cpp/tutorial-named-modules-cpp?view=msvc-170#anatomy-of-a-module
+https://vector-of-bool.github.io/2019/10/07/modules-3.html
+https://gcc.gnu.org/pipermail/gcc-cvs/2020-August/317609.html
+https://en.cppreference.com/w/cpp/language/storage_duration#Module_linkage
+https://en.cppreference.com/w/cpp/language/storage_duration#External_linkage
+https://en.cppreference.com/w/cpp/language/namespace
+https://en.cppreference.com/w/cpp/language/language_linkage
+
+C++20 이후 제공되는 모듈은 다음 형식에 맞게 코드를 작성해야 한다.
+
++----+----+----+----+----+----+----+----+----+----+----+
+| module;                                              |
+|                                                      |
+|         ( Global Module Fragment : Optional )        |
+|                                                      |
++----+----+----+----+----+----+----+----+----+----+----+
+| export module <name>; or module <name>;              |
+| import <other modules>;                              |
+|                                                      |
+|             ( Module Preamble : Required )           |
+|                                                      |
++----+----+----+----+----+----+----+----+----+----+----+
+| export <namespace, function, class>;                 |
+| export { ... }                                       |
+| entities only visible in this module;                |
+|                                                      |
+|   ( Module Purview / Module Interface : Optional )   |
+|                                                      |
++----+----+----+----+----+----+----+----+----+----+----+
+| module: private;                                     |
+|                                                      |
+|        ( Private Module Fragment : Optional )        |
+|                                                      |
++----+----+----+----+----+----+----+----+----+----+----+
+
+# Global Module Fragment
+- 전처리기 지시자(preprocessor directives)만 적용 가능함.
+  - 전처리기 지시자는 요직 이 구간에서만 적용할 수 있음.
+- 일반적으로 #include를 통해 헤더 파일을 모듈에 포함하는 구간임.
+
+# Module Preamble
+- 모듈의 이름을 결정하는 구간임.
+- 다른 모듈을 포함할 수 있음.
+- export module가 적용되면 named module이라고 함.
+
+# Module Purview
+- 모듈의 엔터티를 구성하여 인터페이스를 작성하기 위한 구간임.
+  - 엔터티 : 변수, 함수, 클래스, 함수 템플릿, 클래스 템플릿, concepts 등
+- export를 통해 엔터티를 가시화하여 공개할 수도 있고, 적용하지 않고 모듈 내에서만 사용하게 숨길 수도 있음.
+  - Module Linkage : export를 적용하지 않으면 코드는 모듈 내부로 결합되기 때문에 외부에서 사용할 수 없음.
+  - External Linkage : export를 적용하면 코드는 외부로 결합될 수 있기 때문에 바깥에서 사용할 수 있음.
+  - (주의) 익명 네임스페이스나 static 키워드 같이 Internal Linkage가 적용되는 요소를 대상으로는 export를 적용할 수 없음.
+
+external linkage, module linkage, internal linkage는 방식이 각기 다르니까 혼동하지 않게 주의해야 한다.
+원문 : A name can have external linkage, module linkage(since C++20), internal linkage, or no linkage:
+원문 : Even though names in an unnamed namespace may be declared with external linkage, ...
+
+# Private Module Fragment
+- 모듈의 캡슐화 수준을 강화하기 위해 사용함.
+- 선언한 엔터티를 외부에 공개했을 때 여기서 구현 및 수정한다고 해도
+  다른 모듈이나 코드에서 해당 엔터티를 사용한다 해도 재컴파일에 영향을 미치지 않음.
+
+https://learn.microsoft.com/en-us/cpp/cpp/tutorial-named-modules-cpp?view=msvc-170#anatomy-of-a-module
+위 링크를 보면 모듈 구조에 맞춰서 코드를 작성하는 방법이 자세하게 나와 있다.
+
+code)---------------------------------------------
+module; // optional. Defines the beginning of the global module fragment
+
+// #include directives go here but only apply to this file and
+// aren't shared with other module implementation files.
+// Macro definitions aren't visible outside this file, or to importers.
+// import statements aren't allowed here. They go in the module preamble, below.
+
+export module [module-name]; // Required. Marks the beginning of the module preamble
+
+// import statements go here. They're available to all files that belong to the named module
+// Put #includes in the global module fragment, above
+
+// After any import statements, the module purview begins here
+// Put exported functions, types, and templates here
+
+module :private; // optional. The start of the private module partition.
+
+// Everything after this point is visible only within this file, and isn't 
+// visible to any of the other files that belong to the named module.
+--------------------------------------------------
+
+code)---------------------------------------------
+module; // optional. Defines the beginning of the global module fragment
+
+// This is where #include directives go. They only apply to this file and aren't shared
+// with other module implementation files.
+// Macro definitions aren't visible outside of this file or to importers
+// import statements aren't allowed here. They go in the module preamble, below
+
+export module [Module-name]:[Partition name]; // Required. Marks the beginning of the module preamble
+
+// import statements go here. 
+// To access declarations in another partition, import the partition. Only use the partition name, not the module name.
+// For example, import :Point;
+// #include directives don't go here. The recommended place is in the global module fragment, above
+
+// export imports statements go here
+
+// after import, export import statements, the module purview begins
+// put exported functions, types, and templates for the partition here
+
+module :private; // optional. Everything after this point is visible only within this file, and isn't 
+                         // visible to any of the other files that belong to the named module.
+--------------------------------------------------
+
+위 예시에 맞게 코드를 적용하면 이런 느낌이다(https://vector-of-bool.github.io/2019/10/07/modules-3.html).
+
+code)---------------------------------------------
+// [The global module fragment - optional]
+module;
+#include <stuff.hpp>
+
+// [The module preamble]
+export module foo:bar;
+
+export import widgets;
+import gadgets;
+
+// [The module interface - optional]
+export void do_stuff();
+
+// [The private module fragment - optional]
+module :private;
+
+void do_stuff() {
+    std::cout << "Howdy!\n";
+}
+
+// [The end]
+--------------------------------------------------
