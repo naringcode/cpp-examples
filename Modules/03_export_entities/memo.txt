@@ -1,0 +1,15 @@
+// Update Date : 2025-01-22
+// OS : Windows 10 64bit
+// Program : Visual Studio 2022
+// Version : C++20
+// Configuration : Debug-x64, Release-x64
+
+모듈은 export 키워드를 통해 외부에 모듈의 일부를 공개할 것인지를 설정할 수 있다.
+
+export를 엔터티 앞에 작성하면 export가 적용되어 해당 엔터티는 External Linkage가 적용된다.
+
+// 단일 엔터티에 export 적용
+export <namespace, function, class>;
+
+// 블록에 속한 모든 엔터티를 대상으로 export 적용
+export { ... } 
