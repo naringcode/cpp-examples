@@ -1,0 +1,31 @@
+// Update Date : 2025-01-22
+// OS : Windows 10 64bit
+// Program : Visual Studio 2022
+// Version : C++20
+// Configuration : Debug-x64, Release-x64
+
+https://vector-of-bool.github.io/2019/03/31/modules-2.html
+
+위 항목의 "The Dungeon Boss: visible versus reachable"에 잘 정리되어 있다.
+
+모듈을 사용할 때 적용되는 가시성(Visibility)과 도달성(Reachability)은 다르니 주의해야 한다.
+
+1. Every visible entity is also reachable.
+
+2. Being reachable does not imply being visible.
+
+3. Whether an entity is declared with [export] has no effect on if it is reachable: It only effects whether it is visible.
+
+4. If a class or enumeration type is reachable, then its members become visible, even if the containing name is not visible.
+
+쉽게 정리하자면 이렇다.
+
+가시성(Visibility) : 사용자가 코드 수준에서 명시적으로 선언하거나 참조할 수 있는 것
+
+도달성(Reachability) : 사용자가 코드 수준에서 명시적으로 접근할 수는 없지만 간접적으로 접근 가능한 것(간접적으로 접근 가능한 대상의 멤버는 Visible함).
+
+export 키워드가 적용된 엔터티는 Visible하기에 포함하는 쪽에서 명시적으로 선언 및 참조할 수 있다.
+
+명시적으로 Visible하지 않더라도 간접적으로 접근 가능하기에 Reachable은 허용한다.
+
+Visible한 것은 Reachable하지만 반대로 Reachable한 것은 Visible하지 않다.
