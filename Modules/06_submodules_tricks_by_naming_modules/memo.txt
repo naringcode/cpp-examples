@@ -6,6 +6,8 @@
 
 https://learn.microsoft.com/en-us/cpp/cpp/tutorial-named-modules-cpp?view=msvc-170#module-naming
 https://en.cppreference.com/w/cpp/language/modules#Module_declarations
+https://www.modernescpp.com/index.php/c-20-divide-modules/
+https://vector-of-bool.github.io/2019/03/10/modules-1.html
 
 서브모듈은 하나의 모듈을 계층적으로 나누어 관리하는 방식의 모듈을 말한다.
 

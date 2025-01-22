@@ -7,6 +7,8 @@ module;
 // Module Preamble : Required
 export module BasicModule; // 모듈 이름
 
+// Module Purview / Module Interface : Optional
+
 // export를 붙이지 않은 엔터티는 모듈 내에서만 보여진다.
 void ModuleLinkageFunc()
 {

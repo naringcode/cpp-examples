@@ -6,9 +6,6 @@
 
 #include <iostream>
 
-// import Math.Arithmetic;
-// import Math.Geometry;
-
 import MainModule;
 
 // 다음과 같이 파티션을 동일 모듈이 아닌 곳에서 import하는 건 허용하지 않는다.

@@ -9,15 +9,14 @@
 1. modules_intro
 2. basic_modules
 3. export_entities
-4. implement_a_module_on_different_files
-5. separate_declaration_and_definition
-6. export_import
-7. naming_module_and_submodules
-8. partition_modules
-9. modules_with_namespaces
-10. private_module_fragments
-11. header_units
-12. visibility_and_reachability
+4. separate_declaration_and_definition_to_different_files
+5. export_import
+6. submodules_tricks_by_naming_modules
+7. partition_modules
+8. modules_with_namespaces
+9. private_module_fragments
+10. header_units
+11. visibility_and_reachability
 
 ##################################################
 
@@ -421,12 +420,13 @@ error MSB8086: 순환 빌드 종속성이 검색되었습니다. A.ixx이(가) B
 
 https://en.cppreference.com/w/cpp/language/modules#Importing_modules_and_header_units
 https://www.modernescpp.com/index.php/c-20-modules-private-module-fragment-and-header-units/
+https://vector-of-bool.github.io/2019/10/07/modules-3.html
 
-C++20에서는 헤더 파일을 모듈로 변환해서 사용하는 방법도 제공하고 있다.
+헤더 유닛은 헤더 파일을 변환하여 모듈처럼 사용하기 위한 방식을 말한다.
 
-이를 통해 사용자가 만든 헤더 파일이나 기존에 지원하던 <iostream> 같은 헤더 파일을 모듈로 변환해서 사용할 수 있다.
+표준 C++에서 제공하는 <iostream> 같은 헤더 파일을 물론이고 사용자가 만든 헤더 파일도 모듈로 변환해서 사용할 수 있다.
 
-이런 유형의 모듈을 헤더 유닛이라고 하며 당연히 헤더 파일로부터 별도로 컴파일되어 만들어진다.
+헤더 유닛은 헤더 파일로부터 구성된 개별적인 TU이며 당연히 헤더 파일을 별도로 컴파일하는 것으로 생성된다.
 
 원문 : A header unit is a separate translation unit synthesized from a header.
 
@@ -436,15 +436,22 @@ C++20에서는 헤더 파일을 모듈로 변환해서 사용하는 방법도 �
 C++ 표준 라이브러리에 있는 헤더 파일은 헤더 유닛으로 사용할 수 있게 보장하고 있지만
 C언어를 기반으로 만든 <cstdio>나 <cstring> 같은 건 헤더 유닛으로 사용하지 못할 가능성이 있다.
 
-!! 주의 !!
-헤더 유닛을 import하여 사용하면 헤더 유닛 내에 정의된 전처리기는 해당 헤더 유닛을 포함한 모듈(혹은 소스 코드)에 영향은 미친다.
-하지만 반대로 헤더 유닛을 포함하는 쪽에서는 포함하기 전에 어떤 전처리기를 구성했어도 헤더 유닛에 영향을 미치지 못 한다.
-따라서 헤더 파일의 동작이 외부의 전처리기 지시자에 의존적이라면 해당 헤더 파일은 헤더 유닛으로 사용하는 것이 불가능하다.
-즉, 모든 헤더 파일은 헤더 유닛이 될 수 있으나 그걸 쓸 수 없는 경우가 생긴다.
 
-!! 혼동 !!
-헤더에서 구성된 전처리기 지시자는 이걸 헤더 유닛으로 import하는 쪽에서 사용할 수 있으나,
-반대로 모듈 내에서 구성된 전처리기 지시자는 해당 모듈을 import하는 쪽에서 사용할 수 없다(그것이 #include라고 해도).
+모든 헤더 파일을 헤더 유닛으로 사용할 수 있는 건 아니다.
+
+#define _UNICODE
+#include <windows.h>
+
+#define _UNICODE
+import <windows.h>;
+
+import하기 이전에 정의한 전처리기 지시자는 헤더 유닛에게 그 어떠한 영향도 미치지 않는다.
+
+첫 번째 방식을 쓰면 _UNOCDE는 헤더 파일 <windows.h>에 영향을 미친다.
+
+하지만 두 번째 방식을 쓰면 _UNICODE는 헤더 유닛으로 사용한 <windows.h>에 영향을 미치지 않는다.
+
+모든 헤더 파일은 헤더 유닛으로 변환할 수 있지만 이게 전부 호환된다는 것을 의미하는 건 아니다.
 
 개발자는 모듈 파일을 작성할 때 Global module fragment에 #include 통해 헤더 파일을 적용할 것인지,
 
@@ -454,6 +461,17 @@ Module preamble에 import를 써서 헤더 유닛을 적용할 것인지를 선�
 
 import <iostream>;
 import "SomeHeader.h";
+
+!! 주의 !!
+헤더 유닛을 import하여 사용하면 헤더 유닛 내에 정의된 전처리기는 해당 헤더 유닛을 포함한 모듈(혹은 소스 코드)에 영향을 미친다.
+하지만 반대로 헤더 유닛이 포함되기 이전에 정의한 전처리기는 포함된 헤더 유닛에 어떠한 영향도 미치지 못 한다.
+따라서 헤더 파일의 동작이 사전에 코드 수준으로 정의된 전처리기 지시자에 의존적이라면 해당 헤더 파일은 헤더 유닛으로 사용할 수 없다.
+이런 이유로 호환성을 위해서 모듈의 구성 요소에 Global module fragment를 따로 둔 것이다.
+
+!! 혼동 !!
+헤더를 헤더 유닛으로 사용할 때에서 헤더 내 정의된 전처리기 지시자는 import하는 쪽에 영향을 미치지만,
+반대로 import하기 이전에 외부에서 정의한 전처리기 지시자는 해당 헤더 유닛에 영향을 미치지 않는다.
+또한 모듈 내에 전처리기 지시자를 정의하면 이것 자체도 모듈에 캡슐화되기 때문에 모듈을 import하는 쪽에 영향을 주지 않는다.
 
 
 https://learn.microsoft.com/en-us/cpp/build/walkthrough-header-units?view=msvc-170
