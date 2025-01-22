@@ -1,0 +1,93 @@
+// Update Date : 2025-01-22
+// OS : Windows 10 64bit
+// Program : Visual Studio 2022
+// Version : C++20
+// Configuration : Debug-x64, Release-x64
+
+https://en.cppreference.com/w/cpp/language/modules#Importing_modules_and_header_units
+https://www.modernescpp.com/index.php/c-20-modules-private-module-fragment-and-header-units/
+https://vector-of-bool.github.io/2019/10/07/modules-3.html
+
+헤더 유닛은 헤더 파일을 변환하여 모듈처럼 사용하기 위한 방식을 말한다.
+
+표준 C++에서 제공하는 <iostream> 같은 헤더 파일을 물론이고 사용자가 만든 헤더 파일도 모듈로 변환해서 사용할 수 있다.
+
+헤더 유닛은 헤더 파일로부터 구성된 개별적인 TU이며 당연히 헤더 파일을 별도로 컴파일하는 것으로 생성된다.
+
+원문 : A header unit is a separate translation unit synthesized from a header.
+
+헤더 유닛은 컴파일러마다 구현되는 방식이 다르며 각자 요구하는 별도의 설정이 존재한다.
+
+!! 주의 !!
+C++ 표준 라이브러리에 있는 헤더 파일은 헤더 유닛으로 사용할 수 있게 보장하고 있지만
+C언어를 기반으로 만든 <cstdio>나 <cstring> 같은 건 헤더 유닛으로 사용하지 못할 가능성이 있다.
+
+
+모든 헤더 파일을 헤더 유닛으로 사용할 수 있는 건 아니다.
+
+#define _UNICODE
+#include <windows.h>
+
+#define _UNICODE
+import <windows.h>;
+
+import하기 이전에 정의한 전처리기 지시자는 헤더 유닛에게 그 어떠한 영향도 미치지 않는다.
+
+첫 번째 방식을 쓰면 _UNOCDE는 헤더 파일 <windows.h>에 영향을 미친다.
+
+하지만 두 번째 방식을 쓰면 _UNICODE는 헤더 유닛으로 사용한 <windows.h>에 영향을 미치지 않는다.
+
+모든 헤더 파일은 헤더 유닛으로 변환할 수 있지만 이게 전부 호환된다는 것을 의미하는 건 아니다.
+
+개발자는 모듈 파일을 작성할 때 Global module fragment에 #include 통해 헤더 파일을 적용할 것인지,
+
+Module preamble에 import를 써서 헤더 유닛을 적용할 것인지를 선택할 수 있다.
+
+헤더 유닛을 사용하고자 할 때는 다음과 같이 코드를 작성하면 된다(세미콜론이 반드시 뒤에 붙어야 함).
+
+import <iostream>;
+import "SomeHeader.h";
+
+!! 주의 !!
+헤더 유닛을 import하여 사용하면 헤더 유닛 내에 정의된 전처리기는 해당 헤더 유닛을 포함한 모듈(혹은 소스 코드)에 영향을 미친다.
+하지만 반대로 헤더 유닛이 포함되기 이전에 정의한 전처리기는 포함된 헤더 유닛에 어떠한 영향도 미치지 못 한다.
+따라서 헤더 파일의 동작이 사전에 코드 수준으로 정의된 전처리기 지시자에 의존적이라면 해당 헤더 파일은 헤더 유닛으로 사용할 수 없다.
+이런 이유로 호환성을 위해서 모듈의 구성 요소에 Global module fragment를 따로 둔 것이다.
+
+!! 혼동 !!
+헤더를 헤더 유닛으로 사용할 때에서 헤더 내 정의된 전처리기 지시자는 import하는 쪽에 영향을 미치지만,
+반대로 import하기 이전에 외부에서 정의한 전처리기 지시자는 해당 헤더 유닛에 영향을 미치지 않는다.
+또한 모듈 내에 전처리기 지시자를 정의하면 이것 자체도 모듈에 캡슐화되기 때문에 모듈을 import하는 쪽에 영향을 주지 않는다.
+
+
+https://learn.microsoft.com/en-us/cpp/build/walkthrough-header-units?view=msvc-170
+https://learn.microsoft.com/en-us/cpp/build/walkthrough-import-stl-header-units?view=msvc-170
+https://learn.microsoft.com/en-us/cpp/build/walkthrough-import-stl-header-units?view=msvc-170#use-translateinclude
+
+Visual Studio에서 헤더 유닛을 컴파일하는 방법은 위 링크에 기술되어 있다.
+
+1. 특정 파일을 헤더 유닛으로 적용하는 방법
+
+2. 자동으로 모든 코드를 스캔하고 빌드하여 헤더 유닛을 적용하는 방법(모든 요소를 검사하기 때문에 최적의 빌드 결과를 도출하는 건 아님)
+
+3. 표준 C++ 헤더 파일을 헤더 유닛으로 변환하여 정적 라이브러리에 적용하고 이를 공유하여 모듈을 import하는 방법
+
+
+테스트 해본 결과 직접 헤더 파일을 생성하고 해당 헤더 파일에 별도의 설정을 건드리지 않고 모듈에 import하는 건 별 문제가 없었다.
+
+하지만 소스 코드(.cpp) 수준에서 아무런 설정을 거치지 않고 헤더 파일을 import하면 에러가 발생했다.
+
+원문:
+Files that have the extension .ixx, and files that have their File properties > C/C++ > Compile As property 
+set to Compile as C++ Header Unit (/export), are always scanned regardless of this setting.
+
+위 내용을 근거로 하면 Visual Studio는 별도의 설정을 거치지 않고 헤더 파일을 import해도 모듈 한정으로 헤더 유닛으로 취급하는 것 같다.
+
+하지만 소스 코드(.cpp) 내에서 헤더 파일을 import하여 헤더 유닛처럼 사용하려면 1번이나 2번 과정을 설정해줘야 했다.
+
+별도의 설정을 거치지 않아도 헤더 파일을 모듈 내에서 import하면 헤더 유닛처럼 동작하는 건 Visual Studio의 특성이다.
+
+다른 컴파일러를 쓴다면 별도의 설정이 필요할 수 있으니 주의하도록 하자.
+
+Visual Studio의 소스 코드에서 헤더 유닛을 사용하려면?
+: C/C++ -> General(일반) -> Scan Sources for Module Dependencies(소스의 모듈 종속성 검사) -> Yes
