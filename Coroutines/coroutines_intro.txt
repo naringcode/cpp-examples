@@ -1,0 +1,4549 @@
+// Update Date : 2025-02-01
+// OS : Windows 10 64bit
+// Program : Visual Studio 2022
+// Version : C++20
+// Configuration : Debug-x64, Release-x64
+
+##################################################
+
+다음 순서대로 보도록 하자.
+
+1. coroutines_intro.txt
+
+- 작성하는 중
+
+##################################################
+
+https://en.wikipedia.org/wiki/Function_(computer_programming)
+https://en.wikipedia.org/wiki/Coroutine
+https://www.ldoceonline.com/dictionary/co
+https://www.ldoceonline.com/dictionary/routine
+https://en.wikipedia.org/wiki/Evaluation_strategy#Eager_evaluation
+https://en.wikipedia.org/wiki/Lazy_evaluation
+https://en.wikipedia.org/wiki/Cooperative_multitasking
+
+# 서브루틴과 코루틴
+
+코루틴(Coroutine)은 이름 그대로 협력(together with)을 의미하는 co-와 실행할 명령어의 집합을 의미하는 routine이 합쳐진 단어이다.
+
+굳이 풀어쓰다면 협력 루틴(co-operative routine), 협력해서 작업하는 루틴 정도로 표현할 수 있다.
+
+코루틴 또한 루틴의 일종이지만 일반적으로 함수나 메서드로 불리는 기존의 서브루틴과는 차이가 있다.
+
+           [ routine ]
+                |
+       +--------+---------+
+       |                  |
+[ sub-routine ]     [ co-routine ]
+                          |
+                   +------+------+
+                   |             |
+             [ stackless ] [ stackfull ]
+
+@ 서브루틴(Subroutine)
+
+- 호출(call)하는 것으로 동작한다.
+
+- 단방향으로 주어진 작업을 끝마칠 때까지 순차적으로 실행한다(반환하기 전까지).
+
+- 서브루틴의 반환은 루틴의 종료이며 이는 서브루틴 내 지역변수와 매개변수가 소멸한다는 것을 의미한다.
+
+- 서브루틴이 반환되면 해당 서브루틴을 호출한 지점으로 되돌아간다.
+
+- 한 사람에게 주어진 작업이 다 끝나야 다른 사람이 일을 할 수 있는 방식과 유사하다.
+
+- 호출된 순간 평가를 진행하는 Eager evaluation 방식으로 동작한다.
+
+- 재사용성이 좋기에 반복 작업이나 간단한 계산을 할 때 유용하며 구조가 단순하기에 디버깅하기 쉽다.
+
+- 일반적인 함수나 메서드, 람다, 멤버 함수 등으로 표현된다.
+
+
+@ 코루틴(Coroutine)
+
+- 호출하는 방식으로 동작하지만 실행을 중단(pause)하여 유예(suspend)한 다음 원하는 시점에 재개(resume)할 수 있다.
+
+- 코루틴의 실행이 유예(혹은 일시정지)할 수 있다는 건 어딘가에 코루틴의 상태(실행 정보)가 저장되어 있어야 한다는 뜻이다.
+
+- 명시적으로 제어권(control)을 다른 루틴으로 넘길 수 있으며 이때 중간 결과를 산출(yield)할 수 있다.
+  - 이 방식을 통해 코루틴은 각 루틴과 비동기적으로 협력하여 양방향 작업을 할 수 있음.
+
+- 코루틴이 재개되면 이전에 작업했던 상태(실행 정보)를 토대로 그대로 이어서 진행할 수 있다.
+
+- 두 사람 혹은 여러 사람이 각각 자신의 작업을 하다가 특정 시점에 필요한 것을 서로 요청하여 협력해서 일하는 방식과 유사하다.
+
+- 필요한 순간 혹은 원하시는 시점까지 평가를 늦추는 Lazy evaluation을 지원한다.
+
+- 긴 작업을 분할해서 협력하는 방식으로 동작할 수 있기에 유연하며 비동기 작업에 유리하다.
+
+- 코루틴은 서브루틴의 호출(call)과 반환(return)을 일반화한 형태이다.
+
+- Cooperative multitasking 방식인 만큼 컨텍스트 스위칭이 발생하지 않는다(멀티스레딩 아님).
+
+- 언어가 제공하는 사양에 맞춰 전용 코루틴 함수를 따로 정의해야 하는 경우가 많으며 이때 코루틴을 의미하는 특별한 키워드가 사용된다.
+  - 보통은 반환 방식을 통해 서브루틴과 코루틴을 구별함.
+
+==================================================
+
+상술한 이유로 인해 서브루틴과 코루틴은 동작 방식에 차이가 있다.
+
+서브루틴 방식으로 동작한다고 해보자.
+
+main에서 func1을 호출하고 이어서 재귀적으로 func2와 func3를 한다고 하면 다음 모습이 나온다.
+
+                          func3
+                 func2    func2    func2
+        func1    func1    func1    func1    func1
+main -> main  -> main  -> main  -> main  -> main  -> main
+
+서브루틴 방식은 유예 기능을 지원하지 않기 때문에 도중에 작업을 중단하고 재개하는 건 불가능하다.
+
+
+이 재귀 로직을 코루틴 방식으로 구성하면 작업을 유예하고 재개하는 것이 가능하다.
+
+func2 호출을 유예하고 나중에 이어서 실행되게 한다고 하면 다음과 같이 로직이 흐를 것이다.
+
+                 func2 -> Pause & Store state
+        func1    func1                         func1
+main -> main  -> main                       -> main  -> main
+
+                                                          func3
+                                                 func2    func2    func2
+-> main -> do something for func2 in main --+--> main  -> main  -> main  -> main  -> main
+                                            ↑
+                                            |
+                            Resume func2 & Restore func2 state
+
+##################################################
+
+https://en.cppreference.com/w/cpp/language/functions
+https://en.cppreference.com/w/cpp/language/lambda
+https://en.cppreference.com/w/cpp/language/coroutines
+https://vishalchovatiya.com/posts/cpp20-coroutine-under-the-hood/
+
+# C++에서의 서브루틴과 코루틴
+
+C++에서의 서브루틴과 코루틴은 다음과 같은 특징이 있다.
+
+
+@ 서브루틴
+
+- 호출(invoke or call)하는 방식으로 동작하며 결과를 반환할 수 있다.
+  - 반환되면 서브루틴의 제어권은 이를 호출한 루틴에게 넘어가며 서브루틴이 호출된 시점으로 되돌아간다.
+
+- 스택 프레임이 적용된 콜 스택 방식으로 동작한다.
+
+- 호출한 즉시 평가한다(Eager evaluation 방식으로 동작).
+
+- C++에서 함수라 부를 수 있는 대부분의 것은 서브루틴에 해당한다.
+  - 함수, 멤버 함수, 람다 등
+
+
+@ 코루틴
+
+- 서브루틴과 마찬가지로 호출(invoke or call)하는 방식으로 동작하며 결과를 반환할 수 있다.
+
+- 작업을 중단하여 유예한 이후 원하는 시점에 명시적으로 재개할 수 있다.
+  - 작업을 유예하면서 중간 결과를 산출(yield)할 수 있다.
+  - 유예한 작업을 재개하면 유예 지점(suspension point)에서 실행을 이어간다.
+
+- 제어권을 다른 루틴(호출자 쪽, 다른 코루틴)에게 양보할 수 있다.
+  - 다만 최종적으로 제어권을 받는 건 코루틴 작업의 시작을 알린 호출자 쪽의 서브루틴이다.
+
+- 코루틴의 모든 내역(지역 변수, 실행 위치 등)은 힙 메모리에 할당되며 이를 코루틴 프레임(코루틴 상태)이라 한다.
+  - 코루틴 프레임의 주소는 코루틴 핸들을 통해 접근 가능함.
+  - 코루틴 정보를 스택에 할당하지 않기 때문에 stackless 방식임.
+
+- 코루틴은 작업이 중단되어도 힙에 할당된 자신의 코루틴 프레임을 통해 상태를 유지할 수 있다.
+
+- 코루틴 실행 도중 일반 함수를 호출하면 이건 스레드에서 처리하기 때문에 스택 프레임 기반의 콜 스택을 사용한다.
+  - 코루틴의 작업을 중단할 때 스택 프레임이 남는 경우는 없기 때문에 크게 문제되는 부분은 아님.
+
+- 원하는 시점에 평가를 시작하거나 실행을 재개할 수 있다(Lazy evaluation 방식을 지원).
+  - 원한다면 코루틴 생성과 동시에 코루틴 함수를 평가하는 것도 가능함.
+
+- 서브루틴의 반환형을 코루틴 타입으로 지정하면 이를 코루틴 함수라고 한다.
+  - 최초 코루틴 함수를 invoke하면 코루틴 객체가 생성된다.
+  - 코루틴 함수를 실질적으로 실행 및 재개하려면 코루틴 객체의 핸들에 접근하여 resume()을 호출해야 함.
+  - (중요) C++20이 지원하는 내장 코루틴 타입은 없음.
+  - 코루틴 함수를 사용하려면 코루틴 타입이 필요한데 이건 정해진 인터페이스에 따라 사용자가 정의해야 함.
+
+- (중요) 메인 함수는 코루틴 함수로 작성할 수 없다.
+
+
+https://en.cppreference.com/w/cpp/header/generator
+
+이걸 보면 차차 코루틴에 대한 내장 타입을 지원할 것 같긴 하다.
+
+==================================================
+
+# 코루틴 제약 사항
+
+일반적인 함수, 멤버 함수, 람다, static 함수 등 C++에서 함수라고 부를 수 있는 대부분의 것은 코루틴 함수로 작성할 수 있다.
+
+하지만 함수를 코루틴 함수로 작성하기 위해선 몇 가지 제약이 따르면 코루틴 함수로 작성할 수 없는 함수 또한 존재한다.
+
+- 반환형을 코루틴 타입으로 명시해야 한다(auto로 반환형의 타입을 추론하는 건 불가능함).
+
+- "return expression;"으로 구성된 statement는 사용할 수 없다.
+  - 코루틴 함수로 값을 반환하고자 하면 co_return, co_yield 같은 코루틴 전용 키워드를 써야 함.
+
+- 가변 인자(variadic arguments)는 사용할 수 없다.
+  - (주의) 가변 인자 템플릿은 사용할 수 있음.
+
+- 다음 유형의 함수는 코루틴 함수로 작성할 수 없다.
+  - main 함수
+  - 생성자와 소멸자
+  - consteval 함수
+  - constexpr 함수
+
+##################################################
+
+https://en.cppreference.com/w/cpp/language/coroutines#Execution
+https://en.cppreference.com/w/cpp/language/coroutines#Promise
+https://en.cppreference.com/w/cpp/language/coroutines#co_await
+https://en.cppreference.com/w/cpp/coroutine/coroutine_handle
+https://en.cppreference.com/w/cpp/coroutine/coroutine_traits
+https://vishalchovatiya.com/posts/cpp20-coroutine-under-the-hood/
+https://devblogs.microsoft.com/oldnewthing/20210330-00/?p=105019
+
+# C++ 코루틴 개요
+
+C++20 이후부터 C++에서 코루틴을 사용할 수 있다.
+
+C++에서 코루틴은 다음 조건을 만족해야 한다.
+
+- 함수라고 부를 수 있는 구조를 충족해야 한다.
+
+- 코루틴 제약 사항을 위배하지 않아야 한다.
+
+- 함수의 반환형은 사용자가 정의한 코루틴 타입이다.
+
+- 아무런 작업을 하지 않는다고 하면 적어도 co_return을 적용해야 한다.
+  - 코루틴 함수는 co_await, co_yield, co_return 중 아무거나 하나라도 사용해야 함.
+    - 아무런 키워드도 사용하지 않으면 다음 에러 메시지가 뜸.
+      - error C4716: 'CoroFunc': 값을 반환해야 합니다.
+
+(중요) 어떠한 경우가 되었든 co_await, co_yield, co_return 중 아무거나 하나라도 사용하고 있다면 코루틴 함수로 간주한다.
+
+
+# 코루틴 관련 용어
+
+다음은 C++의 코루틴을 다루는 과정에서 등장하는 용어 및 개념에 대한 대략적인 설명이다.
+
+용어 자체는 cppreference의 coroutine 문서에 등장하지만 이에 대한 설명은 없기에 공부하면서 느낀 개인적인 주관이 들어 있다.
+
+- Coroutine / Coroutine function
+  - 코루틴은 실행을 중단하고 원하는 시점에 재개할 수 있는 함수를 말함.
+  - 원문 : A coroutine is a function that can suspend execution to be resumed later.
+
+- Coroutine type
+  - 코루틴 함수의 반환형으로 적용되어야 하는 자료형을 일컫는 용어
+  - 코루틴 함수를 invoke하면 코루틴 타입을 통해 코루틴 객체를 받을 수 있음.
+  - C++20 기준 내장된(built-in) 코루틴 타입이 없기 때문에 사용자가 이러한 타입을 직접 정의해야 함.
+
+- Coroutine frame / Coroutine state
+  - 힙 메모리에 올라간 코루틴 정보를 말함.
+  - promise 오브젝트, 매개변수, 지역 변수, 중단 지점 등 모든 정보가 저장됨.
+  - 문서에서는 Coroutine state와 Coroutine frame이 혼재하는데 state보다는 frame에 더 가까운 것 같음.
+
+- Promise interface / Promise type
+  - 코루틴 핸들과 코루틴 함수를 중계하는 목적으로 사용하는 약속된 타입
+    - 코루틴 핸들은 보통 코루틴 객체가 가지고 있음.
+  - 코루틴의 전체적인 행동 방식을 정의한 구조체나 클래스로 실질적인 코루틴 컨트롤러임.
+  - 컴파일러가 코드를 생성할 수 있게 정의한 인터페이스에 따라 필요한 함수를 사용자가 직접 정의해야 함.
+
+- Coroutine handle
+  - 힙에 할당된 코루틴 프레임에 접근하기 위한 포인터
+  - 사용자는 코루틴 핸들을 통해 코루틴의 실행을 제어할 수 있음(완료 판단, 재개 요청, 자원 해제 등).
+  - 코루틴 핸들을 통해 promise_type에 접근하는 것도 가능함.
+
+- Awaitable
+  - co_await의 피연산자로 awaiter를 만들어낼 수 있음.
+
+- Awaiter
+  - 요청이 왔을 때 중단 및 재개 작업을 제어하기 위한 목적으로 사용하는 구조체나 클래스
+  - 내장 awaiter로는 std::suspend_always, std::suspend_never가 있으며 사용자가 직접 정의하는 것도 가능함.
+  - co_await 연산자를 통해 최종적으로 생성되어 사용되는 객체
+
+==================================================
+
+C++에서 코루틴 타입을 정의할 때는 최소한 다음 3가지 요소가 들어가야 한다.
+
+- Promise type(user-defined promise_type)
+
+- Coroutine handle(std::coroutine_handle<promise_type>)
+
+- Awaiter(std::suspend_always, std::suspend_never, user-defined awaiter)
+
+
+다음은 최소한의 기능을 적용하기 위해 필요한 promsie_type에 대한 인터페이스이다.
+
+최소한으로 구성해도 get_return_object(), initial_suspend(), final_suspend(), unhandled_exception(), return_xxx()가 필요하다(최소 5개의 함수가 필요함).
+
+- 생성자와 소멸자 : 선택
+
+- operator new(size), operator delete(mem) : 선택
+
+- get_return_object_on_allocation_failure() : 선택
+
+- get_return_object(), initial_suspend(), final_suspend(), unhandled_exception() : 필수
+
+- return_void(), return_value(T) : 둘 중 하나는 필수(둘 다 적용하는 건 안 됨)
+
+- yield_value(T) : 조건부 필수
+
+- await_transform(T) : 조건부 필수
+
+code)---------------------------------------------
+#include <iostream>
+#include <coroutine>
+
+struct CoroType
+{
+    struct promise_type // promise_type이라는 이름은 컴파일 과정에서 std::coroutine_traits가 사용함.
+    {
+        /*****************************
+        * Customization points below *
+        *****************************/
+
+        // 생성자와 소멸자는 생략 가능(생성자는 기본 생성자만 가능)
+        promise_type() { std::cout << "\t<promise_type()>\n"; }
+        ~promise_type() { std::cout << "\t<~promise_type()>\n"; }
+
+        // 필수
+        CoroType get_return_object()
+        {
+            std::cout << "\t<get_return_object()>\n";
+
+            // return CoroType{ this };
+            return this;
+        }
+
+        // 필수(final_suspend()는 noexcept 유형으로 작성되어야 함)
+        std::suspend_always initial_suspend() { std::cout << "\t<initial_suspend()>\n"; return { }; }
+        std::suspend_always final_suspend() noexcept { std::cout << "\t<final_suspend()>\n"; return { }; }
+
+        // 필수
+        void unhandled_exception()
+        {
+            std::cout << "\t<unhandled_exception()>\n";
+
+            std::rethrow_exception(std::current_exception());
+        }
+
+        // return_void()나 return_value(T) 중 하나는 필수
+        void return_void()
+        {
+            std::cout << "\t<return_void()>\n";
+        }
+
+        // void return_value(T value) { ... }
+
+        // 조건부 필수(코루틴 함수의 유형에 따름)
+        // std::suspend_always yield_value(T value) { ... }
+
+        // 조건부 필수(co_await에서 사용함)
+        // auto await_transform(T value)
+        // {
+        //     std::cout << "\t<await_transform(T)>\n";
+        // 
+        //     // await_transform(T)는 awaiter를 반환해야 한다.
+        //     return std::suspend_always{ };
+        // }
+
+        void* operator new(std::size_t size)
+        {
+            std::cout << "\t<operator new(size)>\n";
+
+            if (void* mem = std::malloc(size))
+                return mem;
+
+            return nullptr;
+        }
+
+        void operator delete(void* mem)
+        {
+            std::cout << "\t<operator delete(mem)>\n";
+
+            free(mem);
+        }
+    };
+
+    CoroType(promise_type* prom)
+        : handle{ std::coroutine_handle<promise_type>::from_promise(*prom) }
+    {
+        std::cout << "\t<CoroType()>\n";
+    }
+
+    ~CoroType()
+    {
+        std::cout << "\t<~CoroType()>\n";
+
+        // 지금은 이 코드를 작성하지 않으면 메모리 누수난다.
+        if (handle != nullptr)
+        {
+            handle.destroy();
+
+            handle = nullptr;
+        }
+    }
+
+    // 코루틴 핸들은 코루틴 프레임을 가리키기 위한 용도로 사용된다.
+    std::coroutine_handle<promise_type> handle = nullptr;
+};
+--------------------------------------------------
+
+- Promise type : promise_type
+
+- Coroutine handle : handle
+
+- Awaiter : std::suspend_always
+
+promise_type은 using이나 typedef를 통해 자료형을 재정의한 별칭으로 사용하는 것도 가능하다.
+
+하지만 위 예시 코드에서 보여지는 것처럼 코루틴 타입 내 promise_type을 직접 정의하는 편이다.
+
+promise_type이라는 이름은 std::coroutine_traits에서 사용하는 타입 이름이기 때문에 명칭을 변경해선 안 된다.
+
+또한 promise_type 내 정해진 인터페이스는 반드시 양식대로 구성해야 한다(그렇지 않으면 컴파일 에러가 발생함).
+
+!! 중요 !!
+
+C++20에는 내장된 코루틴 타입이 없기 때문에 사용자 수준에서 직접 인터페이스에 맞게 코루틴 타입을 정의해야 한다.
+
+컴파일러가 읽을 수 있게 직접 인터페이스에 맞게 코루틴 타입을 정의해야 하는 부분이 혼란스러울 수 있으나
+
+덕분에 사용자는 유연하게 코루틴 코드를 작성할 수 있다.
+
+
+위 코루틴 타입 CoroType을 적용하여 중단과 재개 기느을 적용한 기본적인 코루틴 예시는 이러하다.
+
+code)---------------------------------------------
+CoroType CoroFunc()
+{
+    std::cout << "<Coroutine - Started>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+
+    // 실행을 중단하고 유예 지점(suspension point) 설정
+    co_await std::suspend_always{ }; // 코루틴을 멈추는 목적으로 사용할 built-in awaiter
+    std::cout << "<Coroutine - Resuming coroutine...>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+
+    std::cout << "<Coroutine - Returning>\n";
+    co_return; // co_return에 의해 코루틴 함수가 반환되면 더 이상 재개할 수 없음.
+}
+
+int main()
+{
+    std::cout << "main - Calling coroutine\n";
+    CoroType task = CoroFunc(); // 코루틴이 생성되었긴 해도 실행된 건 아님.
+
+    std::cout << "\nmain - Resuming coroutine\n";
+    task.handle.resume(); // 직접 재개해야 "<Coroutine - Started>"를 출력함.
+
+    std::cout << "\nmain - Resuming coroutine\n";
+    task.handle.resume(); // 유예 지점에서 실행을 재개함(std::suspend_always{ } 이후의 명령어 실햄).
+    
+    // DISASTER : 코루틴 함수가 끝난 상태에서 재개하려고 하면 크래시가 발생하니 주의해야 한다.
+    // task.handle.resume();
+
+    // 코루틴 핸들의 done()을 통해서 코루틴 함수의 완료 여부를 확인할 수 있다.
+    if (task.handle.done())
+    {
+        std::cout << "\nmain - Coroutine is done!\n";
+    }
+    else
+    {
+        std::cout << "\nmain - Coroutine isn't done!\n";
+    }
+
+    return 0;
+}
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Calling coroutine
+        <operator new(size)>
+        <promise_type()>
+        <get_return_object()>
+        <CoroType()>
+        <initial_suspend()>
+
+main - Resuming coroutine
+<Coroutine - Started>
+<Coroutine - Executing coroutine function>
+
+main - Resuming coroutine
+<Coroutine - Resuming coroutine...>
+<Coroutine - Executing coroutine function>
+<Coroutine - Returning>
+        <return_void()>
+        <final_suspend()>
+
+main - Coroutine is done!
+        <~CoroType()>
+        <~promise_type()>
+        <operator delete(mem)>
+--------------------------------------------------
+
+실행 결과를 보면 코루틴 함수가 중단된 이후 유예 지점(suspension point)에서 다시 재개한 것을 볼 수 있다.
+
+
+사용자는 코루틴 함수의 co_await 표현식과 co_yield 표현식을 통해 코루틴의 실행을 유예할 수 있다.
+
+코루틴 함수 내에서 사용되는 전용 키워드는 다음과 같다.
+
+- co_await : 대기 가능한 객체(awaitable object)를 처리하여 awaiter를 받기 위한 연산자이다.
+             awaiter의 await_ready()를 통해 중단 여부를 결정할 수 있으며,
+             코루틴이 유예되면 await_suspend()를 호출하고 재개되면 await_resume()을 호출한다.
+
+- co_yield : 코루틴을 유예하며 중간 결과를 반환한다.
+
+- co_return : 코루틴 실행을 끝마치며 최종 결과를 반환할 수 있다.
+
+!! 주의 !!
+
+co_yield와 co_return으로 반환한 값을 받는 건 promise_type이지 호출자 쪽이 아니다.
+
+따라서 호출자 쪽에서 결과를 확인하고 싶다면 값을 promise 객체에 저장한 이후
+
+호출자 쪽에서 코루틴 객체 -> 코루틴 핸들 -> promise 객체에 접근해서 저장한 값을 조회해야 한다.
+
+
+https://en.cppreference.com/w/cpp/coroutine/coroutine_handle
+
+핸들을 통해 유예된 코루틴을 재개할 수 있으며 완료 여부를 판단할 수 있다.
+
+- resume() : 코루틴 재개
+
+- done() : 완료 여부 판단
+
+- destroy() : 코루틴 프레임 소멸(destroy()를 호출하면 코루틴 핸들은 유효하지 않게 되니 주의할 것)
+  - 원문 : Destroys the coroutine state of the coroutine
+
+##################################################
+
+https://en.cppreference.com/w/cpp/language/coroutines
+https://en.cppreference.com/w/cpp/language/coroutines#Promise
+https://en.cppreference.com/w/cpp/coroutine/coroutine_traits
+https://en.cppreference.com/w/cpp/coroutine/coroutine_handle
+
+# C++20 코루틴 구조 분석
+
+C++20에서 제공하는 코루틴을 저수준이며 코루틴 타입을 의미하는 시맨틱도 없으며 내장 타입도 존재하지 않는다.
+
+(중요) C++20에서 코루틴을 사용하기 위해선 사용자가 직접 코루틴 타입을 정의해야 한다.
+
+코루틴은 메인 로직으로부터 제어권을 양도받아 같은 스레드에서 실행되지만 코루틴 자체는 메인 로직과 구분되는 별도의 루틴으로 봐야 한다.
+
+이러한 논리적인 실행 단위를 구분하기 위해 코루틴의 상태를 묶은 메모리 블록 단위를 코루틴 프레임이라 한다.
+
+따라서 코루틴 내 결과가 반환되거나 예외가 던져질 때 일반적인 함수처럼 메인 로직의 호출자 쪽에 바로 반영되지 않는다.
+
+코루틴의 결과나 예외는 코루틴 프레임이 받는다는 사실을 잊으면 안 된다.
+
+!! 코루틴의 결과를 메인 로직에서 파악하고자 한다면 코루틴 프레임에 일시적으로 결과를 담았다가 이를 메인 로직에서 접근해 가져와야 함. !!
+
+
+사용자가 코루틴을 정의할 때는 컴파일러가 읽을 수 있게 정해진 인터페이스에 맞춰서 작성해야 한다.
+
+기본적으로 제공해야 하는 필수 인터페이스 외 선택적으로 정의해야 하는 인터페이스가 있으며
+
+코루틴 함수 내 사용되는 키워드(co_yield, co_return)에 대응되는 조건부 필수 인터페이스도 있다.
+
+이러한 인터페이스는 언어 차원에서 호출하는 함수이기 때문에 누락하거나 사용 조건에 부합하면 컴파일 에러가 발생한다.
+
+코루틴의 모든 기능을 사용자 수준에서 정해진 인터페이스에 따라 정의할 수 있으니 유연하게 대응할 수 있다.
+
+
+코루틴 마수를 호출(invoke)하면 반환형으로 지정한 코루틴 타입에 해당하는 코루틴 객체가 생성된다.
+
+// CoroType : 코루틴 타입
+// CoroFunc : 코루틴 함수
+CoroType CoroFunc()
+{
+    // 코루틴 함수 내에는 키워드 co_await, co_yield, co_return 중 아무거나 하나라도 사용되어야 한다.
+    // co_return이 명시되지 않았거나 co_return이 어떠한 값도 반환하지 않으면 promise_type에 return_void()를 작성해야 한다.
+    co_return;
+}
+
+// 1. 코루틴 함수 invoke
+// 2. std::coroutine_traits
+// 3. promise_type 생성
+// 4. get_return_object()을 호출하여 코루틴 객체 반환
+// 5. initial_suspend() 호출
+// 6. 코루틴 객체를 호출자에게 반환
+CoroType task = CoroFunc();
+
+==================================================
+
+# Coroutine type
+
+코루틴 타입과 이를 통해 생성된 객체는 다음과 같이 구성된다.
+
+코루틴 타입은 promise_type을 식별할 수 있어야 하며 코루틴 핸들을 멤버 변수의 형태로 들고 있어야 한다.
+
++---------------------------------+
+|         Coroutine Type          |
+| +-----------------------------+ |
+| |    promise_type typename    | | // 코루틴 타입은 promise_type을 식별할 수 있어야 함.
+| +-----------------------------+ |
+| |      Coroutine Handle       | | // 코루틴 타입 내에는 코루틴 핸들이 들어가야 함.
+| | +-------------------------+ | |
+| | | Coroutine Frame Pointer ├-+-+---+
+| | +-------------------------+ | |   |
+| +-----------------------------+ |   |
++---------------------------------+   | Points to a coroutine frame on the heap memory
+                                      |
+               +----------------------+
+               |
+               ↓
++------------------------------+
+|       Coroutine Frame        | // 코루틴 프레임은 힙 메모리에 할당됨.
+| +--------------------------+ |
+| |  promise_type instance   | | // 코루틴 동작을 제어하기 위해 사용자가 정의한 인터페이스의 인스턴스
+| +--------------------------+ |
+| |     Suspension State     | | // 코루틴 함수의 재개 및 중단 상태를 제어하기 위한 값
+| |    Registers (ex. IP)    | | // 코루틴 함수를 재개할 때 실행 상태를 복원하기 위한 레지스터 값
+| |     Func Parameters      | |
+| |     Local Variables      | |
+| |       Temporaries        | |
+| | Additional Internal Data | |
+| +--------------------------+ |
++------------------------------+
+
+!! Coroutine Frame이 반영하는 요소는 Visual Studio 2022의 메모리 창으로 직접 확인하였음. !!
+
+!! Coroutine Handle과 Coroutine Frame은 컴파일러마다 다르게 적용될 수 있음. !!
+
+코루틴 타입은 쉽게 생각해서 코루틴 핸들과 promise_type이라는 이름을 알고 있는 자료형을 말한다.
+
+이러한 코루틴 핸들은 코루틴 프레임(혹은 코루틴 상태)을 가리키기 위한 포인터 값을 담고 잇다.
+
+코루틴 프레임은 사용자가 정의한 promise_type의 인스턴스 및 코루틴 실행과 관련된 모든 내용을 담아 힙에 할당한 메모리 블록을 말한다.
+
+코루틴 함수를 invoke하면 내부에서는 사용자가 정의한 코루틴 타입을 생성하며 호출자에게 코루틴 객체가 반환된다.
+
+코루틴 객체는 코루틴 핸들을 가지고 있으며 사용자는 언제든 이 핸들에 접근하여 원하는 시점에 코루틴을 재개할 수 있다.
+
+또한 코루틴 핸들을 통해 promise_type에 접근하는 거서도 가능하다.
+
+코루틴 인터페이스나 함수를 잘 구성하면 중단과 재개 특성을 활용하여 다른 요소와 협력하여 상호작용하는 것이 가능하다.
+
+(중요) 사용자는 코루틴 프레임을 가리키는 핸들을 통해 코루틴을 사용할 수 있다.
+
+
++------------------------------+
+|       Coroutine Frame        | // 코루틴 프레임은 힙 메모리에 할당됨.
+| +--------------------------+ |
+| |  promise_type instance   | | // 코루틴 동작을 제어하기 위해 사용자가 정의한 인터페이스의 인스턴스
+| +--------------------------+ |
+| |     Suspension State     | | // 코루틴 함수의 재개 및 중단 상태를 제어하기 위한 값
+| |    Registers (ex. IP)    | | // 코루틴 함수를 재개할 때 실행 상태를 복원하기 위한 레지스터 값
+| |     Func Parameters      | |
+| |     Local Variables      | |
+| |       Temporaries        | |
+| | Additional Internal Data | |
+| +--------------------------+ |
++------------------------------+
+
+코루틴 프레임(코루틴 상태)은 힙에 할당되며 스택 기반으로 동작하지 않는다.
+
+코루틴의 모든 상태는 스택이 아닌 힙에 저장되며 이를 stackless 방식이라고 한다.
+
+코루틴의 모든 상태가 힙이라는 메모리에 저장되기 때문에 중단 이후 재개했을 때 작업을 이어서 진행할 수 있는 것이다.
+
+코루틴 자체는 stackless이지만 일반 함수를 사용할 때는 스레드의 스택 메모리를 사용한다.
+
+promise_type은 코루틴을 제어하기 위한 행동 양식이 정의된 타입이며 코루틴 프레임은 해당 타입의 인스턴스를 포함한다.
+
+==================================================
+
+# promise_type
+
+promise_type은 사용자가 정의해야 하는 인터페이스이자 코루틴 프레임 내 할당되는 오브젝트이다.
+
+promise_type에는 코루틴의 전체적인 행동 방식을 제어하기 위한 사용자 정의 함수가 정의되어야 하는데
+
+이러한 함수는 임의로 작성해선 안 되며 반드시 정해진 양식에 맞게 작성해야 한다.
+
+promise_type은 일반적으로 해당 타입을 사용하는 코루틴 타입 내에 정의하는 편이다.
+
+!! promise_type과 std::promise()는 서로 연관성이 있는 것이 아니니까 혼동해선 안 됨. !!
+
+
+@ promise_type 인터페이스
+
+1. 선택적인 인터페이스
+
+- 기본 생성자 : 코루틴 함수를 invoke하여 std::coroutine_traits를 거치며 promise_type을 생성할 때 필요하다(반드시 기본 생성자로 되어 있어야 함).
+
+- 소멸자 : promise_type이 소멸하는 과정에서 호출된다.
+
+- operator new(size) : 코루틴 프레임을 할당할 때 호출되며 연산자 오버로딩을 통해 사용자가 할당 과정을 구성할 수 있다.
+  - promise_type을 할당하기 위해 호출되는 것이 아니니까 주의해야 함.
+
+- operator delete(mem) : 코루틴 프레임을 해제할 때 호출되며 연산자 오버로딩을 통해 사용자가 해제 과정을 구성할 수 있다.
+  - promise_type을 해제하기 위해 호출되는 것이 아니니까 주의해야 함.
+
+- get_return_object_on_allocation_failure() : 코루틴 프레임을 할당할 수 없을 때 호출된다.
+  - https://en.cppreference.com/w/cpp/language/coroutines#Dynamic_allocation
+  - 해당 함수가 정의되어 있지 않다면 std::bad_alloc을 던짐.
+
+2. 필수적인 인터페이스
+
+- get_return_object() : 코루틴을 invoke했을 때 사용할 코루틴 객체를 반환하기 위한 함수이다.
+
+- initial_suspend() : get_return_object() 호출 이후 호출되며 awaiter를 반환해야 한다.
+  - 반환하는 awaiter를 통해 코루틴 함수의 시작 지점에서 실행을 유예할 것인지를 제어할 수 있음.
+
+- final_suspend() : 코루틴 함수의 실행을 끝마쳤을 때 호출되며 awaiter를 반환해야 한다.
+  - 반환하는 awaiter를 통해 코루틴 종료 지점에서 유예하여 코루틴 프레임 해제의 유예 여부를 제어할 수 있음.
+
+- unhandled_exception() : 코루틴 실행 단계에서 예외가 발생했을 때 호출된다(코루틴 생성 단계일 때는 호출되지 않음).
+
+3. 둘 중 하나는 필수인 인터페이스(둘 중 하나만 구현해야 하며 둘 다 적용하는 건 안 됨)
+
+- return_void() : co_return이 아무것도 반환하지 않거나 co_return이 명시되어 있지 않을 때 호출된다.
+
+- return_value(T) : co_return이 값을 반환할 경우 호출되며 오버로딩이 가능하다.
+
+4. 조건부로 필수인 인터페이스
+
+- yield_value(T) : co_yield에 대응되는 함수로 awaiter를 반환해야 한다.
+  - 해당 함수를 통해 중간 결과를 산출할 수 있으며 awaiter를 통해 코루틴 실행의 유예 여부를 판단할 수 있음.
+  - 해당 함수는 오버로딩이 가능함.
+
+- await_transform(T) : co_await의 피연산자를 promise_type에서 받아 처리하고 awaiter를 반환하는 함수이다.
+  - 반환하는 awaiter를 통해 함수가 호출된 지점에서 코루틴 실행을 유예할 것인지를 제어할 수 있음.
+  - await_transform(T)가 적용된 promise_type은 awaitable로 간주함.
+
+
+promise_type으로 생성한 promise 객체는 다음 특징이 있다.
+
+- promise_type 인터페이스는 컴파일할 때 양식을 맞추기 위한 용도였다면 promise 객체는 런타임 도중 생성되는 인스턴스이다.
+
+- promise 객체를 생성하기 위해선 promise_type이란 이름과 promise_type의 함수가 공개(public)되어 있어야 한다.
+
+- promise_type의 operator new는 promise_type을 생성하기 위한 함수가 아닌 코루틴 프레임을 생성하기 위한 명령어이다.
+  - 코루틴 프레임에는 promise_type 인스턴스도 같이 포함됨.
+
+- 코루틴 행동 제어는 promise 객체를 통해 이루어 진다.
+
+- promise 객체는 코루틴의 실행 상태를 알고 있다.
+
+
+@ 코루틴 코드 작성 예시
+
+코루틴 코드를 작성하기 위해선 <coroutine>을 포함해야 한다.
+
+코루틴 타입과 promise_type 인터페이스를 적용한 예시는 다음과 같다.
+
+code)---------------------------------------------
+#include <coroutine>
+
+struct CoroType // 클래스로 해도 됨(promise_type은 공개되어(public) 있어야 함).
+{
+    // promise_type이라는 이름과 인터페이스가 되는 각 함수의 이름은 컴파일러에 의해 약속되어 있다.
+    struct promise_type // 클래스로 해도 됨(인터페이스는 공개되어 있어야 함).
+    {
+        // 선택 : 생성자와 소멸자는 생략 가능(생성자는 기본 생성자만 가능)
+        promise_type() { ... }
+        ~promise_type() { ... }
+
+        // 필수 : 코루틴을 invoke했을 때 사용할 코루틴 객체를 반환하기 위한 함수
+        CoroType get_return_object() { ... }
+
+        // 필수 : 코루틴 객체가 생성되었을 때 호출되며 awaiter를 반환하여 코루틴 시작 지점에서 실행을 유예할 것인지를 제어하기 위한 함수
+        Awaiter initial_suspend() { ... }
+
+        // 필수 : 코루틴 함수의 실행을 끝마쳤을 때 호출되며 awaiter를 반환하여 코루틴 종료 지점에서 프레임 해제의 유예 여부를 제어하기 위한 함수
+        Awaiter final_suspend() noexcept { ... } // final_suspend()는 noexcept 유형으로 작성되어야 함.
+
+        // 필수 : 코루틴 함수에서 예외가 발생했을 때 호출되는 함수
+        void unhandled_exception() { ... }
+
+        // 둘 중 하나는 필수 : co_return이 아무것도 반환하지 않을 때 호출되는 함수(co_return이 명시되어 있지 않은 경우 해당 인터페이스가 필요함)
+        void return_void() { ... }
+
+        // 둘 중 하나는 필수 : co_return이 값을 반환할 경우 호출되며 오버로딩 가능한 함수
+        void return_value(T value) { ... }
+
+        // 조건부 필수 : co_yield에 의해 호출되는 함수로 코루틴 실행의 유예 여부 판단 및 중간 결과를 산출하기 위해 사용됨(오버로딩 가능).
+        Awaiter yield_value(T value) { ... }
+
+        // 조건부 필수 : co_await의 피연산자를 promise_type에서 받아 처리하고 awaiter를 반환하는 함수(await_transform(T)가 적용된 promise_type은 awaitable로 간주함)
+        Awaiter await_transform(T value) { ... }
+
+        // 선택 : 코루틴 프레임을 할당할 수 없을 때 호출되는 함수(해당 함수가 정의되어 있지 않다면 std::bad_alloc을 던짐)
+        static CoroType get_return_object_on_allocation_failure() { ... }
+
+        // 선택 : 코루틴 프레임을 할당할 때 호출되며 연산자 오버로딩을 통해 사용자가 할당 과정을 구성 가능
+        void* operator new(std::size_t size) { ... }
+
+        // 선택 : 코루틴 프레임을 해제할 때 호출되며 연산자 오버로딩을 통해 사용자가 해제 과정을 구성 가능
+        void operator delete(void* mem) { ... }
+    };
+
+    // get_return_object()에서 코루틴 객체를 구성하여 반환하는 과정에서 호출되는 생성자
+    CoroType(promise_type* prom)
+        : handle{ std::coroutine_handle<promise_type>::from_promise(*prom) }
+    { ... }
+
+    ~CoroType()
+    {
+        // final_suspend()에서 코루틴 종료 시점을 유예시켰거나 아직 코루틴 함수 실행을 끝마치지 않은 상태에서 코루틴 객체가 소멸 과정에 들어간 경우
+        // 소멸자 내부가 되었든 코루틴 객체를 사용하는 쪽이 되었든 코루틴 핸들에 접근해서 destroy()를 호출해야 메모리 누수가 나지 않는다.
+        if (handle != nullptr)
+        {
+            handle.destroy();
+
+            handle = nullptr;
+        }
+    }
+
+    // 코루틴 핸들은 코루틴 프레임을 가리키기 위한 용도로 사용된다.
+    std::coroutine_handle<promise_type> handle = nullptr;
+};
+--------------------------------------------------
+
+
+promise_type의 생성자는 반드시 기본 생성자의 형태로 제공되어야 하기에 주의해야 하며,
+
+promise_type은 인터페이스에 맞춰서 최소한 다음 5개의 함수를 제공해야 한다.
+
+- get_return_object()
+
+- initial_suspend()
+
+- final_suspend()
+
+- unhandled_exception()
+
+- return_void() / return_value(T) : 택1
+
+!! 중요 !!
+
+코루틴 핸들이 소멸된다고 해도 이게 코루틴 프레임까지 소멸까지 자동적으로 연계되는 건 아니다.
+
+코루틴 함수 실행을 마치면 final_suspend()가 호출되는데 이때 종료 시점을 유예하는 std::suspend_always와 같은 awaiter가 반환되면
+
+코루틴 프레임을 해제하는 과정이 유예되기 때문에 이러한 경우 명시적으로 핸들에 접근하여 destroy()를 호출해야 한다.
+
+!! 주의 !!
+
+final_suspend()에서 종료 시점을 유예하지 않는 std::suspend_never와 같은 awaiter를 반환하면 코루틴 실행을 마쳤을 때 코루틴 프레임은 해제된다.
+
+이 경우 코루틴 핸들이 가리키고 있는 코루틴 프레임은 유효하지 않게 되기에 핸들을 명시적으로 사용하는 건 위험하다.
+
+이때 핸들에 접근하여 destroy()를 호출하는 건 당연히 안 되며 done()을 호출하는 것조차 위험하다.
+
+
+@ get_return_object() 작성 방식
+
+get_return_object()는 반드시 코루틴 타입을 반환해야 하며 이때 다양한 방식으로 코루틴 객체를 생성할 수 있다.
+
+1. promise_type의 포인터로 생성하는 방식
+
+struct CoroType
+{
+    struct promise_type
+    {
+        CoroType get_return_object()
+        {
+            // return CoroType{ this };
+            return this;
+        }
+        ...
+    };
+
+    CoroType(promise_type* prom)
+        : handle{ std::coroutine_handle<promise_type>::from_promise(*prom) }
+    { }
+    ...
+};
+
+2. promise_type의 포인터를 디레퍼런싱하여 참조를 통해 생성하는 방식
+
+struct CoroType
+{
+    struct promise_type
+    {
+        CoroType get_return_object()
+        {
+            // return CoroType{ *this };
+            return *this;
+        }
+        ...
+    };
+
+    CoroType(promise_type& prom)
+        : handle{ std::coroutine_handle<promise_type>::from_promise(prom) }
+    { }
+    ...
+};
+
+3. get_return_object()에서 핸들을 생성하여 코루틴 객체의 생성자를 호출하는 방식
+
+struct CoroType
+{
+    struct promise_type
+    {
+        CoroType get_return_object()
+        {
+            return { std::coroutine_handle<promise_type>::from_promise(*this) };
+        }
+        ...
+    };
+    
+    CoroType(const std::coroutine_handle<promise_type>& handle)
+        : _handle{ handle }
+    { }
+    ...
+};
+
+==================================================
+
+# 간단한 코루틴 적용 예시
+
+코루틴 함수는 co_await, co_yield, co_return이라는 3가지의 특별한 키워드를 사용할 수 있으며,
+
+코루틴 함수의 반환형은 반드시 코루틴 타입이어야 한다(co_return이 반환하는 값과는 다르니까 주의해야 함).
+
+코루틴 함수를 invoke하면 코루틴 객체가 생성되며 사용자는 원하는 시점에 객체의 핸들에 접근하는 것이 가능하다.
+
+핸들에 접근하여 resume()을 호출하면 코루틴 실행을 재개하고 done()으로 실행 완료 여부를 확인할 수 있다.
+
+(주의) final_suspend()에서 코루틴 프레임을 해제하는 것을 허용하면 done()은 유효하지 않게되니 주의해야 한다.
+
+코루틴은 사용자가 원하는 시점에 평가를 재개할 수 있는 Lazy evaluation 방식을 지원한다.
+
+code)---------------------------------------------
+struct CoroType
+{
+    struct promise_type
+    {
+        promise_type() { std::cout << "\t<promise_type()>\n"; }
+        ~promise_type() { std::cout << "\t<~promise_type()>\n"; }
+
+        CoroType get_return_object()
+        {
+            std::cout << "\t<get_return_object()>\n";
+
+            // return CoroType{ this };
+            return this;
+        }
+
+        // 코루틴 객체가 생성되었을 때와 실행을 끝마쳤을 때 코루틴을 유예하기 위해 std::suspend_always 사용
+        std::suspend_always initial_suspend() { std::cout << "\t<initial_suspend()>\n"; return { }; }
+        std::suspend_always final_suspend() noexcept { std::cout << "\t<final_suspend()>\n"; return { }; }
+
+        void unhandled_exception()
+        {
+            std::cout << "\t<unhandled_exception()>\n";
+
+            std::rethrow_exception(std::current_exception());
+        }
+
+        void return_void()
+        {
+            std::cout << "\t<return_void()>\n";
+        }
+
+        void* operator new(std::size_t size)
+        {
+            std::cout << "\t<operator new(size)>\n";
+
+            if (void* mem = std::malloc(size))
+                return mem;
+
+            return nullptr;
+        }
+
+        void operator delete(void* mem)
+        {
+            std::cout << "\t<operator delete(mem)>\n";
+
+            free(mem);
+        }
+    };
+
+    CoroType(promise_type* prom)
+        : handle{ std::coroutine_handle<promise_type>::from_promise(*prom) }
+    {
+        std::cout << "\t<CoroType()>\n";
+    }
+
+    ~CoroType()
+    {
+        std::cout << "\t<~CoroType()>\n";
+
+        if (handle != nullptr)
+        {
+            handle.destroy();
+
+            handle = nullptr;
+        }
+    }
+
+    std::coroutine_handle<promise_type> handle = nullptr;
+};
+
+CoroType CoroFunc()
+{
+    std::cout << "<Coroutine - Started>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+
+    // 실행을 중단하고 유예 지점(suspension point #1) 설정
+    co_await std::suspend_always{ }; // 코루틴을 멈추는 목적으로 사용할 built-in awaiter
+    std::cout << "<Coroutine - Suspension point #1>\n";
+    std::cout << "<Coroutine - Resuming coroutine...>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+
+    // 실행을 중단하고 유예 지점(suspension point #2) 설정
+    co_await std::suspend_always{ }; // 코루틴을 멈추는 목적으로 사용할 built-in awaiter
+    std::cout << "<Coroutine - Suspension point #2>\n";
+    std::cout << "<Coroutine - Resuming coroutine...>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+
+    std::cout << "<Coroutine - Returning>\n";
+    co_return; // co_return에 의해 코루틴 함수가 반환되면 더 이상 재개할 수 없음.
+}
+
+int main()
+{
+    std::cout << "main - Calling coroutine\n";
+    auto task = CoroFunc(); // 코루틴이 생성되었긴 해도 실행된 건 아님.
+
+    // 코루틴 함수의 작업이 완료될 때까지 계속해서 평가를 진행한다.
+    while (!task.handle.done())
+    {
+        std::cout << "\nmain - Resuming coroutine\n";
+        
+        // 유예 지점인 suspension point에서 실행을 재개한다.
+        // task.handle(); // task.handle()은 task.handle.resume()과 같은 기능을 수행함.
+        task.handle.resume();
+    }
+
+    // DISASTER : 코루틴 함수가 끝난 상태에서 재개하려고 하면 크래시가 발생하니 주의해야 한다.
+    // task.handle.resume();
+
+    // 코루틴 핸들의 done()을 통해서 코루틴 함수의 완료 여부를 확인할 수 있다.
+    if (task.handle.done())
+    {
+        std::cout << "\nmain - Coroutine is done!\n";
+    }
+    else
+    {
+        std::cout << "\nmain - Coroutine isn't done!\n";
+    }
+
+    return 0;
+}
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Calling coroutine
+        <operator new(size)>
+        <promise_type()>
+        <get_return_object()>
+        <CoroType()>
+        <initial_suspend()>
+
+main - Resuming coroutine <----- 시작 지점에서 코루틴이 유예되었기 때문에 직접 재개해야 코루틴 함수를 평가할 수 있음.
+<Coroutine - Started>
+<Coroutine - Executing coroutine function>
+
+main - Resuming coroutine
+<Coroutine - Suspension point #1>
+<Coroutine - Resuming coroutine...>
+<Coroutine - Executing coroutine function>
+
+main - Resuming coroutine
+<Coroutine - Suspension point #2>
+<Coroutine - Resuming coroutine...>
+<Coroutine - Executing coroutine function>
+<Coroutine - Returning>
+        <return_void()>
+        <final_suspend()>
+
+main - Coroutine is done!
+        <~CoroType()>
+        <~promise_type()>
+        <operator delete(mem)>
+--------------------------------------------------
+
+##################################################
+
+https://en.cppreference.com/w/cpp/language/coroutines#co_await
+
+# co_await(cppreference의 co_await 항목에서 자세하게 설명하고 있음)
+
+- co_await expr;
+
+이 키워드는 단항 연산자(unary operator)이며 코루틴 유예 여부를 결정하고 제어권을 다른 루틴(호출자나 다른 코루틴)에게 넘기고자 할 때 사용한다.
+
+co_await에서 사용되는 특수한 피연산자를 awaitable이라 하며, 해당 awaitable 객체는 런타임에 awaiter를 생성할 수 있어야 한다.
+
+awaitable 또한 코루틴에서 사용하는 컨셉 혹은 인터페이스와 같은 개념이기에 정해진 조건을 충족해야 한다.
+
+==================================================
+
+# Awaitable
+
+컴파일러는 다음 과정을 거쳐 co_await의 피연산자로 전달된 것이 awaitable인지 판단한다.
+
+다음 3가지 유형 중 하나라도 해당한다면 피연산자는 awaitable이 되기 위한 조건을 충족한다.
+
+1. promise_type 내 await_transform(T)이 정의되어 있는지 확인
+
+2. 피연산자가 되는 awaitable 객체에 operator co_await()가 정의되어 있는지 확인
+
+3. awaitable이 awaiter로 직접 지정된 것인지 확인
+
+1번과 2번은 awaitable을 통해 awaiter를 반환하여 co_await에 awaiter를 전달하는 방식이지만,
+
+3번은 co_await 연산자에 awaiter가 직접 지정되는 방식이다.
+
+(주의) 2번과 3번은 서로 혼용해서 사용할 수 있지만 promise_type 내 await_transform(T)을 지정하는 1번 방식을 쓰면 다른 유형은 사용할 수 없다.
+
+awaitable과 awaiter는 용어에 차이가 있기 때문에 구분해서 봐야 한다.
+
+
+@ 1번 유형 : promise_type 내 await_transform(T)가 정의되어 있는지 확인
+
+컴파일러가 가장 먼저 확인하는 유형이다.
+
+코루틴의 promise_type에 await_transform(T)가 멤버 함수로 정의되어 있다면 해당 유형을 사용한다.
+
+co_await <value>로 작성된 코드에서 값은 promise.await_transform(<value>)로 변환된다.
+
+co_await <value>; // co_await promise.await_transform(<value>);
+
+await_transform(T)는 awaiter를 반환해야 한다.
+
+
+@ 2번 유형 : 피연산자가 되는 awaitable 객체에 operator co_await()가 정의되어 있는지 확인
+
+awaitable에 연산자 co_await를 오버로딩한 operator co_await()가 정의되어 있으면 해당 유형을 사용한다.
+
+co_await awaitable이라는 코드는 다음과 같이 변환된다.
+
+co_await awaitable; // co_await awaitable.operator co_await();
+
+마찬가지로 operator co_await() 또한 awaiter를 반환해야 한다.
+
+
+@ 3번 유형 : awaitable이 awaiter로 직접 지정된 것인지 확인
+
+1번 유형도 2번 유형도 아닐 경우 컴파일러가 확인하는 유형이다.
+
+직접적으로 awaiter를 피연산자로 사용하는 방식이며, awaiter가 되기 위해선 특정한 인터페이스를 충족해야 한다.
+
+내장 awaiter를 적용한 예시 코드를 보면 이해하기 쉽다.
+
+co_await std::suspend_always{ }; // 코루틴을 유예함.
+
+co_await std::suspend_never{ }; // 코루틴을 유예하지 않음.
+
+
+만족하는 유형이 없다면 컴파일 에러가 발생한다.
+
+co_await 키워드를 사용했다면 반드시 하나의 유형은 충족해야 한다.
+
+==================================================
+
+# Awaiter
+
+awaitable은 co_await 연산에 대한 입력 대상일 뿐이며 co_await에 실질적으로 적용되는 건 awaiter이다.
+
+쉽게 생각해서 awaitable로부터 구해지는 객체를 awaiter라고 한다.
+
+코루틴은 awaiter를 통해 코루틴 유예 여부를 제어하기에 awaiter에는 해당 동작을 수행하기 위한 함수가 정의되어 있어야 한다.
+
+C++이 기본적으로 제공하는 내장된 awaiter로는 std::suspend_always와 std::suspend_never가 있다.
+
+awaiter 또한 저수준으로 동작하기 때문에 사용자 수준에서 정의하는 것이 가능하다.
+
+
+@ Built-in Awaiters(Default Awaiters)
+
+struct suspend_never
+{
+    constexpr bool await_ready() const noexcept {
+        return true;
+    }
+
+    constexpr void await_suspend(coroutine_handle<>) const noexcept {}
+    constexpr void await_resume() const noexcept {}
+};
+
+struct suspend_always
+{
+    constexpr bool await_ready() const noexcept {
+        return false;
+    }
+
+    constexpr void await_suspend(coroutine_handle<>) const noexcept {}
+    constexpr void await_resume() const noexcept {}
+};
+
+C++에서 제공하는 기본 awaiter인 std::suspend_always와 std::suspend_never를 보면 어떠한 인터페이스를 만족하고 있는 것을 볼 수 있다.
+
+두 구조체의 유일한 차이점은 await_ready()에서 반환하고 있는 값이 다르다는 것 뿐이다.
+
+suspend_never의 await_ready()는 true를 반환하고 있는데,
+
+이 true의 의미는 "준비됨"이며 이는 코루틴을 유예(suspend)하지 않겠다는 뜻이다.
+
+반대로 suspend_always의 await_ready()는 false를 반환하고 있는데,
+
+이 false의 의미는 "준비되지 않음"이며 따라서 코루틴을 유예(suspend)하겠다는 뜻이다.
+
+!! await_ready()가 반환하는 값의 초점은 await가 아닌 ready에 있음. !!
+
+
+@ Awaiter 필수 함수(cppreference의 co_await 항목에서 자세하게 설명하고 있음)
+
+아래 3개의 함수를 인터페이스로 구성한 객체를 awaiter라고 한다.
+
+해당 인터페이스를 충족하기만 하면 사용자 수준에서 awaiter를 만드는 것도 가능하다.
+
+- bool await_ready()
+: co_await에 의해 호출되며 코루틴의 유예 여부를 제어하는 함수(true를 반환하면 유예하지 않고, false를 반환하면 유예함)
+
+- ReturnType await_suspend(coroutine_handle<>)
+: 코루틴이 유예되었을 때 호출되는 함수(ReturnType에 따라 세부적으로 동작하는 방식이 다름)
+
+- ReturnType await_resume()
+: 코루틴이 재개되었을 때 호출되는 함수(ReturnType은 재개할 때 co_await, co_yield의 결과로 반환할 값에 대한 타입임)
+
+code)---------------------------------------------
+struct Awaiter
+{
+    bool await_ready()
+    {
+        // true  : 준비가 완료되었기에 유예하지 않는다.
+        // false : 준비되지 않았기에 처리를 위해 유예한다.
+        return isReady;
+    }
+
+    // 모든 코루틴 핸들은 std::coroutine_handle<>로 변환할 수 있다(convertible).
+    ReturnType await_suspend(std::coroutine_handle<> handle)
+    {
+        // suspension 상태에 진입할 때 실행할 로직
+    }
+
+    ReturnType await_resume()
+    {
+        // suspension 이후 재개할 때 실행할 로직
+    }
+};
+--------------------------------------------------
+
+
+@ bool await_ready()
+
+코루틴 유예 여부를 제어하기 위해 핵심 함수이다.
+
+true를 반환하면 await_resume()을 호출하며, false를 반환하면 await_suspend()을 호출한다.
+
+
+@ ReturnType await_suspend(coroutine_handle<>)
+
+코루틴이 유예될 때 호출되는 함수로 반환 타입에 따라 동작하는 방식이 다르다.
+
+매개변수로 들어오는 핸들은 suspension 상태에 들어갈 코루틴의 핸들이며 모든 코루틴 핸들은 std::coroutine_handle<>로 변환할 수 있다.
+
+- 반환형이 void인 경우 : 코루틴의 실행을 유예한다.
+
+- 반환형이 bool인 경우 : true면 코루틴의 실행을 유예하고, false면 유예하지 않는다.
+
+- 다른 코루틴의 핸들을 반환하는 경우 : 해당 핸들이 가리키는 코루틴을 재개한다(다른 코루틴을 스케쥴링하겠다는 의미이며 이를 통해 코루틴 체이닝이 가능함).
+  - 반환된 핸들을 통해 코루틴을 재개할 때는 내부적으로 handle.resume()을 거침.
+  - 원문
+  : if await_suspend returns a coroutine handle for some other coroutine, 
+    that handle is resumed (by a call to handle.resume())
+    (note this may chain to eventually cause the current coroutine to resume).
+
+조금 이상하긴 한데 매개변수로 들어온 핸들을 통해 명시적으로 destroy()를 호출하는 것도 가능하다.
+
+destroy()는 코루틴 프레임을 해제하기 때문에 해당 함수를 호출하려거든
+
+다른 쪽에서 더 이상 해당 핸들에 접근하지 않는다는 것이 보장되어야 한다.
+
+
+@ ReturnType await_resume()
+
+await_resume()은 다음 상황에서 호출된다.
+
+- 유예된 코루틴이 재개된 경우(보통 handle.resume()을 통해 재개됨)
+
+- await_ready()가 true를 반환했을 경우
+
+- await_suspend()의 반환형이 bool이며, 해당 함수에서 false를 반환했을 경우
+
+- await_suspend()이 코루틴 핸들이며, 해당 함수에서 재개할 핸들을 반환했을 경우
+
+await_resume()은 다양한 상황에서 호출되지만 대부분의 경우 코루틴을 resume()으로 재개할 때 호출된다.
+
+await_resume()은 값을 반환할 수 있으며 이는 "co_await expr"의 결과로 사용 가능하다.
+
+따라서 await_resume()의 반환형이 void가 아니라면 다음과 같이 awaiter를 통해 값을 받을 수 있다.
+
+code)---------------------------------------------
+auto yieldRet = co_yield 10; // co_await promise.yield_value(10);
+
+auto awaitRet = co_await 10; // co_await promise.await_transform(10);
+
+auto awaitRet = co_await MyAwaitable{ }; // co_await awaitable.operator co_await();
+
+auto awaitRet = co_await MyAwaiter{ };
+--------------------------------------------------
+
+##################################################
+
+# Awaitable 적용 예시
+
+@ Promised-based Awaitable (await_transform() 적용 예시)
+
+해당 유형은 코루틴의 promise_type에 await_transform()이 정의되었을 경우 사용된다.
+
+code)---------------------------------------------
+struct CoroType
+{
+    struct promise_type
+    {
+        ...
+        std::suspend_never initial_suspend() { std::cout << "\t<initial_suspend()>\n"; return { }; }
+        std::suspend_always final_suspend() noexcept { std::cout << "\t<final_suspend()>\n"; return { }; }
+        ...
+        // "co_await 0;"에 의해 호출될 멤버 함수(함수 이름은 반드시 await_transform이어야 함).
+        auto await_transform(int value)
+        {
+            std::cout << "\t<await_transform(T)>\n";
+    
+            // await_transform(T)는 awaiter를 반환해야 한다.
+            return std::suspend_always{ };
+        }
+        ...
+    };
+    ...
+};
+
+CoroType CoroFunc()
+{
+    std::cout << "\n<Coroutine - Started>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+
+    // 컴파일 단계에서 
+    // 1. promise.await_transform(0);으로 변환된다.
+    // 2. await_transform(0)에서 awaiter를 반환한다.
+    // 3. co_await std::suspend_always{ };로 최종 적용된다.
+    co_await 0; // co_await promise.await_transform(0);
+    std::cout << "<Coroutine - Resuming coroutine...>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+    
+    std::cout << "<Coroutine - Returning>\n";
+    co_return;
+}
+
+int main()
+{
+    std::cout << "main - Calling coroutine\n";
+    auto task = CoroFunc();
+
+    std::cout << "\nmain - Resuming coroutine\n";
+    task.handle.resume();
+    
+    if (task.handle.done())
+    {
+        std::cout << "\nmain - Coroutine is done!\n";
+    }
+    else
+    {
+        std::cout << "\nmain - Coroutine isn't done!\n";
+    }
+
+    return 0;
+}
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Calling coroutine
+        <promise_type()>
+        <get_return_object()>
+        <CoroType()>
+        <initial_suspend()>
+
+<Coroutine - Started>
+<Coroutine - Executing coroutine function>
+        <await_transform(T)> <----- 변환되어 호출된 것을 확인 가능
+
+main - Resuming coroutine
+<Coroutine - Resuming coroutine...>
+<Coroutine - Executing coroutine function>
+<Coroutine - Returning>
+        <return_void()>
+        <final_suspend()>
+
+main - Coroutine is done!
+        <~CoroType()>
+        <~promise_type()>
+--------------------------------------------------
+
+
+# Awaitable type (operator co_await() 적용 예시)
+
+해당 유형은 피연산자로 전달되는 awaitable에 co_await 연산자가 오버로딩되었을 경우 사용된다.
+
+code)---------------------------------------------
+struct CoroType
+{
+    struct promise_type
+    {
+        ...
+        std::suspend_never initial_suspend() { std::cout << "\t<initial_suspend()>\n"; return { }; }
+        std::suspend_always final_suspend() noexcept { std::cout << "\t<final_suspend()>\n"; return { }; }
+        ...
+    };
+    ...
+};
+
+struct MyAwaitable
+{
+    auto operator co_await()
+    {
+        std::cout << "\t<operator co_await()>\n";
+
+        return std::suspend_always{ };
+    }
+};
+
+CoroType CoroFunc()
+{
+    std::cout << "\n<Coroutine - Started>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+
+    // 컴파일 단계에서
+    // 1. awaitable.operator co_await();로 변환된다.
+    // 2. awaitable.operator co_await();는 awaiter를 반환한다.
+    // 3. co_await std::suspend_always{ };로 최종 적용된다.
+    co_await MyAwaitable{ };
+    std::cout << "<Coroutine - Resuming coroutine...>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+    
+    std::cout << "<Coroutine - Returning>\n";
+    co_return;
+}
+
+int main()
+{
+    std::cout << "main - Calling coroutine\n";
+    auto task = CoroFunc();
+
+    std::cout << "\nmain - Resuming coroutine\n";
+    task.handle.resume();
+    
+    if (task.handle.done())
+    {
+        std::cout << "\nmain - Coroutine is done!\n";
+    }
+    else
+    {
+        std::cout << "\nmain - Coroutine isn't done!\n";
+    }
+
+    return 0;
+}
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Calling coroutine
+        <promise_type()>
+        <get_return_object()>
+        <CoroType()>
+        <initial_suspend()>
+
+<Coroutine - Started>
+<Coroutine - Executing coroutine function>
+        <operator co_await()> <----- 연산자에 맞게 호출된 것을 확인 가능
+
+main - Resuming coroutine
+<Coroutine - Resuming coroutine...>
+<Coroutine - Executing coroutine function>
+<Coroutine - Returning>
+        <return_void()>
+        <final_suspend()>
+
+main - Coroutine is done!
+        <~CoroType()>
+        <~promise_type()>
+--------------------------------------------------
+
+두 유형 모두 최종적으로는 awaiter 인터페이스를 충족하는 객체를 반환하고 있다.
+
+co_await awaitable -> do something -> co_await awaiter 이렇게 적용되고 있는 것이다.
+
+이처럼 최종적으로 co_await가 받는 건 awaiter이기 때문에 직접적으로 awaiter를 지정하는 것도 가능하다.
+
+
+@ 직접적으로 Awaiter를 Awaitable로 사용하는 예시
+
+컴파일러는 1번 유형과 2번 유형을 사용할 수 없으면 co_await의 피연산자를 awaiter로 간주하여 컴파일을 시도한다.
+
+만약 컴파일했는데 피연산자가 awaiter 인터페이스를 충족하지 않으면 컴파일 에러가 발생한다.
+
+code)---------------------------------------------
+CoroType CoroFunc()
+{
+    std::cout << "\n<Coroutine - Started>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+
+    // co_await std::suspend_never{ };
+    // co_await std::suspend_always{ };
+    co_await MyAwaiter{ };
+    
+    std::cout << "<Coroutine - Returning>\n";
+    co_return;
+}
+--------------------------------------------------
+
+인터페이스만 충족하면 사용자가 직접 정의한 awaiter를 사용하는 것도 가능하다.
+
+==================================================
+
+# Custom Awaiter
+
+awaiter 인터페이스는 3개의 함수를 정의해야 하여 이 조건을 만족하면 사용자가 만든 awaiter를 사용할 수 있다.
+
+자세한 건 "Awaiter 필수 함수"에 나온 내용과 custom_awaiters.cpp의 예시 코드를 참고하도록 한다.
+
+- bool await_ready()
+: co_await에 의해 호출되며 코루틴의 유예 여부를 제어하는 함수(true를 반환하면 유예하지 않고, false를 반환하면 유예함)
+
+- ReturnType await_suspend(coroutine_handle<>)
+: 코루틴이 유예되었을 때 호출되는 함수(ReturnType에 따라 세부적으로 동작하는 방식이 다름)
+
+- ReturnType await_resume()
+: 코루틴이 재개되었을 때 호출되는 함수(ReturnType은 재개할 때 co_await, co_yield의 결과로 반환할 값에 대한 타입임)
+
+
+co_await가 awaiter를 받으면 가장 먼저 호출하는 함수는 await_ready()이다.
+
+await_ready()가 false를 반환하면 코루틴은 await_suspend()를 호출하고,
+
+await_ready()가 true를 반환하면 코루틴은 await_resume()을 호출한다.
+
+코루틴이 유예되었으면 resume()으로 재개해야 하며, 이때 코루틴은 await_resume()을 호출한다.
+
+await_ready()가 true를 반환할 때도 await_resume()을 호출하고, resume()으로 코루틴을 재개할 때도 await_resume()을 호출한다.
+
+code)---------------------------------------------
+struct CoroType
+{
+    struct promise_type
+    {
+        ...
+        std::suspend_never initial_suspend() { std::cout << "\t<initial_suspend()>\n"; return { }; }
+        std::suspend_always final_suspend() noexcept { std::cout << "\t<final_suspend()>\n"; return { }; }
+        ...
+    };
+    ...
+};
+
+struct MyAwaiter // 직접 구성한 Awaiter
+{
+    MyAwaiter()
+    {
+        std::cout << "\t<MyAwaiter()>\n";
+    }
+
+    ~MyAwaiter()
+    {
+        std::cout << "\t<~MyAwaiter()>\n\n";
+    }
+
+    bool await_ready()
+    {
+        std::cout << "\t<MyAwaiter - await_ready()>\n";
+
+        return false; // 코루틴을 유예하기 위해 false 반환
+    }
+
+    // 모든 코루틴 핸들은 std::coroutine_handle<>로 변환할 수 있다(convertible).
+    void await_suspend(std::coroutine_handle<> handle)
+    {
+        std::cout << "\t<MyAwaiter - await_suspend()>\n";
+    }
+
+    void await_resume()
+    {
+        std::cout << "\t<MyAwaiter - await_resume()>\n";
+    }
+};
+
+CoroType CoroFunc()
+{
+    std::cout << "\n<Coroutine - Started>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+
+    // MyAwaiter의 await_ready()를 호출하여 유예 여부를 제어한다.
+    co_await MyAwaiter{ };
+    std::cout << "<Coroutine - Resuming coroutine...>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+    
+    std::cout << "<Coroutine - Returning>\n";
+    co_return;
+}
+
+int main()
+{
+    std::cout << "main - Calling coroutine\n";
+    auto task = CoroFunc();
+
+    std::cout << "\nmain - Resuming coroutine\n";
+    task.handle.resume();
+    
+    if (task.handle.done())
+    {
+        std::cout << "\nmain - Coroutine is done!\n";
+    }
+    else
+    {
+        std::cout << "\nmain - Coroutine isn't done!\n";
+    }
+
+    return 0;
+}
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Calling coroutine
+        <promise_type()>
+        <get_return_object()>
+        <CoroType()>
+        <initial_suspend()>
+
+<Coroutine - Started>
+<Coroutine - Executing coroutine function>
+        <MyAwaiter()>
+        <MyAwaiter - await_ready()>   <----- co_await가 MyAwaiter를 받고 await_ready()를 호출
+        <MyAwaiter - await_suspend()> <----- await_ready()가 false를 반환하여 코루틴을 유예하는 과정에서 await_suspend()를 호출
+
+main - Resuming coroutine
+        <MyAwaiter - await_resume()> <----- 핸들을 통해 resume()을 호출하여 재개하는 과정에서 await_resume()을 호출
+        <~MyAwaiter()> <----- 임시 객체로 사용한 Awaiter의 소멸자 호출
+
+<Coroutine - Resuming coroutine...>
+<Coroutine - Executing coroutine function>
+<Coroutine - Returning>
+        <return_void()>
+        <final_suspend()>
+
+main - Coroutine is done!
+        <~CoroType()>
+        <~promise_type()>
+--------------------------------------------------
+
+
+코루틴이 유예된 상태에서 코루틴 객체가 종료 절차에 들어가면 await_resume()은 호출되지 않는다.
+
+code)---------------------------------------------
+struct CoroType
+{
+    struct promise_type
+    {
+        ...
+        std::suspend_never initial_suspend() { std::cout << "\t<initial_suspend()>\n"; return { }; }
+        std::suspend_always final_suspend() noexcept { std::cout << "\t<final_suspend()>\n"; return { }; }
+        ...
+    };
+    ...
+};
+
+struct MyAwaiter // 직접 구성한 Awaiter
+{
+    MyAwaiter()
+    {
+        std::cout << "\t<MyAwaiter()>\n";
+    }
+
+    ~MyAwaiter()
+    {
+        std::cout << "\t<~MyAwaiter()>\n";
+    }
+
+    bool await_ready()
+    {
+        std::cout << "\t<MyAwaiter - await_ready()>\n";
+
+        return false; // 코루틴을 유예하기 위해 false 반환
+    }
+
+    // 모든 코루틴 핸들은 std::coroutine_handle<>로 변환할 수 있다(convertible).
+    void await_suspend(std::coroutine_handle<> handle)
+    {
+        std::cout << "\t<MyAwaiter - await_suspend()>\n";
+    }
+
+    void await_resume()
+    {
+        std::cout << "\t<MyAwaiter - await_resume()>\n";
+    }
+};
+
+CoroType CoroFunc()
+{
+    std::cout << "\n<Coroutine - Started>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+
+    co_await MyAwaiter{ };
+    std::cout << "<Coroutine - Resuming coroutine...>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+
+    std::cout << "<Coroutine - Returning>\n";
+    co_return;
+}
+
+int main()
+{
+    std::cout << "main - Calling coroutine\n";
+    auto task = CoroFunc();
+
+    // 코루틴을 유예한 상태에서 코루틴 객체가 소멸 절차에 들어가면?
+    // std::cout << "\nmain - Resuming coroutine\n";
+    // task.handle.resume();
+
+    if (task.handle.done())
+    {
+        std::cout << "\nmain - Coroutine is done!\n";
+    }
+    else
+    {
+        std::cout << "\nmain - Coroutine isn't done!\n";
+    }
+
+    return 0;
+}
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Calling coroutine
+        <promise_type()>
+        <get_return_object()>
+        <CoroType()>
+        <initial_suspend()>
+
+<Coroutine - Started>
+<Coroutine - Executing coroutine function>
+        <MyAwaiter()>
+        <MyAwaiter - await_ready()>
+        <MyAwaiter - await_suspend()>
+
+main - Coroutine isn't done! <----- 코루틴 객체가 소멸 절차에 들어간다고 해도 "<MyAwaiter - await_resume()>"는 출력되지 않음.
+        <~CoroType()>
+        <~MyAwaiter()> <----- 임시 객체로 사용한 Awaiter의 소멸자 호출
+        <~promise_type()>
+--------------------------------------------------
+
+
+await_resume()은 코루틴이 재개되었을 때 값을 반환할 수 있다.
+
+code)---------------------------------------------
+struct CoroType
+{
+    struct promise_type
+    {
+        ...
+        std::suspend_never initial_suspend() { std::cout << "\t<initial_suspend()>\n"; return { }; }
+        std::suspend_always final_suspend() noexcept { std::cout << "\t<final_suspend()>\n"; return { }; }
+        ...
+    };
+    ...
+};
+
+struct MyAwaiter // 직접 구성한 Awaiter
+{
+    bool await_ready()
+    {
+        std::cout << "\t<MyAwaiter - await_ready()>\n";
+
+        return false; // 코루틴을 유예하기 위해 false 반환
+    }
+
+    // 모든 코루틴 핸들은 std::coroutine_handle<>로 변환할 수 있다(convertible).
+    void await_suspend(std::coroutine_handle<> handle)
+    {
+        std::cout << "\t<MyAwaiter - await_suspend()>\n";
+    }
+
+    // await_resume()은 재개 시 사용할 값을 반환할 수 있다.
+    std::string await_resume()
+    {
+        std::cout << "\t<MyAwaiter - await_resume()>\n";
+
+        return "Hello Awaiter";
+    }
+};
+
+CoroType CoroFunc()
+{
+    std::cout << "\n<Coroutine - Started>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+    
+    // await_resume()은 값을 반환할 수 있으며 이는 "co_await expr"의 결과로 간주한다.
+    auto awaitRet = co_await MyAwaiter{ };
+    std::cout << "<Coroutine - Resuming coroutine...>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+    std::cout << "<Coroutine - co_await returned : " << awaitRet << ">\n";
+    
+    std::cout << "<Coroutine - Returning>\n";
+    co_return;
+}
+
+int main()
+{
+    std::cout << "main - Calling coroutine\n";
+    auto task = CoroFunc();
+
+    std::cout << "\nmain - Resuming coroutine\n";
+    task.handle.resume();
+    
+    if (task.handle.done())
+    {
+        std::cout << "\nmain - Coroutine is done!\n";
+    }
+    else
+    {
+        std::cout << "\nmain - Coroutine isn't done!\n";
+    }
+
+    return 0;
+}
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Calling coroutine
+        <promise_type()>
+        <get_return_object()>
+        <CoroType()>
+        <initial_suspend()>
+
+<Coroutine - Started>
+<Coroutine - Executing coroutine function>
+        <MyAwaiter - await_ready()>
+        <MyAwaiter - await_suspend()>
+
+main - Resuming coroutine
+        <MyAwaiter - await_resume()>
+<Coroutine - Resuming coroutine...>
+<Coroutine - Executing coroutine function>
+<Coroutine - co_await returned : Hello World> <----- await_resume()이 반환한 값을 출력
+<Coroutine - Returning>
+        <return_void()>
+        <final_suspend()>
+
+main - Coroutine is done!
+        <~CoroType()>
+        <~promise_type()>
+--------------------------------------------------
+
+
+initial_suspend()와 final_suspend()이 받는 반환 값은 awaiter이다.
+
+따라서 여기에도 사용자가 작성한 custom awaiter를 적용할 수 있다.
+
+code)---------------------------------------------
+template <bool isReady>
+struct MyAwaiter // final_suspend()가 noexcept 유형 때문에 모든 함수에 noexcept를 붙여야 함.
+{
+    bool await_ready() noexcept
+    {
+        std::cout << "\t<MyAwaiter - await_ready() : isReady = " << isReady << ">\n";
+
+        return isReady;
+    }
+    
+    // 모든 코루틴 핸들은 std::coroutine_handle<>로 변환할 수 있다(convertible).
+    void await_suspend(std::coroutine_handle<> handle) noexcept
+    {
+        std::cout << "\t<MyAwaiter - await_suspend() : isReady = " << isReady << ">\n";
+    }
+
+    void await_resume() noexcept
+    {
+        std::cout << "\t<MyAwaiter - await_resume() : isReady = " << isReady << ">\n";
+    }
+};
+
+struct CoroType
+{
+    struct promise_type
+    {
+        ...
+        // MyAwaiter<true>  : std::suspend_never와 동일
+        // MyAwaiter<false> : std::suspend_always와 동일
+        MyAwaiter<true> initial_suspend() { std::cout << "\t<initial_suspend()>\n"; return { }; }
+        MyAwaiter<false> final_suspend() noexcept { std::cout << "\t<final_suspend()>\n"; return { }; }
+        ...
+    };
+    ...
+};
+
+CoroType CoroFunc()
+{
+    std::cout << "\n<Coroutine - Started>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+
+    co_await std::suspend_always{ };
+    std::cout << "<Coroutine - Resuming coroutine...>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+    
+    std::cout << "<Coroutine - Returning>\n";
+    co_return;
+}
+
+int main()
+{
+    std::cout << "main - Calling coroutine\n";
+    auto task = CoroFunc();
+
+    std::cout << "\nmain - Resuming coroutine\n";
+    task.handle.resume();
+
+    // DISASTER : final_suspend()에서 종료 시점에 코루틴을 유예했어도 코루틴 함수는 전부 실행한 상태이기에 resume()을 호출하면 안 된다.
+    // task.handle.done();
+    
+    if (task.handle.done())
+    {
+        std::cout << "\nmain - Coroutine is done!\n";
+    }
+    else
+    {
+        std::cout << "\nmain - Coroutine isn't done!\n";
+    }
+
+    return 0;
+}
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Calling coroutine
+        <promise_type()>
+        <get_return_object()>
+        <CoroType()>
+        <initial_suspend()>
+        <MyAwaiter - await_ready() : isReady = 1>
+        <MyAwaiter - await_resume() : isReady = 1> <----- await_ready()에서 true를 반환했으니 await_resume()을 호출
+
+<Coroutine - Started>
+<Coroutine - Executing coroutine function>
+
+main - Resuming coroutine
+<Coroutine - Resuming coroutine...>
+<Coroutine - Executing coroutine function>
+<Coroutine - Returning>
+        <return_void()>
+        <final_suspend()>
+        <MyAwaiter - await_ready() : isReady = 0>
+        <MyAwaiter - await_suspend() : isReady = 0> <----- await_ready()에서 false를 반환했으니 await_suspend()을 호출
+
+main - Coroutine is done!
+        <~CoroType()>
+        <~promise_type()>
+--------------------------------------------------
+
+(주의) final_suspend()에서 종료 시점에 코루틴을 유예했어도 코루틴 함수는 전부 실행한 상태이기에 resume()을 호출하면 안 된다.
+
+==================================================
+
+# initial_suspend() & final_suspend()
+
+두 함수가 반환하는 것은 awaiter이다.
+
+initial_suspend()는 코루틴 실행의 시작 지점에 호출되는 함수이고,
+
+final_suspend()는 코루틴 실행의 종료 지점에서 호출되는 함수이다.
+
+둘 다 suspension point를 제어하기 위한 함수이며, 반환된 awaiter는 co_await가 적용된 것 같은 느낌으로 처리된다.
+
+다음은 코루틴 실행을 의사 코드로 표현한 것이다.
+
+pseudo)-------------------------------------------
+Coroutine::RunStateMachine()
+{
+    /************************************************
+    *      코루틴 프레임이 생성된 이후 들어온다.      *
+    ************************************************/
+
+    // 엄밀히 말하자면 해당 awaiter의 await_resume()에서 발생한 예외는 unhandled_exception()이 받는다.
+    co_await promise.initial_suspend(); // <----- 코루틴 실행의 시작 지점을 제어하여 유예 여부 결정
+
+    try
+    {
+        coroutine.func();
+    }
+    catch(...)
+    {
+        promise.unhandled_exception();
+    }
+    
+    coroutine.isResumable = false;
+    coroutine.isDone      = true;
+
+    // (주의) final_suspend()가 호출되어 코루틴이 유예되었을 경우 resume()으로 재개하는 건 불가능하다.
+    // (주의) 이 경우에는 명시적으로 handle.destroy()를 호출해야 한다.
+    co_await promise.final_suspend(); // <----- 코루틴 실행의 종료 지점을 제어하여 유예 여부 결정
+
+    // handle의 멤버 함수 destroy()와 동일한 작업을 진행하는 함수이다.
+    // 코루틴이 알아서 코루틴 프레임을 해제했으면 사용자는 handle.destroy()를 호출하지 않게 주의해야 한다.
+    coroutine.destroy();
+}
+--------------------------------------------------
+
+final_suspend() 쪽에서 코루틴 종료를 유예하였다고 해도 코루틴 함수에서 더 이상 재개할 것이 없으니 resume()을 호출하면 런타임 에러가 발생한다.
+
+쉽게 생각해서 코루틴 재개를 통해서 코루틴 프레임을 해제하는 것은 불가능하다.
+
+종료 시점을 유예했다면 명시적으로 핸들에 접근하여 destroy()를 호출해야 한다.
+
+##################################################
+
+https://en.cppreference.com/w/cpp/language/coroutines#Execution
+
+# 코루틴을 통해 값 반환하기(co_return)
+
+코루틴은 호출자의 스레드에서 실행되긴 하나 독립적인 루틴으로 간주한다.
+
+따라서 co_return으로 값을 반환하면 이걸 받는 건 호출자 쪽이 아닌 코루틴의 promise_type에 정의한 return_value(T)이다.
+
+이 값을 코루틴을 호출한 쪽에 전달하고 싶다면 우선 결과를 코루틴 프레임 내에 보관하고 있다가
+
+실행 제어권이 호출자 쪽으로 돌아왔을 때 코루틴 객체의 핸들에 접근하여 가져오는 방식을 써야 한다.
+
+promise 객체 차원에서 코루틴 객체의 주소를 알 수 있게 설계한 다음 return_value(T)의 결과를 코루틴 객체에 전달하는 방식도 있다.
+
+co_return <value>는 다음과 같은 특징이 있다.
+
+- co_return <value>로 값을 반환하면 코루틴 함수의 실행은 끝난다(더 이상 재개 불가).
+
+- 반환하는 값에 대응하는 return_value(T)를 promise_type에 정의해야 한다.
+
+- (중요) 반환된 값이 호출자 쪽에 직접적으로 전달되는 개념이 아니다.
+  - 값을 호출자에게 전달하려면 우회해야 함.
+
+
+@ co_return <value>로 값을 반환하는 코루틴 예시 코드(promise_type에 보관)
+
+code)---------------------------------------------
+struct CoroType
+{
+    struct promise_type
+    {
+        CoroType get_return_object()
+        {
+            std::cout << "\t<get_return_object()>\n";
+
+            // return CoroType{ this };
+            return this;
+        }
+
+        std::suspend_always initial_suspend() { std::cout << "\t<initial_suspend()>\n"; return { }; }
+        std::suspend_always final_suspend() noexcept { std::cout << "\t<final_suspend()>\n"; return { }; }
+
+        void unhandled_exception()
+        {
+            std::cout << "\t<unhandled_exception()>\n";
+
+            std::rethrow_exception(std::current_exception());
+        }
+
+        // co_return이 값을 반환하면 return_void()는 사용할 수 없다.
+        // void return_void()
+        // {
+        //     std::cout << "\t<return_void()>\n";
+        // }
+
+        // co_return이 반환하는 값은 return_value(T)의 매개변수 타입으로 convertible 해야 한다.
+        void return_value(int value)
+        {
+            std::cout << "\t<return_value(T)>\n";
+
+            result = value;
+        }
+
+        // co_return으로 반환한 결과를 호출자 쪽에 전파하기 위해선 코루틴 차원에서 값을 보관하고 있어야 한다.
+        int result;
+    };
+
+    CoroType(promise_type* prom)
+        : handle{ std::coroutine_handle<promise_type>::from_promise(*prom) }
+    {
+        std::cout << "\t<CoroType()>\n";
+    }
+
+    ~CoroType()
+    {
+        std::cout << "\t<~CoroType()>\n";
+
+        if (handle != nullptr)
+        {
+            handle.destroy();
+
+            handle = nullptr;
+        }
+    }
+
+    // 코루틴 타입에 함수를 만들어서 promise 객체에 접근하여 값을 가져오는 방식
+    int GetResult() const
+    {
+        return handle.promise().result;
+    }
+
+    std::coroutine_handle<promise_type> handle = nullptr;
+};
+
+CoroType CoroAdd(int x, int y)
+{
+    std::cout << "<Coroutine - Started>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+
+    std::cout << "<Coroutine - Returning>\n";
+    co_return x + y;
+
+    std::cout << "<Coroutine - Unable to resume after co_return>\n";
+}
+
+int main()
+{
+    std::cout << "main - Calling coroutine\n";
+    auto task = CoroAdd(10, 20);
+
+    std::cout << "\nmain - Resuming coroutine\n";
+    task.handle.resume();
+    
+    // co_return은 코루틴 실행을 끝마치기 때문에 더 이상 재개할 수 없다.
+    if (!task.handle.done())
+    {
+        task.handle.resume(); // 들어오지 않음.
+    }
+    
+    // co_return으로 반환한 결과를 호출자 쪽이 파악하기 위한 순서
+    // 1. co_return으로 값을 반환하면 호출자 쪽이 아닌 코루틴이 받는다.
+    // 2. co_return이 반환한 결과를 호출자에서 받고자 한다면 일단 반환된 값을 코루틴 내에 저장해야 한다.
+    // 3. 실행 제어권이 호출자 쪽에 넘어왔을 때 값이 저장된 코루틴 프레임에 접근하여 값을 가져온다.
+
+    // 코루틴 타입에 함수를 만들어서 값을 가져오는 기능을 캡슐화하는 방식
+    std::cout << "\nmain - 1. Result is : " << task.GetResult() <<'\n';
+    
+    // 직접 핸들에 접근해서 값을 가져오는 방식
+    std::cout << "main - 2. Result is : " << task.handle.promise().result <<'\n';
+    
+    if (task.handle.done())
+    {
+        std::cout << "\nmain - Coroutine is done!\n";
+    }
+    else
+    {
+        std::cout << "\nmain - Coroutine isn't done!\n";
+    }
+    
+    return 0;
+}
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Calling coroutine
+        <get_return_object()>
+        <CoroType()>
+        <initial_suspend()>
+
+main - Resuming coroutine
+<Coroutine - Started>
+<Coroutine - Executing coroutine function>
+<Coroutine - Returning>
+        <return_value(T)>
+        <final_suspend()>
+
+main - 1. Result is : 30
+main - 2. Result is : 30
+
+main - Coroutine is done!
+        <~CoroType()>
+--------------------------------------------------
+
+co_return으로 값을 반환하면 return_value(T) -> final_suspend()를 거치며 코루틴 실행을 끝마친다.
+
+참고로 co_return으로 값을 반환하는데 return_value(T)라는 인터페이스를 찾을 수 없다면 다음 에러가 뜬다.
+
+- error C2039: 'return_value': 'CoroType::promise_type'의 멤버가 아닙니다.
+
+
+@ co_return <value>로 값을 반환하는 코루틴 예시 코드(코루틴 객체에 보관)
+
+code)---------------------------------------------
+struct CoroType
+{
+    struct promise_type
+    {
+        CoroType get_return_object()
+        {
+            std::cout << "\t<get_return_object()>\n";
+
+            // return CoroType{ this };
+            return this;
+        }
+
+        std::suspend_always initial_suspend() { std::cout << "\t<initial_suspend()>\n"; return { }; }
+        std::suspend_always final_suspend() noexcept { std::cout << "\t<final_suspend()>\n"; return { }; }
+
+        void unhandled_exception()
+        {
+            std::cout << "\t<unhandled_exception()>\n";
+
+            std::rethrow_exception(std::current_exception());
+        }
+
+        // co_return이 값을 반환하면 return_void()는 사용할 수 없다.
+        // void return_void()
+        // {
+        //     std::cout << "\t<return_void()>\n";
+        // }
+
+        // co_return이 반환하는 값은 return_value(T)의 매개변수 타입으로 convertible 해야 한다.
+        void return_value(int value)
+        {
+            std::cout << "\t<return_value(T)>\n";
+
+            // 코루틴 객체에 접근하여 결과 저장
+            coroInst->result = value;
+        }
+
+        // 코루틴 객체를 promise 타입이 알 수 있게 한다.
+        CoroType* coroInst = nullptr;
+    };
+
+    CoroType(promise_type* prom)
+        : handle{ std::coroutine_handle<promise_type>::from_promise(*prom) }
+    {
+        std::cout << "\t<CoroType()>\n";
+
+        // promise 객체가 코루틴 객체를 알 수 있게 설정
+        handle.promise().coroInst = this;
+    }
+
+    ~CoroType()
+    {
+        std::cout << "\t<~CoroType()>\n";
+
+        if (handle != nullptr)
+        {
+            handle.destroy();
+
+            handle = nullptr;
+        }
+    }
+
+    // 코루틴 객체 내에 값을 저장하고 이를 호출자에 전파하는 방식
+    int GetResult() const
+    {
+        return result;
+    }
+
+    std::coroutine_handle<promise_type> handle = nullptr;
+
+    int result;
+};
+
+CoroType CoroAdd(int x, int y)
+{
+    std::cout << "<Coroutine - Started>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+
+    std::cout << "<Coroutine - Returning>\n";
+    co_return x + y;
+
+    std::cout << "<Coroutine - Unable to resume after co_return>\n";
+}
+
+int main()
+{
+    std::cout << "main - Calling coroutine\n";
+    auto task = CoroAdd(10, 20);
+
+    std::cout << "\nmain - Resuming coroutine\n";
+    task.handle.resume();
+    
+    // co_return은 코루틴 실행을 끝마치기 때문에 더 이상 재개할 수 없다.
+    if (!task.handle.done())
+    {
+        task.handle.resume(); // 들어오지 않음.
+    }
+    
+    // co_return으로 반환한 결과를 호출자가 받기 위한 순서
+    // 1. co_return으로 값을 반환하면 호출자 쪽이 아닌 코루틴이 받는다.
+    // 2. co_return이 반환한 결과를 호출자에서 받고자 한다면 일단 반환된 값을 코루틴 내에 저장해야 한다.
+    // 3. 실행 제어권이 호출자 쪽에 넘어왔을 때 값이 저장된 코루틴 프레임에 접근하여 값을 가져온다.
+
+    // 코루틴 타입에 함수를 만들어서 값을 가져오는 기능을 캡슐화하는 방식
+    std::cout << "\nmain - 1. Result is : " << task.GetResult() <<'\n';
+    
+    // 직접 객체에 접근해서 값을 가져오는 방식
+    std::cout << "main - 2. Result is : " << task.result <<'\n';
+    
+    if (task.handle.done())
+    {
+        std::cout << "\nmain - Coroutine is done!\n";
+    }
+    else
+    {
+        std::cout << "\nmain - Coroutine isn't done!\n";
+    }
+    
+    return 0;
+}
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Calling coroutine
+        <get_return_object()>
+        <CoroType()>
+        <initial_suspend()>
+
+main - Resuming coroutine
+<Coroutine - Started>
+<Coroutine - Executing coroutine function>
+<Coroutine - Returning>
+        <return_value(T)>
+        <final_suspend()>
+
+main - 1. Result is : 30
+main - 2. Result is : 30
+
+main - Coroutine is done!
+        <~CoroType()>
+--------------------------------------------------
+
+==================================================
+
+https://en.cppreference.com/w/cpp/language/coroutines#co_yield
+
+# 코루틴을 통해 값 반환하기(co_yield)
+
+co_yield를 쓰면 코루틴을 끝마치지 않고 중간 결과를 산출할 수 있다.
+
+co_yield를 쓰면 코루틴 실행을 유예시키고 재개할 때마다 매번 값을 생성하는 것이 가능하다(이러한 유형을 generator라고 함).
+
+마찬가지로 co_yield로 반환한 값을 호출자 쪽으로 전파하기 위해선 결과를 코루틴 프레임 내에 보관하고 있어야 한다.
+
+co_yield <value>는 다음과 같은 특징이 있다.
+
+- co_yield <value>로 값을 반환해도 코루틴 실행이 끝나는 건 아니다.
+
+- co_yield <value>에 대응하는 yield_value(T)를 promise_type에 정의해야 한다.
+
+- yield_value(T)는 awaiter를 반환하며 이를 통해 코루틴의 유예 상태를 제어할 수 있다.
+  - 반환하는 awaiter에 따라서 코루틴 실행을 유예시키지 않을 수도 있음.
+  - co_yield를 쓴다고 코루틴 실행이 반드시 유예되는 건 아님.
+  - 유예되었을 때와 재개하였을 때 호출되는 함수를 커스텀하여 세밀한 제어가 가능하다.
+
+- "co_yield expr"는 컴파일되면 "co_await promise.yield_value(expr)"로 변환된다.
+  - co_yield 100; // 컴파일 과정에서 표현식은
+  - co_await promise.yield_value(100); // 이렇게 변환된다.
+
+- (중요) 마찬가지로 산출된 값이 호출자에게 직접적으로 전달되는 개념이 아니다.
+
+
+@ co_yield <value>로 중간중간 값을 산출하며 코루틴을 유예시키는 예시 코드
+
+code)---------------------------------------------
+struct CoroType
+{
+    struct promise_type
+    {
+        CoroType get_return_object()
+        {
+            std::cout << "\t<get_return_object()>\n";
+
+            // return CoroType{ this };
+            return this;
+        }
+
+        std::suspend_always initial_suspend() { std::cout << "\t<initial_suspend()>\n"; return { }; }
+        std::suspend_always final_suspend() noexcept { std::cout << "\t<final_suspend()>\n"; return { }; }
+
+        void unhandled_exception()
+        {
+            std::cout << "\t<unhandled_exception()>\n";
+
+            std::rethrow_exception(std::current_exception());
+        }
+
+        void return_void()
+        {
+            std::cout << "\t<return_void()>\n";
+        }
+
+        // co_return이 값을 반환하지 않으면 return_value(T)는 사용할 수 없다.
+        // void return_value(int value)
+        // {
+        //     std::cout << "\t<return_value(T)>\n";
+        // 
+        //     result = value;
+        // }
+
+        // co_yield가 반환하는 값은 yield_value(T)의 매개변수 타입으로 convertible 해야 한다.
+        // yield_value(T)는 유예 상태를 제어하기 위한 awaiter를 반환해야 한다.
+        std::suspend_always yield_value(int value)
+        {
+            std::cout << "\t<yield_value(T)>\n";
+
+            this->value = value;
+
+            return { };
+        }
+
+        int value;
+    };
+
+    CoroType(promise_type* prom)
+        : handle{ std::coroutine_handle<promise_type>::from_promise(*prom) }
+    {
+        std::cout << "\t<CoroType()>\n";
+    }
+
+    ~CoroType()
+    {
+        std::cout << "\t<~CoroType()>\n";
+
+        if (handle != nullptr)
+        {
+            handle.destroy();
+
+            handle = nullptr;
+        }
+    }
+
+    int GetValue() const
+    {
+        // 코루틴 타입에 함수를 만들어서 promise 객체에 접근하여 값을 가져오는 방식
+        return handle.promise().value;
+    }
+
+    std::coroutine_handle<promise_type> handle = nullptr;
+};
+
+CoroType CoroGenerateTwoNumbers()
+{
+    std::cout << "<Coroutine - Started>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+
+    std::cout << "<Coroutine - Yielding value>\n";
+    co_yield 100; // co_await promise.yield_value(100);
+
+    std::cout << "<Coroutine - Yielding value>\n";
+    co_yield 200; // co_await promise.yield_value(200);
+
+    std::cout << "<Coroutine - Returning>\n";
+    co_return;
+}
+
+int main()
+{
+    std::cout << "main - Calling coroutine\n";
+    auto gen = CoroGenerateTwoNumbers(); // 코루틴이 생성되었긴 해도 실행된 건 아님.
+
+    // 코루틴 함수의 작업이 완료될 때까지 계속해서 평가를 진행한다.
+    while (!gen.handle.done())
+    {
+        std::cout << "\nmain - Value : " << gen.GetValue() << "\n";
+        
+        std::cout << "\nmain - Resuming coroutine\n";
+
+        // 유예 지점인 suspension point에서 실행을 재개한다.
+        // task.handle(); // task.handle()은 task.handle.resume()과 같은 기능을 수행함.
+        gen.handle.resume();
+    }
+
+    std::cout << "\nmain - Coroutine is done!\n";
+
+    return 0;
+}
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Calling coroutine
+        <get_return_object()>
+        <CoroType()>
+        <initial_suspend()>
+
+main - Value : 0 <----- !! 이 값이 출력되면 안 됨. !!
+
+main - Resuming coroutine
+<Coroutine - Started>
+<Coroutine - Executing coroutine function>
+<Coroutine - Yielding value>
+        <yield_value(T)>
+
+main - Value : 100
+
+main - Resuming coroutine
+<Coroutine - Yielding value>
+        <yield_value(T)>
+
+main - Value : 200
+
+main - Resuming coroutine
+<Coroutine - Returning>
+        <return_void()>
+        <final_suspend()>
+
+main - Coroutine is done!
+        <~CoroType()>
+--------------------------------------------------
+
+반복문을 통해 코루틴이 끝날 때까지 중간중간 resume()을 통해 산출된 결과를 확인하고 있다.
+
+첫 번째 결과가 이상하게 나오는데 이는 코루틴 객체를 생성하고 시작 지점에서 실행을 유예했기 때문에 그런 것이다.
+
+코루틴이 생성되었을 때 유예 여부를 판단하는 건 initial_suspend() 쪽이다.
+
+이 함수가 반환하는 awaiter를 std::suspend_always에서 std::suspend_never로 변경하면
+
+코루틴 객체가 생성될 때 유예하지 않고 코루틴 함수를 실행할 것이며 이게 우리가 의도한 동작이다.
+
+code)---------------------------------------------
+struct CoroType
+{
+    struct promise_type
+    {
+        ...
+        std::suspend_never initial_suspend() { std::cout << "\t<initial_suspend()>\n"; return { }; }
+        std::suspend_always final_suspend() noexcept { std::cout << "\t<final_suspend()>\n"; return { }; }
+        ...
+    };
+    ...
+};
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Calling coroutine
+        <get_return_object()>
+        <CoroType()>
+        <initial_suspend()>
+<Coroutine - Started>
+<Coroutine - Executing coroutine function>
+<Coroutine - Yielding value>
+        <yield_value(T)>
+
+main - Value : 100
+
+main - Resuming coroutine
+<Coroutine - Yielding value>
+        <yield_value(T)>
+
+main - Value : 200
+
+main - Resuming coroutine
+<Coroutine - Returning>
+        <return_void()>
+        <final_suspend()>
+
+main - Coroutine is done!
+        <~CoroType()>
+--------------------------------------------------
+
+사용자 쪽에서 코루틴을 평가할 때마다 값이 생성되고 있는 것을 볼 수 있다.
+
+값을 평가하기 전에 코루틴 외부에서 준비해야 할 것이 있다면 이를 코루틴 객체에 전달하여 협력하는 것이 가능하다.
+
+이처럼 원하는 시점에 Lazily하게 평가하는 방식을 Lazy evaluation이라고 한다.
+
+- error C2039: 'yield_value': 'CoroType::promise_type'의 멤버가 아닙니다.
+
+
+코루틴 객체에 값을 보관하고 싶다면 다음 예시를 기반으로 코드를 작성하면 된다.
+
+- co_return <value>로 값을 반환하는 코루틴 예시 코드(코루틴 객체에 보관)
+
+원리 자체는 동일하기 때문에 크게 어렵지 않다.
+
+##################################################
+
+https://en.cppreference.com/w/cpp/language/coroutines#Execution
+
+# 코루틴의 생명주기
+
+coroutines 문서의 "When a coroutine begins execution, it performs the following:" 쪽에 자세하게 설명되어 있다.
+
+코루틴을 다루는 과정을 통틀어 코루틴의 생명주기라고 한다.
+
+코루틴이 다양한 상황에서 유연하게 동작하는 만큼 생명주기 또한 복잡하다.
+
+(중요) 사용자가 다루는 코루틴 타입 객체와 핸들을 통해 관리되는 코루틴 프레임을 구분해서 봐야 한다.
+
+아래 나와있는 의사 코드를 숙지하고 생명주기를 분석하면 편하다.
+
+pseudo)-------------------------------------------
+Coroutine::RunStateMachine()
+{
+    /************************************************
+    *      코루틴 프레임이 생성된 이후 들어온다.      *
+    ************************************************/
+
+    // 엄밀히 말하자면 해당 awaiter의 await_resume()에서 발생한 예외는 unhandled_exception()이 받는다.
+    co_await promise.initial_suspend(); // <----- 코루틴 실행의 시작 지점
+
+    try
+    {
+        coroutine.func();
+    }
+    catch(...)
+    {
+        promise.unhandled_exception();
+    }
+    
+    coroutine.isResumable = false;
+    coroutine.isDone      = true;
+
+    // (주의) final_suspend()가 호출되어 코루틴이 유예되었을 경우 resume()으로 재개하는 건 불가능하다.
+    // (주의) 이 경우에는 명시적으로 handle.destroy()를 호출해야 한다.
+    co_await promise.final_suspend(); // <----- 코루틴 실행의 종료 지점
+
+    // handle의 멤버 함수 destroy()와 동일한 작업을 진행하는 함수이다.
+    // 코루틴이 알아서 코루틴 프레임을 해제했으면 사용자는 handle.destroy()를 호출하지 않게 주의해야 한다.
+    coroutine.destroy();
+}
+--------------------------------------------------
+
+
+@ 코루틴 객체 생성 단계
+
+1. 코루틴 함수 invoke
+
+2. promise_type의 operator new(size)으로 코루틴 프레임(코루틴 상태) 생성
+
+3. 매개변수에 이동(move)을 적용하여 코루틴 프레임에 저장
+
+4. promise_type 기본 생성자 호출
+
+5. get_return_object()를 호출하여 코루틴 객체 생성(이 과정에서 코루틴 객체의 생성자 호출)
+
+6. initial_suspend()를 호출하여 awaiter 반환
+
+코루틴 작동 방식은 복잡하지만 적어도 코루틴 객체 생성 단계 만큼은 정형화된 절차를 따른다.
+
+
+@ 코루틴 함수 실행 및 중단 단계
+
+- initial_suspend()에서 반환한 awaiter의 await_ready()가 true를 반환 -> 코루틴을 유예하지 않고 실행
+
+- initial_suspend()에서 반환한 awaiter의 await_ready()가 false를 반환 -> 코루틴 실행을 유예하고 유예 지점 설정
+
+- 코루틴 실행 중 co_await, co_yield에서 받은 awaiter의 await_ready()가 true 반환 -> 코루틴을 유예하지 않고 실행
+
+- 코루틴 실행 중 co_await, co_yield에서 받은 awaiter의 await_ready()가 false 반환 -> 코루틴 실행을 유예하고 유예 지점 설정
+
+- 사용자가 handle.resume() 호출 -> 유예 지점에서 코루틴 실행 재개
+
+
+@ 코루틴 함수 종료 단계
+
+- co_return으로 코루틴 함수 반환 -> return_void() or return_value(T) -> 유효한 지역 변수의 소멸자 호출 -> final_suspend()
+
+- 코루틴 실행 중 예외 발생 -> 유효한 지역 변수의 소멸자 호출 -> unhandled_exception() -> final_suspend()
+  - 일반적인 함수에서 스택을 푸는(unwinding) 느낌과 비슷하게 코루틴 함수를 빠져나간 다음 unhandled_exception()를 호출하는 것이라 봐야 함.
+  - 코루틴 생성 단계와 코루틴 실행 단계는 다름.
+
+코루틴 함수가 더 이상 유효하지 않은 상태가 되면 사용 중인 지역 변수의 소멸자가 호출된다.
+
+코루틴 함수 몸체에서 예외가 발생하면 해당 예외는 여지없이 unhandled_exception()으로 받는다.
+
+자세한 건 "코루틴 예외 처리"를 참고한다.
+
+코루틴 함수를 더 이상 재개할 수 없는 상태가 되면 handle.done()은 true를 반환한다.
+
+!! 주의 !!
+final_suspend()는 코루틴 함수 실행이 끝나서 더 이상 재개할 수 없는 상태일 때 호출된다.
+다만 코루틴 객체의 소멸이나 코루틴 프레임의 소멸이 final_suspend()의 호출까지 이어지는 건 아니다.
+
+!! 주의 !!
+코루틴 함수가 종료되지 않은 상태, 쉽게 생각해서 handle.done()이 false를 반환하는 상태일 때
+handle.destroy()를 호출한다고 해도 final_suspend()는 호출되지 않는다.
+
+final_suspend()에서 반환한 awaiter가 코루틴 종료 지점을 유예하지 않으면 코루틴 프레임이 해제된다.
+
+일반적으로 종료 지점을 유예하지 않으면 여러모로 불편한 점이 많기 때문에
+
+대부분의 경우 final_suspend()는 std::suspend_never 같이 종료 지점을 유예하는 awaiter를 반환하는 것이 좋다.
+
+
+@ 코루틴 객체 소멸 단계
+
+- 코루틴 객체 소멸자 호출
+
+코루틴 객체의 소멸 단계에서는 코루틴 객체의 소멸자를 호출하는 게 전부이다.
+
+코루틴 객체가 소멸된다고 해도 코루틴 프레임까지 같이 소멸되는 것은 아니니까 주의해야 한다.
+
+(주의) 즉, 다음과 같은 상황에서는 메모리 누수가 발생할 수 있다.
+
+1. final_suspend()가 반환하는 awaiter가 코루틴 종료 지점을 유예한다.
+
+2. handle.destroy()를 호출하지 않은 상태에서 코루틴 객체가 소멸한다.
+
+3. 코루틴 프레임에 접근 가능한 handle을 어딘가에 보관한 상태가 아니라면 메모리 누수가 발생한다.
+
+보통은 소멸자 내 handle.destroy()를 호출하여 메모리 누수를 방지하지만 이러한 코드를 작성하는 건 전적으로 사용자의 몫이다.
+
+
+@ 코루틴 프레임(코루틴 상태) 소멸 단계
+
+- final_suspend()에서 반환한 awaiter가 코루틴 종료 지점을 유예
+  -> promise_type 소멸자 호출
+  -> 매개변수의 소멸자 호출
+  -> promise_type의 operator delete(mem)를 호출하여 코루틴 프레임을 해제
+
+- 코루틴 함수가 종료된 상황에서 handle.destroy() 호출
+  -> promise_type 소멸자 호출
+  -> 매개변수의 소멸자 호출
+  -> promise_type의 operator delete(mem)를 호출하여 코루틴 프레임을 해제
+
+- 코루틴 함수가 "종료되지 않은" 상태에서 handle.destroy() 호출
+  -> "유효한 지역 변수의 소멸자 호출"
+  -> promise_type 소멸자 호출
+  -> 매개변수의 소멸자 호출
+  -> promise_type의 operator delete(mem)를 호출하여 코루틴 프레임을 해제
+
+정말 특별한 경우가 아니라면 final_suspend()는 std::suspend_always와 같이 종료 지점을 유예하는 awaiter를 반환하는 것이 좋다.
+
+그리고 코루틴 프레임의 소멸을 handle.destroy()로 진행하는 것이 좋으며 해당 함수는 코루틴 객체의 소멸자에 작성하는 것이 좋다.
+
+꼭 handle.destroy()를 코루틴 객체의 소멸자 내에서 작성하란 법은 없지만 그렇게 해야 하는 이유가 있자면 이유를 반드시 명시해야 한다.
+
+task.handle.destroy(); // 이처럼 코루틴 객체의 소멸자 밖에서 코루틴 프레임을 해제하는 것도 가능함.
+
+이렇게 원하는 시점에 코루틴 프레임을 해제하는 것이 가능하지만 정말 특별한 이유가 없다면
+
+코루틴 객체의 소멸자 내에서 handle.destroy()를 호출하게 코드를 작성하는 것이 좋다.
+
+
+(주의) 코루틴 프레임이 소멸된 상태일 경우 handle.destroy()를 호출하면 안 된다.
+
+final_suspend()에서 종료 지점을 유예하지 않으면 코루틴 프레임이 해제되는데
+
+코루틴 객체의 소멸자 내에서 handle.destroy()를 호출하는 코드를 작성하는 경우는 꽤 흔한 편이니 주의해야 한다.
+
+##################################################
+
+# 코루틴의 생명주기(코드와 로그)
+
+@ 코루틴 객체 생성 단계
+
+코루틴 객체의 생성 과정은 예외가 발생하지 않는다는 가정 하에 동일한 순서대로 함수를 호출한다.
+
+code)---------------------------------------------
+struct CoroType
+{
+    struct promise_type
+    {
+        promise_type() { std::cout << "\t<promise_type()>\n"; }
+        ~promise_type() { std::cout << "\t<~promise_type()>\n"; }
+
+        CoroType get_return_object()
+        {
+            std::cout << "\t<get_return_object()>\n";
+
+            // return CoroType{ this };
+            return this;
+        }
+
+        std::suspend_always initial_suspend() { std::cout << "\t<initial_suspend()>\n"; return { }; }
+        std::suspend_always final_suspend() noexcept { std::cout << "\t<final_suspend()>\n"; return { }; }
+
+        void unhandled_exception()
+        {
+            std::cout << "\t<unhandled_exception()>\n";
+
+            std::rethrow_exception(std::current_exception());
+        }
+
+        void return_void()
+        {
+            std::cout << "\t<return_void()>\n";
+        }
+
+        void* operator new(std::size_t size)
+        {
+            std::cout << "\t<operator new(size)>\n";
+        
+            if (void* mem = std::malloc(size))
+                return mem;
+        
+            return nullptr;
+        }
+        
+        void operator delete(void* mem)
+        {
+            std::cout << "\t<operator delete(mem)>\n";
+        
+            free(mem);
+        }
+    };
+
+    CoroType(promise_type* prom)
+        : handle{ std::coroutine_handle<promise_type>::from_promise(*prom) }
+    {
+        std::cout << "\t<CoroType()>\n";
+    }
+
+    ~CoroType()
+    {
+        std::cout << "\t<~CoroType()>\n";
+
+        if (handle != nullptr)
+        {
+            handle.destroy();
+
+            handle = nullptr;
+        }
+    }
+
+    std::coroutine_handle<promise_type> handle = nullptr;
+};
+
+CoroType CoroFunc()
+{
+    std::cout << "<Coroutine - Started>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+
+    co_await std::suspend_always{ };
+    std::cout << "<Coroutine - Resuming coroutine...>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+
+    std::cout << "<Coroutine - Returning>\n";
+    co_return;
+}
+
+int main()
+{
+    std::cout << "main - Calling coroutine\n";
+    auto task = CoroFunc(); // 코루틴이 생성되었긴 해도 실행된 건 아님.
+
+    // 코루틴 함수의 작업이 완료될 때까지 계속해서 평가를 진행한다.
+    while (!task.handle.done())
+    {
+        std::cout << "\nmain - Resuming coroutine\n";
+        
+        // 유예 지점인 suspension point에서 실행을 재개한다.
+        // task.handle(); // task.handle()은 task.handle.resume()과 같은 기능을 수행함.
+        task.handle.resume();
+    }
+
+    // 코루틴 핸들의 done()을 통해서 코루틴 함수의 완료 여부를 확인할 수 있다.
+    if (task.handle.done())
+    {
+        std::cout << "\nmain - Coroutine is done!\n";
+    }
+    else
+    {
+        std::cout << "\nmain - Coroutine isn't done!\n";
+    }
+
+    return 0;
+}
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Calling coroutine
+        <operator new(size)>
+        <promise_type()>
+        <get_return_object()>
+        <CoroType()>
+        <initial_suspend()>
+        ...
+--------------------------------------------------
+
+initial_suspend()가 호출되는 시작 지점에서 유예할 것인지 아니면 재개하여 코루틴 함수를 실행할 것인지는
+
+initial_suspend()가 반환하는 awaiter의 특성에 따라 달라진다.
+
+
+@ 코루틴 함수 실행 및 중단 단계(initial_suspend())
+
+1. initial_suspend()가 반환하는 awaiter의 await_ready()가 false를 반환하는 경우(std::suspend_always 적용)
+
+initial_suspend()가 std::suspend_always를 반환하면 시작 지점에서 유예된 것을 확인할 수 있다.
+
+output)-------------------------------------------
+main - Calling coroutine
+        <operator new(size)>
+        <promise_type()>
+        <get_return_object()>
+        <CoroType()>
+        <initial_suspend()>
+
+main - Resuming coroutine <----- 코루틴 함수의 실행이 유예된 것을 볼 수 있음.
+<Coroutine - Started>
+<Coroutine - Executing coroutine function>
+...
+--------------------------------------------------
+
+2. initial_suspend()가 반환하는 awaiter의 await_ready()가 true를 반환하는 경우(std::suspend_never 적용)
+
+initial_suspend()가 std::suspend_never를 반환하면 시작 지점에서 유예하지 않고 바로 코루틴 함수를 실행한다.
+
+output)-------------------------------------------
+main - Calling coroutine
+        <operator new(size)>
+        <promise_type()>
+        <get_return_object()>
+        <CoroType()>
+        <initial_suspend()>
+<Coroutine - Started>
+<Coroutine - Executing coroutine function>
+
+main - Resuming coroutine <----- 코루틴 함수의 실행이 유예되지 않고 실행된 것을 볼 수 있음.
+...
+--------------------------------------------------
+
+
+@ 코루틴 함수 실행 및 중단 단계(코루틴 함수 실행 중 co_await, co_yield 사용)
+
+initial_suspend()가 시작 지점을 유예하지 않는 awaiter(std::suspend_never)를 반환한 상태에서
+
+co_await Awaiter;
+
+위 코드를 마주할 경우 어떤 일이 벌어지는지 확인한다.
+
+code)---------------------------------------------
+CoroType CoroFunc()
+{
+    std::cout << "<Coroutine - Started>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+
+    co_await Awaiter; // <----- 여기를 유예 지점(suspension point)으로 함.
+    std::cout << "<Coroutine - Resuming coroutine...>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+
+    std::cout << "<Coroutine - Returning>\n";
+    co_return;
+}
+--------------------------------------------------
+
+1. co_await, co_yield에서 받은 awaiter의 await_ready()가 false를 반환하는 경우
+
+"co_await std::suspend_always{ };"를 지정하면 해당 지점에서 코루틴 실행이 유예된 것을 확인할 수 있다.
+
+handle.resume()을 호출하면 유예 지점에서 코드를 재개한다.
+
+output)-------------------------------------------
+...
+<Coroutine - Started>
+<Coroutine - Executing coroutine function>
+
+main - Resuming coroutine <----- 유예 지점으로부터 실행이 재개된 것을 확인
+<Coroutine - Resuming coroutine...>
+<Coroutine - Executing coroutine function>
+<Coroutine - Returning>
+        <return_void()>
+        <final_suspend()>
+...
+--------------------------------------------------
+
+2. co_await, co_yield에서 받은 awaiter의 await_ready()가 true를 반환하는 경우
+
+"co_await std::suspend_never{ };"를 지정하면 해당 지점에서 코루틴이 유예되지 않는 것을 확인할 수 있다.
+
+output)-------------------------------------------
+...
+<Coroutine - Started>
+<Coroutine - Executing coroutine function>
+<Coroutine - Resuming coroutine...> <----- 유예 지점에서 코드를 유예하지 않고 그냥 실행을 재개한 것을 확인
+<Coroutine - Executing coroutine function>
+<Coroutine - Returning>
+        <return_void()>
+        <final_suspend()>
+...
+--------------------------------------------------
+
+
+@ 코루틴 함수 종료 단계(final_suspend())
+
+final_suspend()는 코루틴 함수의 실행을 끝마친 이후 호출되는 함수이다.
+
+만약 코루틴 함수를 더 재개할 수 있는 상태에서 handle.destroy()를 호출하면 final_suspend()는 호출될 수 없으니 주의해야 한다.
+
+1. final_suspend()가 반환하는 awaiter의 await_ready()가 false를 반환하는 경우(std::suspend_always 적용)
+
+정말 특별한 이유가 없다면 final_suspend()가 반환하는 awaiter는 std::suspend_always인 경우가 일반적이다.
+
+이 유형의 경우 코루틴 차원에서 코루틴 프레임을 해제하지 않으니 명시적으로 handle.destroy()를 어디선가 호출해야 한다.
+
+여기서는 코루틴 객체의 소멸자에서 handle.destroy()를 호출한다.
+
+code)---------------------------------------------
+struct CoroType
+{
+    struct promise_type
+    {
+        ...
+        std::suspend_never initial_suspend() { std::cout << "\t<initial_suspend()>\n"; return { }; }
+        std::suspend_always final_suspend() noexcept { std::cout << "\t<final_suspend()>\n"; return { }; }
+        ...
+    };
+    ...
+    ~CoroType()
+    {
+        std::cout << "\t<~CoroType()>\n";
+
+        if (handle != nullptr)
+        {
+            handle.destroy();
+
+            handle = nullptr;
+        }
+    }
+
+    std::coroutine_handle<promise_type> handle = nullptr;
+};
+--------------------------------------------------
+
+output)-------------------------------------------
+...
+<Coroutine - Returning>
+        <return_void()>
+        <final_suspend()>
+
+main - Coroutine is done!
+        <~CoroType()>
+        <~promise_type()>
+        <operator delete(mem)>
+--------------------------------------------------
+
+2. final_suspend()가 반환하는 awaiter의 await_ready()가 true를 반환하는 경우(std::suspend_never 적용)
+
+final_suspend()에서 std::suspend_never를 적용하는 건 정말 특이한 경우이다.
+
+이 유형을 쓰면 코루틴 실행 종료 이후 코루틴 핸들이 가리키는 코루틴 프레임은 해제되기에 더 이상 유효하지 않게 된다.
+
+코루틴 자원이 알아서 해제된다는 건 사용자 쪽에서 핸들을 통한 제어를 할 수 없다는 뜻이며 이는 일반적으로 안전하지 않다.
+
+!! 코루틴 함수의 완료 여부를 확인하기 위한 handle.done()을 호출하는 것 또한 매우 위험해지기에 상태 추적이 불가능해질 수 있음. !!
+
+특별한 이유가 있어서 코루틴 작업이 완료되었을 때 즉시 리소스를 해야하는 그런 상황이 아니면 사용하지 않도록 한다.
+
+code)---------------------------------------------
+struct CoroType
+{
+    struct promise_type
+    {
+        ...
+        std::suspend_never initial_suspend() { std::cout << "\t<initial_suspend()>\n"; return { }; }
+        std::suspend_never final_suspend() noexcept { std::cout << "\t<final_suspend()>\n"; return { }; }
+        ...
+    };
+    ...
+    ~CoroType()
+    {
+        std::cout << "\t<~CoroType()>\n";
+
+        // 코루틴 프레임은 final_suspend() 호출 이후 소멸되기 때문에 handle에 접근하는 건 매우 위험하다
+        // (주의) 코루틴 차원에서 코루틴 프레임을 해제한다고 해도 handle이 가진 값이 nullptr이 되는 건 아니다.
+        // if (handle != nullptr)
+        // {
+        //     handle.destroy();
+        // 
+        //     handle = nullptr;
+        // }
+    }
+
+    std::coroutine_handle<promise_type> handle = nullptr;
+};
+
+CoroType CoroFunc()
+{
+    std::cout << "<Coroutine - Started>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+
+    co_await std::suspend_always{ };
+    std::cout << "<Coroutine - Resuming coroutine...>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+
+    std::cout << "<Coroutine - Returning>\n";
+    co_return;
+}
+
+int main()
+{
+    std::cout << "main - Calling coroutine\n";
+    auto task = CoroFunc(); // 코루틴이 생성되었긴 해도 실행된 건 아님.
+
+    // 코루틴 자원을 코루틴 차원에서 해제하기 때문에 done()으로 상태를 확인하여 동작하는 건 위험하다.
+    // while (!task.handle.done())
+    // {
+    //     std::cout << "\nmain - Resuming coroutine\n";
+    //     
+    //     // 유예 지점인 suspension point에서 실행을 재개한다.
+    //     // task.handle(); // task.handle()은 task.handle.resume()과 같은 기능을 수행함.
+    //     task.handle.resume();
+    // }
+
+    task.handle.resume();
+
+    // handle.resume() 이후 final_suspend()를 거치며 코루틴 프레임을 해제하기에 핸들에 접근하여 done()을 호출하는 건 위험하다.
+    // if (task.handle.done())
+    // {
+    //     std::cout << "\nmain - Coroutine is done!\n";
+    // }
+    // else
+    // {
+    //     std::cout << "\nmain - Coroutine isn't done!\n";
+    // }
+
+    std::cout << "\nmain - Coroutine is done!\n";
+
+    return 0;
+}
+--------------------------------------------------
+
+output)-------------------------------------------
+...
+<Coroutine - Returning>
+        <return_void()>
+        <final_suspend()>
+        <~promise_type()> <----- final_suspend() 이후 코루틴 자원이 해제되는 것을 볼 수 있음.
+        <operator delete(mem)>
+
+main - Coroutine is done!
+        <~CoroType()>
+--------------------------------------------------
+
+##################################################
+
+# 코루틴 예외 처리
+
+코루틴의 promise_type을 보면 unhandled_exception()이 있는데 코루틴에서 발생하는 모든 예외가 항상 여기로 던져지는 건 아니다.
+
+1. 코루틴 생성 과정에서 발생한 예외
+
+2. 코루틴 실행 과정에서 발생한 예외
+
+두 유형의 예외는 엄연히 다르다.
+
+아래 코드를 기반으로 예외를 던져서 테스트 해보면 얼추 들어맞는다.
+
+pseudo)-------------------------------------------
+Coroutine::RunStateMachine()
+{
+    /************************************************
+    *      코루틴 프레임이 생성된 이후 들어온다.      *
+    ************************************************/
+
+    // 엄밀히 말하자면 해당 awaiter의 await_resume()에서 발생한 예외는 unhandled_exception()이 받는다.
+    co_await promise.initial_suspend(); // <----- 코루틴 실행의 시작 지점을 제어하여 유예 여부 결정
+
+    try
+    {
+        coroutine.func();
+    }
+    catch(...)
+    {
+        promise.unhandled_exception();
+    }
+    
+    coroutine.isResumable = false;
+    coroutine.isDone      = true;
+
+    // (주의) final_suspend()가 호출되어 코루틴이 유예되었을 경우 resume()으로 재개하는 건 불가능하다.
+    // (주의) 이 경우에는 명시적으로 handle.destroy()를 호출해야 한다.
+    co_await promise.final_suspend(); // <----- 코루틴 실행의 종료 지점을 제어하여 유예 여부 결정
+
+    // handle의 멤버 함수 destroy()와 동일한 작업을 진행하는 함수이다.
+    // 코루틴이 알아서 코루틴 프레임을 해제했으면 사용자는 handle.destroy()를 호출하지 않게 주의해야 한다.
+    coroutine.destroy();
+}
+--------------------------------------------------
+
+unhandled_exception()은 코루틴을 실행하는 과정에서 던지는 예외만 받을 수 있다.
+
+즉, 코루틴 생성 단계과 코루틴 실행 단계는 구분해야 한다.
+
+코루틴 소멸 단계는 고려하지 않아도 된다.
+
+final_suspend()는 애초에 noexcept 유형으로 작성되며 소멸자에서 예외를 던지는 건 매우 이상한 상황이다.
+
+따라서 코루틴 생성 단계와 코루틴 실행 단계만 잘 구분해서 예외처리하면 된다.
+
+- 코루틴 생성 단계에서 발생하는 예외 : 호출자 쪽에서 try-catch로 받는다.
+
+- 코루틴 실행 단계에서 발생하는 예외 : 코루틴의 unhandled_exception()로 받는다.
+
+- 코루틴 소멸 단계에서 예외가 발생하는 건 이상한 상황이니 다루지 않아도 된다.
+  - final_suspend()는 noexcept로 되어있기에 예외를 허용하지 않음.
+  - 소멸자나 operator delete(mem) 같은 곳에서 예외를 던지면 던지지 말라고 컴파일러 경고가 발생함.
+
+!! 코루틴 생성 단계와 코루틴 실행 단계를 구분하여 작업하는 것이 특히 중요함. !!
+
+
+@ 코루틴 생성 단계로 간주하는 구간
+
+- operator new(size)
+
+- promise_type의 기본 생성자
+
+- get_return_object()
+
+- 코루틴 객체 생성자
+
+- initial_suspend()
+
+- (사용 주의) initial_suspend()가 반환하는 awaiter에 의해 유예되기 전까지의 구간
+  - await_ready(), await_suspend() 구간에서 발생하는 예외는 호출자 쪽이 받음.
+  - await_resume()까지 오면 코루틴 생성 단계가 아닌 실행 단계로 간주하기에 여기서 예외가 발생하면 unhandled_exception()으로 받음.
+    - unhandled_exception()의 실행을 마치면 final_suspend()를 호출함.
+      - 호출자 쪽에 코루틴 객체를 반환하지 않은 상태인데 unhandled_exception()이 호출되었어도 이어서 final_suspend()가 호출될 수 있음.
+    - unhandled_exception()에서 예외를 rethrow하여 전파하면 코루틴 로직 자체를 탈출하기 때문에 이 경우에는 final_suspend()가 호출되지 않음.
+  - (중요) 시작 지점의 awaiter에서 발생하는 예외는 직관적이지 않아 핸들링하기 어려움.
+    - 따라서 initial_suspend()가 반환하는 awaiter는 예외를 던지지 않게 설계하는 것이 좋음.
+
+(중요) 코루틴 생성 단계에서 발생하는 예외는 코루틴의 unhandled_exception()이 아닌 호출자 쪽의 try-catch로 받는다.
+
+(매우 중요) 코루틴 생성 단계에서 예외가 발생하면 코루틴 차원에서 할당한 메모리는 코루틴이 알아서 해제한다.
+
+
+@ 코루틴 실행 단계로 간주하는 구간
+
+- 코루틴 생성 절차를 마친 이후 final_suspend()와 그 이후 절차를 제외한 모든 구간
+
+- initial_suspend()가 반환하는 awaiter의 await_resume() 호출 또한 코루틴 실행 단계로 본다.
+
+- 코루틴 함수 내에서 발생하는 예외는 여지없이 코루틴 실행 단계에서 발생하는 예외로 본다.
+
+코루틴 실행은 언어 차원에서 만든 자체적인 try 블록 안에서 이루어지며 해당 구간에서 발생한 예외는 unhandled_exception()으로 받는다.
+
+unhandled_exception()을 정상적으로 끝마쳤으면 final_suspend()를 이어서 호출하지만
+
+unhandled_exception() 내에서 예외를 던지는 경우 final_suspend()는 호출되지 않는다.
+
+(중요) unhandled_exception()에서 예외를 rethrow하여 전파하지 않는 이상 호출자 쪽의 try-catch 문은 반응하지 않는다.
+
+
+@ 코루틴 소멸 단계로 간주하는 구간
+
+- final_suspend()
+
+- 코루틴 객체 소멸자
+
+- promise_type의 소멸자
+
+- opeartor delete(mem)
+
+해당 구간에서는 예외를 던지지 않아야 한다.
+
+==================================================
+
+# 코루틴 생성 단계에서 예외 던지기
+
+아래 과정은 코루틴 생성 단계에 포함된다.
+
+output)-------------------------------------------
+main - Calling coroutine
+        <operator new(size)>
+        <promise_type()>
+        <get_return_object()>
+        <CoroType()>
+        <initial_suspend()>
+        <MyAwaiter - await_ready()>
+        <MyAwaiter - await_suspend()>
+...
+--------------------------------------------------
+
+코루틴 생성 단계에서 예외를 던지면 이를 받는 건 promise_type의 unhandled_exception()이 아니다.
+
+코루틴 생성 단계에서 발생한 예외는 코루틴을 invoke한 쪽에 던져지기 때문에 호출자 쪽의 try-catch 문으로 받아야 한다.
+
+code)---------------------------------------------
+int main()
+{
+    try
+    {
+        std::cout << "main - Calling coroutine\n";
+        auto task = CoroFunc();
+
+        while (!task.handle.done())
+        {
+            std::cout << "\nmain - Resuming coroutine\n";
+        
+            task.handle.resume();
+        }
+
+        std::cout << "\nmain - Coroutine is done!\n";
+    }
+    catch (const std::exception& ex)
+    {
+        std::cout << "\n#### EXCEPTION THROWN TO MAIN ####\n";
+        std::cout << ex.what() << '\n';
+        std::cout << "##################################\n";
+    }
+
+    return 0;
+}
+--------------------------------------------------
+
+(중요) 코루틴 생성 단계에서 예외가 발생하면 코루틴 차원에서 할당한 메모리는 코루틴이 알아서 해제한다.
+
+만약 코루틴 객체의 소멸자에 코루틴 자원을 해제하는 로직을 작성했다면 수동으로 해제하는 코드와 알아서 해제하는 작업이 충돌할 수 있다.
+
+code)---------------------------------------------
+std::suspend_always initial_suspend()
+{
+    std::cout << "\t<initial_suspend()>\n"; 
+
+    // 생성 단계가 끝날 무렵에 예외를 던지면?
+    throw std::logic_error{ "Crash from initial_suspend()" };
+
+    return { };
+}
+
+~CoroType()
+{
+    std::cout << "\t<~CoroType()>\n";
+
+    if (handle != nullptr)
+    {
+        handle.destroy();
+    
+        handle = nullptr;
+    }
+}
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Calling coroutine
+        <operator new(size)>
+        <promise_type()>
+        <get_return_object()>
+        <CoroType()>
+        <initial_suspend()> <----- 여기서 예외 발생
+        <~CoroType()>       <----- try 블록을 빠져나오며 코루틴 객체의 소멸자 호출
+        <~promise_type()>      <----- handle.destroy()로 인한 자원 해제(1)
+        <operator delete(mem)> <----- handle.destroy()로 인한 자원 해제(1)
+        <~promise_type()>      <----- 코루틴 차원에서 자체적으로 할당한 자원 해제(1)
+        <operator delete(mem)> <----- 코루틴 차원에서 자체적으로 할당한 자원 해제(2) + 크래시 발생
+--------------------------------------------------
+
+코루틴 생성 단계에서 예외가 발생하면 catch 블록에 들어가기도 전에 try 블록을 빠져나오는 과정에서 프로그램이 터질 수 있다.
+
+따라서 예외가 발생하는 것을 고려한다면 어떻게든 코루틴 자원이 2번 해제되는 상황을 방지해야 한다.
+
+예를 들면 예외 발생 플래그 변수를 따로 둬서 handle.destroy() 호출을 if 문으로 제어한다든지?
+
+
+@ 코루틴 생성 단계 예외 : operator new(size)
+
+code)---------------------------------------------
+struct CoroType
+{
+    struct promise_type
+    {
+        ...
+        void* operator new(std::size_t size)
+        {
+            std::cout << "\t<operator new(size)>\n";
+
+            // 여기서 예외를 던진다.
+            throw std::logic_error{ "Crash from operator new(size)" };
+
+            if (void* mem = std::malloc(size))
+                return mem;
+        
+            return nullptr;
+        }
+        ...
+    };
+    ...
+    ~CoroType()
+    {
+        std::cout << "\t<~CoroType()>\n";
+
+        // 생성 단계에서 예외를 던지면 코루틴은 자신이 할당한 메모리를 알아서 해제한다.
+        // if (handle != nullptr)
+        // {
+        //     handle.destroy();
+        // 
+        //     handle = nullptr;
+        // }
+    }
+
+    std::coroutine_handle<promise_type> handle = nullptr;
+};
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Calling coroutine
+        <operator new(size)>
+
+#### EXCEPTION THROWN TO MAIN ####
+Crash from operator new(size)
+##################################
+--------------------------------------------------
+
+
+@ 코루틴 생성 단계 예외 : promise_type 기본 생성자
+
+code)---------------------------------------------
+struct CoroType
+{
+    struct promise_type
+    {
+        promise_type()
+        {
+            std::cout << "\t<promise_type()>\n";
+            
+            // 여기서 예외를 던진다.
+            throw std::logic_error{ "Crash from promise_type()" };
+        }
+        ...
+    };
+    ...
+    ~CoroType()
+    {
+        std::cout << "\t<~CoroType()>\n";
+
+        // 생성 단계에서 예외를 던지면 코루틴은 자신이 할당한 메모리를 알아서 해제한다.
+        // if (handle != nullptr)
+        // {
+        //     handle.destroy();
+        // 
+        //     handle = nullptr;
+        // }
+    }
+
+    std::coroutine_handle<promise_type> handle = nullptr;
+};
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Calling coroutine
+        <operator new(size)>
+        <promise_type()> <----- 여기서 예외 발생
+        <operator delete(mem)> <----- 코루틴 차원에서 호출
+
+#### EXCEPTION THROWN TO MAIN ####
+Crash from promise_type()
+##################################
+--------------------------------------------------
+
+
+@ 코루틴 생성 단계 예외 : get_return_object()
+
+code)---------------------------------------------
+struct CoroType
+{
+    struct promise_type
+    {
+        ...
+        CoroType get_return_object()
+        {
+            std::cout << "\t<get_return_object()>\n";
+
+            // 여기서 예외를 던진다.
+            throw std::logic_error{ "Crash from get_return_object()" };
+
+            // return CoroType{ this };
+            return this;
+        }
+        ...
+    };
+    ...
+    ~CoroType()
+    {
+        std::cout << "\t<~CoroType()>\n";
+
+        // 생성 단계에서 예외를 던지면 코루틴은 자신이 할당한 메모리를 알아서 해제한다.
+        // if (handle != nullptr)
+        // {
+        //     handle.destroy();
+        // 
+        //     handle = nullptr;
+        // }
+    }
+
+    std::coroutine_handle<promise_type> handle = nullptr;
+};
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Calling coroutine
+        <operator new(size)>
+        <promise_type()>
+        <get_return_object()> <----- 여기서 예외 발생
+        <~promise_type()>       <----- 코루틴 차원에서 호출
+        <operator delete(mem)>  <----- 코루틴 차원에서 호출
+
+#### EXCEPTION THROWN TO MAIN ####
+Crash from get_return_object()
+##################################
+--------------------------------------------------
+
+
+@ 코루틴 생성 단계 예외 : 코루틴 객체 생성자
+
+코루틴 객체 생성자는 get_return_object()에서 객체를 만들어 반환하는 과정에서 호출된다.
+
+code)---------------------------------------------
+struct CoroType
+{
+    ...
+    CoroType(promise_type* prom)
+        : handle{ std::coroutine_handle<promise_type>::from_promise(*prom) }
+    {
+        std::cout << "\t<CoroType()>\n";
+        
+        // 여기서 예외를 던진다.
+        throw std::logic_error{ "Crash from CoroType()" };
+    }
+
+    ~CoroType()
+    {
+        std::cout << "\t<~CoroType()>\n";
+
+        // 생성 단계에서 예외를 던지면 코루틴은 자신이 할당한 메모리를 알아서 해제한다.
+        // if (handle != nullptr)
+        // {
+        //     handle.destroy();
+        // 
+        //     handle = nullptr;
+        // }
+    }
+
+    std::coroutine_handle<promise_type> handle = nullptr;
+};
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Calling coroutine
+        <operator new(size)>
+        <promise_type()>
+        <get_return_object()>
+        <CoroType()> <----- 여기서 예외 발생
+        <~promise_type()>      <----- 코루틴 차원에서 호출
+        <operator delete(mem)> <----- 코루틴 차원에서 호출
+
+#### EXCEPTION THROWN TO MAIN ####
+Crash from CoroType()
+##################################
+--------------------------------------------------
+
+
+@ 코루틴 생성 단계 예외 : initial_suspend()
+
+여기까지 왔으면 코루틴 객체는 생성되었다고 봐야 한다.
+
+따라서 해당 함수에 진입한 이후부터 본격적으로 코루틴 객체 소멸자와 충돌할 가능성이 있다.
+
+code)---------------------------------------------
+struct CoroType
+{
+    struct promise_type
+    {
+        ...
+        MyAwaiter initial_suspend()
+        {
+            std::cout << "\t<initial_suspend()>\n"; 
+            
+            // 여기서 예외를 던진다.
+            throw std::logic_error{ "Crash from initial_suspend()" };
+
+            return { };
+        }
+        ...
+    };
+    ...
+    ~CoroType()
+    {
+        std::cout << "\t<~CoroType()>\n";
+
+        // 생성 단계에서 예외를 던지면 코루틴은 자신이 할당한 메모리를 알아서 해제한다.
+        // if (handle != nullptr)
+        // {
+        //     handle.destroy();
+        // 
+        //     handle = nullptr;
+        // }
+    }
+
+    std::coroutine_handle<promise_type> handle = nullptr;
+};
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Calling coroutine
+        <operator new(size)>
+        <promise_type()>
+        <get_return_object()>
+        <CoroType()>
+        <initial_suspend()> <----- 여기서 예외 발생
+        <~CoroType()>          <----- 코루틴 차원에서 호출
+        <~promise_type()>      <----- 코루틴 차원에서 호출
+        <operator delete(mem)> <----- 코루틴 차원에서 호출
+
+#### EXCEPTION THROWN TO MAIN ####
+Crash from initial_suspend()
+##################################
+--------------------------------------------------
+
+
+@ 코루틴 생성 단계 예외 : initial_suspend() -> awaiter -> await_ready()
+
+initial_suspend()가 반환한 이후 유예를 제어하기 위해 호출되는 함수이다.
+
+마찬가지로 여기서 예외가 던져지면 코루틴 객체의 소멸자가 호출된다.
+
+code)---------------------------------------------
+struct MyAwaiter
+{
+    bool await_ready()
+    {
+        std::cout << "\t<MyAwaiter - await_ready()>\n";
+        
+        // 여기서 예외를 던진다.
+        throw std::logic_error{ "Crash from await_ready()" };
+        
+        return false;
+    }
+    ...
+};
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Calling coroutine
+        <operator new(size)>
+        <promise_type()>
+        <get_return_object()>
+        <CoroType()>
+        <initial_suspend()>
+        <MyAwaiter - await_ready()> <----- 여기서 예외 발생
+        <~CoroType()>          <----- 코루틴 차원에서 호출
+        <~promise_type()>      <----- 코루틴 차원에서 호출
+        <operator delete(mem)> <----- 코루틴 차원에서 호출
+
+#### EXCEPTION THROWN TO MAIN ####
+Crash from await_ready()
+##################################
+--------------------------------------------------
+
+
+@ 코루틴 생성 단계 예외 : initial_suspend() -> awaiter -> await_suspend()
+
+await_ready()가 false를 반환하여 유예 상태에 들어가야 하는 상황에서 호출되는 함수이다.
+
+마찬가지로 여기서 예외가 던져지면 코루틴 객체의 소멸자가 호출된다.
+
+code)---------------------------------------------
+struct MyAwaiter
+{
+    bool await_ready()
+    {
+        std::cout << "\t<MyAwaiter - await_ready()>\n";
+
+        return false;
+    }
+
+    void await_suspend(std::coroutine_handle<> handle)
+    {
+        std::cout << "\t<MyAwaiter - await_suspend()>\n";
+
+        // 여기서 예외를 던진다.
+        throw std::logic_error{ "Crash from await_suspend()" };
+    }
+    ...
+};
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Calling coroutine
+        <operator new(size)>
+        <promise_type()>
+        <get_return_object()>
+        <CoroType()>
+        <initial_suspend()>
+        <MyAwaiter - await_ready()>
+        <MyAwaiter - await_suspend()> <----- 여기서 예외 발생
+        <~CoroType()>          <----- 코루틴 차원에서 호출
+        <~promise_type()>      <----- 코루틴 차원에서 호출
+        <operator delete(mem)> <----- 코루틴 차원에서 호출
+
+#### EXCEPTION THROWN TO MAIN ####
+Crash from await_suspend()
+##################################
+--------------------------------------------------
+
+
+@ (주의) 다음 상황은 코루틴 생성 단계가 아님 : initial_suspend() -> awaiter -> await_resume()
+
+awaiter가 해당 순서로 실행되면 코루틴 객체가 호출자에게 반환되지 않았어도
+
+await_resume() 단계는 코루틴 생성 단계가 아닌 코루틴 실행 단계로 본다.
+
+!! 중요 !!
+
+코루틴 실행 단계로 넘어오면 코루틴이 할당한 자원을 해제하는 것에 대한 책임은 사용자 쪽에 있다.
+
+1. 명시적으로 handle.destroy()를 호출하기
+
+2. final_suspend()가 반환하는 awaiter가 종료 지점에서 코루틴을 유예시키기 않게 코드를 작성하기
+  - (주의) unhandled_exception()에서 예외를 던지면 final_suspend()가 호출되지 않으니 주의해야 함.
+
+output)-------------------------------------------
+struct MyAwaiter
+{
+    bool await_ready()
+    {
+        std::cout << "\t<MyAwaiter - await_ready()>\n";
+
+        // 1. 코루틴은 유예하기 위해 false를 반환하면 await_suspend()를 호출한다.
+        return false;
+    }
+
+    bool await_suspend(std::coroutine_handle<> handle)
+    {
+        std::cout << "\t<MyAwaiter - await_suspend()>\n";
+
+        // 2. await_suspend()의 반환형이 bool일 때 false를 반환하면 유예하지 않고 await_resume()을 호출한다.
+        return false;
+    }
+
+    void await_resume()
+    {
+        std::cout << "\t<MyAwaiter - await_resume()\n";
+        
+        // 3. 여기서 예외를 던진다(코루틴 생성 단계가 아닌 코루틴 실행 단계로 봄).
+        throw std::logic_error{ "Crash from await_resume()" };
+    }
+};
+
+struct CoroType
+{
+    struct promise_type
+    {
+        ...
+        // 종료 지점에서 코루틴을 유예하기 위해 std::suspend_always 반환
+        std::suspend_always final_suspend() noexcept { std::cout << "\t<final_suspend()>\n"; return {}; }
+
+        void unhandled_exception()
+        {
+            std::cout << "\t<unhandled_exception()>\n";
+
+            // 일단 예외를 코루틴 내에서만 처리하게 한다(호출자 쪽으로 던지지 않음).
+            // std::rethrow_exception(std::current_exception());
+        }
+        ...
+    };
+    ...
+    ~CoroType()
+    {
+        std::cout << "\t<~CoroType()>\n";
+
+        // 생성 단계에서 예외를 던지면 코루틴은 자신이 할당한 메모리를 알아서 해제한다.
+        // if (handle != nullptr)
+        // {
+        //     handle.destroy();
+        // 
+        //     handle = nullptr;
+        // }
+    }
+
+    std::coroutine_handle<promise_type> handle = nullptr;
+};
+--------------------------------------------------
+
+code)---------------------------------------------
+main - Calling coroutine
+        <operator new(size)>
+        <promise_type()>
+        <get_return_object()>
+        <CoroType()>
+        <initial_suspend()>
+        <MyAwaiter - await_ready()>
+        <MyAwaiter - await_suspend()>
+        <MyAwaiter - await_resume() <----- 여기서 예외 발생
+        <unhandled_exception()>
+        <final_suspend()> <----- 종료 지점에서 코루틴이 유예되기에 자원은 아직 해제되지 않음.
+
+main - Coroutine done!
+        <~CoroType()> <----- handle.destroy()를 호출하지 않음.
+--------------------------------------------------
+
+!! 중요 !!
+
+코루틴 실행 단계에서 던진 예외는 코루틴이 받지만 자원의 해제까지 담당하는 건 아니다.
+
+코루틴 실행 단계에서 예외를 던지면 할당된 코루틴 자원을 해제하는 것에 대한 책임은 사용자가 진다.
+
+==================================================
+
+# 코루틴 실행 단계에서 예외 던지기
+
+(중요) 코루틴 실행 단계에서 예외를 던지면 할당한 코루틴 자원은 사용자가 해제해야 한다.
+
+사용자 쪽에서는 여러 방식으로 코루틴 자원을 해제할 수 있다.
+
+- final_suspend()에서 std::suspend_never처럼 종료 지점을 유예하지 않는 awaiter를 반환하기
+  - 이 방식은 unhandled_exception()에서 예외를 던지지 않아야 함.
+
+- 코루틴 객체 소멸자에서 명시적으로 handle.destroy() 호출하기
+
+- 외부에서 코루틴 핸들을 보관하고 있다가 특정 시점에 handle.destroy() 호출하기
+
+
+코루틴 실행 단계에서 발생한 예외는 여지없이 promise_type의 unhandled_exception()에 전달된다.
+
+정말 특별한 일이 없다면 unhandled_exception()은 코루틴 함수 내에서 발생한 예외로 인해 호출될 것이다.
+
+예외를 unhandled_exception()으로 받으면 다음과 같은 방식으로 처리할 수 있다.
+
+1. 빈 상태로 두기
+
+2. 자원의 일부를 정리하고 플래그 변수를 통해 호출자가 알 수 있게 하기
+
+3. 프로그램을 종료하기
+
+4. rethrow하여 예외를 호출자에게 전파하기(추천)
+
+1번과 2번 방식은 unhandled_exception() 호출을 마친 이후 final_suspend()를 이어서 호출하지만,
+
+3번과 4번 방식은 unhandled_exception() 호출 도중에 던지는 방식이라 final_suspend()를 호출하지 않는다.
+
+(중요) 4번 방식을 제외하면 코루틴에서 발생한 예외는 호출자에게 전파되지 않는다(코루틴은 그 자체로 독립적인 로직으로 간주하기 때문임).
+
+unhandled_exception()에 들어온 순간부터 handle.done()은 true를 반환한다.
+
+code)---------------------------------------------
+struct CoroType
+{
+    struct promise_type
+    {
+        ...
+        void unhandled_exception()
+        {
+            std::cout << "\t<unhandled_exception()>\n";
+
+            // unhandled_exception()이 호출되면 handle.done()은 true를 반환한다.
+            if (coroInst->handle.done())
+            {
+                std::cout << "\t<handle.done() returns true>\n";
+            }
+
+            // 일단 예외를 코루틴 내에서만 처리하게 한다(호출자 쪽으로 던지지 않음).
+            // std::rethrow_exception(std::current_exception());
+        }
+        ...
+        CoroType* coroInst;
+    };
+    ...
+    CoroType(promise_type* prom)
+        : handle{ std::coroutine_handle<promise_type>::from_promise(*prom) }
+    {
+        std::cout << "\t<CoroType()>\n";
+
+        handle.promise().coroInst = this;
+    }
+    ...
+    std::coroutine_handle<promise_type> handle = nullptr;
+};
+--------------------------------------------------
+
+
+@ 코루틴 생성 단계 예외 : 빈 상태로 두기
+
+(주의) final_suspend()에서 std::suspend_never를 반환하면 액세스를 위반했다는 런타임 에러가 발생한다.
+
+final_suspend()에서 종료 지점을 유예하지 않는 awaiter를 반환하면 코루틴 자원은 알아서 해제된다.
+
+이 경우 외부에서 resume()을 하거나 done()으로 확인하는 건 해제된 코루틴 자원에 대한 접근이기 때문에 위험하다.
+
+또한 final_suspend()에서 종료 지점을 유예했다고 해도 외부에서 예외 발생 여부를 파악할 수 없기 때문에
+
+해당 유형의 unhandled_exception()은 사용하지 않도록 한다.
+
+code)---------------------------------------------
+struct CoroType
+{
+    struct promise_type
+    {
+        ...
+        std::suspend_always initial_suspend() { std::cout << "\t<initial_suspend()>\n"; return { }; }
+        std::suspend_always final_suspend() noexcept { std::cout << "\t<final_suspend()>\n"; return { }; }
+        ...
+        void unhandled_exception()
+        {
+            std::cout << "\t<unhandled_exception()>\n";
+
+            // 빈 상태로 두기
+        }
+        ...
+    };
+    ...
+    CoroType(promise_type* prom)
+        : handle{ std::coroutine_handle<promise_type>::from_promise(*prom) }
+    {
+        std::cout << "\t<CoroType()>\n";
+    }
+
+    ~CoroType()
+    {
+        std::cout << "\t<~CoroType()>\n";
+
+        // 생성 단계에서 예외를 던지면 코루틴은 자신이 할당한 메모리를 알아서 해제한다.
+        // if (handle != nullptr)
+        // {
+        //     handle.destroy();
+        // 
+        //     handle = nullptr;
+        // }
+
+        // 코루틴 실행 단계에서 예외를 던지면 할당한 메모리는 사용자가 해제해야 한다.
+        if (handle != nullptr)
+        {
+            handle.destroy();
+
+            handle = nullptr;
+        }
+    }
+
+    std::coroutine_handle<promise_type> handle = nullptr;
+};
+
+CoroType CoroFunc()
+{
+    std::cout << "<Coroutine - Started>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+
+    throw std::logic_error{ "Crash from CoroFunc()" };
+   
+    std::cout << "<Coroutine - Returning>\n";
+    co_return;
+}
+
+int main()
+{
+    try
+    {
+        std::cout << "main - Calling coroutine\n";
+        auto task = CoroFunc();
+
+        while (!task.handle.done())
+        {
+            std::cout << "\nmain - Resuming coroutine\n";
+        
+            task.handle.resume();
+        }
+
+        std::cout << "\nmain - Coroutine is done!\n";
+    }
+    catch (const std::exception& ex)
+    {
+        std::cout << "\n#### EXCEPTION THROWN TO MAIN ####\n";
+        std::cout << ex.what() << '\n';
+        std::cout << "##################################\n";
+    }
+
+    return 0;
+}
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Calling coroutine
+        <operator new(size)>
+        <promise_type()>
+        <get_return_object()>
+        <CoroType()>
+        <initial_suspend()>
+
+main - Resuming coroutine
+<Coroutine - Started>
+<Coroutine - Executing coroutine function>
+        <unhandled_exception()>
+        <final_suspend()> <----- unhandled_exception() 호출을 무사히 마치면 final_suspend()가 호출됨.
+
+main - Coroutine is done!
+        <~CoroType()> <----- 여기서 handle.destroy()을 호출하고 있음.
+        <~promise_type()>
+        <operator delete(mem)>
+--------------------------------------------------
+
+
+@ 코루틴 생성 단계 예외 : 자원의 일부를 정리하고 플래그 변수를 통해 호출자가 알 수 있게 하기
+
+해당 방식은 코루틴 객체와 promise 객체 간 강한 커플링을 유발한다.
+
+code)---------------------------------------------
+struct CoroType
+{
+    struct promise_type
+    {
+        ...
+        std::suspend_always initial_suspend() { std::cout << "\t<initial_suspend()>\n"; return { }; }
+        std::suspend_always final_suspend() noexcept { std::cout << "\t<final_suspend()>\n"; return { }; }
+        ...
+        void unhandled_exception()
+        {
+            std::cout << "\t<unhandled_exception()>\n";
+
+            // 예외 플래그 활성화
+            coroInst->exceptionOccurred = true;
+        }
+        ...
+        CoroType* coroInst;
+    };
+
+    CoroType(promise_type* prom)
+        : handle{ std::coroutine_handle<promise_type>::from_promise(*prom) }
+    {
+        std::cout << "\t<CoroType()>\n";
+
+        handle.promise().coroInst = this;
+    }
+    ...
+    std::coroutine_handle<promise_type> handle = nullptr;
+
+    bool exceptionOccurred = false;
+};
+
+int main()
+{
+    try
+    {
+        std::cout << "main - Calling coroutine\n";
+        auto task = CoroFunc();
+
+        // 예외가 발생하면 handle.done()은 true를 반환한다.
+        while (!task.handle.done())
+        {
+            std::cout << "\nmain - Resuming coroutine\n";
+        
+            task.handle.resume();
+        }
+
+        // 예외가 발생했는지 확인
+        if (task.exceptionOccurred == true)
+        {
+            std::cout << "\nmain - Exception occurred in coroutine\n";
+        }
+
+        std::cout << "\nmain - Coroutine is done!\n";
+    }
+    catch (const std::exception& ex)
+    {
+        std::cout << "\n#### EXCEPTION THROWN TO MAIN ####\n";
+        std::cout << ex.what() << '\n';
+        std::cout << "##################################\n";
+    }
+
+    return 0;
+}
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Calling coroutine
+        <operator new(size)>
+        <promise_type()>
+        <get_return_object()>
+        <CoroType()>
+        <initial_suspend()>
+
+main - Resuming coroutine
+<Coroutine - Started>
+<Coroutine - Executing coroutine function>
+        <unhandled_exception()>
+        <final_suspend()> <----- unhandled_exception() 호출을 무사히 마치면 final_suspend()가 호출됨.
+
+main - Exception occurred in coroutine <----- 예외 플래그 변수가 활성화된 것을 확인 가능함.
+
+main - Coroutine is done!
+        <~CoroType()> <----- 여기서 handle.destroy()을 호출하고 있음.
+        <~promise_type()>
+        <operator delete(mem)>
+--------------------------------------------------
+
+
+@ 코루틴 생성 단계 예외 : 프로그램을 종료하기
+
+이 방식을 쓰면 런타임 라이브러리 에러인 "abort() has been called"가 뜬다.
+
+code)---------------------------------------------
+struct CoroType
+{
+    struct promise_type
+    {
+        ...
+        std::suspend_always initial_suspend() { std::cout << "\t<initial_suspend()>\n"; return { }; }
+        std::suspend_always final_suspend() noexcept { std::cout << "\t<final_suspend()>\n"; return { }; }
+        ...
+        void unhandled_exception()
+        {
+            std::cout << "\t<unhandled_exception()>\n";
+
+            ::terminate();
+        }
+        ...
+    };
+    ...
+};
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Calling coroutine
+        <operator new(size)>
+        <promise_type()>
+        <get_return_object()>
+        <CoroType()>
+        <initial_suspend()>
+
+main - Resuming coroutine
+<Coroutine - Started>
+<Coroutine - Executing coroutine function>
+        <unhandled_exception()> <----- 여기서 프로그램을 종료함.
+--------------------------------------------------
+
+
+@ 코루틴 생성 단계 예외 : rethrow하여 예외를 호출자에게 전파하기(추천)
+
+이 방식을 쓰면 코루틴 실행을 요청한 호출자 쪽에서 손쉽게 예외를 받을 수 있다.
+
+(주의) 이 방식은 final_suspend()를 호출하지 않는다.
+
+code)---------------------------------------------
+struct CoroType
+{
+    struct promise_type
+    {
+        ...
+        void unhandled_exception()
+        {
+            std::cout << "\t<unhandled_exception()>\n";
+
+            // 코루틴 실행 도중 발생한 예외롤 호출자에게 전파한다.
+            std::rethrow_exception(std::current_exception());
+        }
+        ...
+    };
+    ...
+};
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Calling coroutine
+        <operator new(size)>
+        <promise_type()>
+        <get_return_object()>
+        <CoroType()>
+        <initial_suspend()>
+
+main - Resuming coroutine
+<Coroutine - Started>
+<Coroutine - Executing coroutine function>
+        <unhandled_exception()> <----- unhandled_exception()에서 예외를 던진 것이기 때문에 final_suspend()를 호출하지 않음.
+        <~CoroType()> <----- try 블록을 빠져나오면서 코루틴 객체의 소멸자 호출(여기서 handle.destroy()을 호출하고 있음)
+        <~promise_type()>
+        <operator delete(mem)>
+
+#### EXCEPTION THROWN TO MAIN ####
+Crash from CoroFunc()
+##################################
+--------------------------------------------------
+
+##################################################
+
+# 이동을 활용한 코루틴 재생성
+
+이 부분은 "코루틴의 생명주기"를 본 다음 봐야 한다.
+
+코루틴은 기본적으로 1회성 객체이기 때문에 재사용하는 건 불가능하다.
+
+하지만 새로운 코루틴 객체를 생성하여 기존 코루틴 변수에 대입하는 것은 가능하다.
+
+이를 위해선 이동 생성자 혹은 이동 대입 연산자를 정의해야 한다.
+
+(중요) 이동이 적용되는 대상의 코루틴 프레임은 반드시 해제되어야 한다(안 그러면 메모리 누수 발생).
+
+비슷한 이유로 코루틴 핸들을 복사로 받고자 한다면 handle.destroy()를 여러 번 호출하지 않게 자체적인 레퍼런스 카운팅을 구현해야 한다.
+
+code)---------------------------------------------
+struct CoroType
+{
+    struct promise_type
+    {
+        promise_type()
+        {
+            std::cout << "\t<promise_type()>\n";
+        }
+
+        ~promise_type() {
+            std::cout << "\t<~promise_type()>\n";
+        }
+
+        CoroType get_return_object()
+        {
+            std::cout << "\t<get_return_object()>\n";
+
+            // return CoroType{ this };
+            return this;
+        }
+
+        // 코루틴 실행 지점을 유예하지 않는다.
+        std::suspend_never initial_suspend() { std::cout << "\t<initial_suspend()>\n";  return { }; }
+        std::suspend_always final_suspend() noexcept { std::cout << "\t<final_suspend()>\n"; return { }; }
+
+        void unhandled_exception()
+        {
+            std::cout << "\t<unhandled_exception()>\n";
+
+            // 코루틴 실행 도중 발생한 예외롤 호출자에게 전파한다.
+            std::rethrow_exception(std::current_exception());
+        }
+
+        void return_void()
+        {
+            std::cout << "\t<return_void()>\n";
+        }
+
+        void* operator new(std::size_t size)
+        {
+            std::cout << "\t<operator new(size)>\n";
+
+            if (void* mem = std::malloc(size))
+                return mem;
+
+            return nullptr;
+        }
+
+        void operator delete(void* mem)
+        {
+            std::cout << "\t<operator delete(mem)>\n";
+
+            free(mem);
+        }
+    };
+
+    CoroType()
+    {
+        std::cout << "\t<CoroType()>\n";
+
+        handle = nullptr;
+    }
+
+    CoroType(promise_type* prom)
+        : handle{ std::coroutine_handle<promise_type>::from_promise(*prom) }
+    {
+        std::cout << "\t<CoroType(prom)>\n";
+    }
+
+    // 이동 생성자 정의
+    CoroType(CoroType&& rhs) noexcept // Move Constructor
+    {
+        std::cout << "\t<CoroType(CoroType&&)>\n";
+
+        if (this != &rhs)
+        {
+            // 무언가 하고 있던 코루틴이라면 명시적으로 handle.destroy()를 호출
+            if (handle != nullptr)
+            {
+                handle.destroy();
+
+                handle = nullptr;
+            }
+
+            std::swap(handle, rhs.handle);
+        }
+    }
+    
+    // 복사 생성자 정의
+    CoroType& operator=(CoroType&& rhs) noexcept // Move Assignment Operator
+    {
+        std::cout << "\t<operator=(CoroType&&)>\n";
+
+        if (this != &rhs)
+        {
+            // 무언가 하고 있던 코루틴이라면 명시적으로 handle.destroy()를 호출
+            if (handle != nullptr)
+            {
+                handle.destroy();
+
+                handle = nullptr;
+            }
+
+            std::swap(handle, rhs.handle);
+        }
+
+        return *this;
+    }
+
+    ~CoroType()
+    {
+        std::cout << "\t<~CoroType()>\n";
+
+        if (handle != nullptr)
+        {
+            handle.destroy();
+
+            handle = nullptr;
+        }
+    }
+
+    std::coroutine_handle<promise_type> handle = nullptr;
+};
+--------------------------------------------------
+
+code)---------------------------------------------
+// 한 번 유예하는 코루틴 함수
+CoroType CoroFunc1()
+{
+    std::cout << "<Coroutine - Started>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+
+    std::cout << "<Coroutine - This is CoroFunc1() - 1>\n";
+
+    co_await std::suspend_always{ };
+    std::cout << "<Coroutine - Resuming coroutine...>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+
+    std::cout << "<Coroutine - This is CoroFunc1() - 2>\n";
+
+    std::cout << "<Coroutine - Returning>\n";
+    co_return;
+}
+
+// 유예하지 않고 모든 작업을 완료하는 코루틴 함수
+CoroType CoroFunc2()
+{
+    std::cout << "<Coroutine - Started>\n";
+    std::cout << "<Coroutine - Executing coroutine function>\n";
+
+    std::cout << "<Coroutine - This is CoroFunc2()>\n";
+
+    std::cout << "<Coroutine - Returning>\n";
+    co_return;
+}
+
+int main()
+{
+    std::cout << "main - Making coroutine\n";
+    CoroType task; // 빈 코루틴 변수 생성
+
+    try
+    {
+        std::cout << "\nmain - Calling coroutine\n";
+        task = CoroFunc1(); // 코루틴 할당
+
+        if (task.handle.done())
+        {
+            std::cout << "\nmain - Coroutine is done!\n";
+        }
+        else
+        {
+            std::cout << "\nmain - Coroutine isn't done!\n";
+        }
+
+        std::cout << "\nmain - Calling coroutine\n";
+        task = CoroFunc2(); // 코루틴 할당
+
+        if (task.handle.done())
+        {
+            std::cout << "\nmain - Coroutine is done!\n";
+        }
+        else
+        {
+            std::cout << "\nmain - Coroutine isn't done!\n";
+        }
+    }
+    catch (std::exception& ex)
+    {
+        std::cout << "\n#### EXCEPTION THROWN TO MAIN ####\n";
+        std::cout << ex.what() << '\n';
+        std::cout << "##################################\n";
+    }
+
+    std::cout << "\nmain - Out of try-catch\n";
+
+    return 0;
+}
+--------------------------------------------------
+
+output)-------------------------------------------
+main - Making coroutine
+        <CoroType()>
+
+main - Calling coroutine
+        <operator new(size)>
+        <promise_type()>
+        <get_return_object()>
+        <CoroType(prom)> <----- 코루틴 생성 과정에서 내부적으로 발생한 임시 코루틴 객체의 생성자
+        <initial_suspend()>
+<Coroutine - Started>
+<Coroutine - Executing coroutine function>
+<Coroutine - This is CoroFunc1() - 1>
+        <operator=(CoroType&&)> <----- 임시 코루틴 객체의 핸들을 외부 코루틴 변수 task에 이동 대입
+        <~CoroType()> <----- 코루틴 생성 과정에서 내부적으로 발생한 임시 코루틴 객체의 소멸자
+
+main - Coroutine isn't done!
+
+main - Calling coroutine
+        <operator new(size)>
+        <promise_type()>
+        <get_return_object()>
+        <CoroType(prom)> <----- 코루틴 생성 과정에서 내부적으로 발생한 임시 코루틴 객체의 생성자
+        <initial_suspend()>
+<Coroutine - Started>
+<Coroutine - Executing coroutine function>
+<Coroutine - This is CoroFunc2()>
+<Coroutine - Returning>
+        <return_void()>
+        <final_suspend()>
+        <operator=(CoroType&&)> <----- 임시 코루틴 객체의 핸들을 외부 코루틴 변수 task에 이동 대입
+        <~promise_type()>      <----- 기존 코루틴의 자원을 해제하기 위해 호출한 handle.destroy()로 인한 자원 해제(1)
+        <operator delete(mem)> <----- 기존 코루틴의 자원을 해제하기 위해 호출한 handle.destroy()로 인한 자원 해제(2)
+        <~CoroType()> <----- 코루틴 생성 과정에서 내부적으로 발생한 임시 코루틴 객체의 소멸자
+
+main - Coroutine is done!
+
+main - Out of try-catch
+        <~CoroType()> <----- 코루틴 변수 task의 소멸자
+        <~promise_type()>      <----- handle.destroy()로 인한 자원 해제(1)
+        <operator delete(mem)> <----- handle.destroy()로 인한 자원 해제(2)
+--------------------------------------------------
+
+코루틴 생성 과정을 보면 반환되는 코루틴 객체를 이동 연산자로 대입하여 받고 있는 것을 볼 수 있다.
+
+이전에는 함수의 반환값이 변수에 직접 적용되는 RVO로 인해 해당 작업이 진행되지 않았을 뿐이다.
+
+변수를 따로 정의하고 함수의 반환 값도 따로 정의했기 때문에 RVO가 적용되지 않은 것이다(컴파일러에 따라 다를 수 있음).
+
+##################################################
+
+# 코루틴 사용 유형
+
+대부분의 경우 코루틴은 Task 유형과 Generator 유형으로 구분된다.
+
+세부적으로 볼 때 두 유형에 포함되지 않더라도 넓은 관점으로 보면 Task 유형과 Generator 유형에 포함되는 경우가 많다.
+
+
+@ 코루틴 사용 유형(Task)
+
+co_await, co_yield를 활용하여 비동기 작업을 수행하는 유형의 코루틴이다.
+
+code)---------------------------------------------
+// Task에 해당하면 코루틴 타입의 이름에 Task를 붙이는 것이 좋다.
+CoroTask<int> CoroSimpleAsyncTask()
+{
+    co_yield 100;
+    co_yield 200;
+    co_yield 300;
+    co_yield 400;
+}
+--------------------------------------------------
+
+code)---------------------------------------------
+struct NetworkFileDownloadAwaiter
+{
+    bool nextAvailable = true;
+
+    // 대기하지 않고 즉시 실행
+    bool await_ready()
+    {
+        return false;
+    }
+
+    // 다운로드 진행
+    void await_suspend(std::coroutine_handle<CoroNetworkFileDownloadTask::promise_type> handle)
+    {
+        // 네트워크 요청을 보내고 응답이 오면 handle에 결과를 반영한다.
+        // !! 실제 네트워크 코드가 들어가야 함. !!
+
+        // 실제로 읽은 총 바이트의 수는 다음 변수 등을 통해 저장하면 된다.
+        // handle.task.readBytes;
+
+        // 더 이상 다운로드 할 수 없는 상태라면 nextAvailable을 false로 갱신해야 한다.
+    }
+
+    // 다운로드 해야 할 것이 남았다면 co_await가 true를 반환하게, 없다면 co_await가 false를 반환하게 한다.
+    bool await_resume()
+    {
+        return nextAvailable;
+    }
+};
+
+// 이런 방식으로 매 실행을 재개할 때마다 1KB씩 받는 것도 가능하다.
+// 다운로드 정보는 CoroNetworkFileDownloadTask에 보관되어 있다.
+CoroNetworkFileDownloadTask CoroNetDownload()
+{
+    bool nextAvailable = true;
+
+    while (nextAvailable)
+    {
+        nextAvailable = co_await NetworkFileDownloadAwaiter{ 1024 }; // 1KB 단위로 받는 것도 가능함.
+    }
+
+    // finished
+    co_return;
+}
+--------------------------------------------------
+
+
+@ 코루틴 사용 유형(Generator)
+
+코루틴을 재개할 때마다 일정한 패턴으로 값을 생성하는 유형의 코루틴이다.
+
+code)---------------------------------------------
+// Generator에 해당하면 코루틴 타입의 이름에 Generator를 붙이는 것이 좋다.
+CoroGenerator<int> CoroFibonacci()
+{
+    int x = 0;
+    int y = 1;
+    
+    while (true)
+    {
+        co_yield x;
+    
+        int next = x + y;
+        
+        x = y;
+        y = next;
+    }
+
+    // co_yield를 사용하고 있기 때문에 co_return은 생략해도 된다.
+    // co_return;
+}
+--------------------------------------------------
+
+##################################################
+
+참고하면 좋은 코루틴 기반 C++ 라이브러리
+
+1. https://github.com/lewissbaker/cppcoro
+
+2. https://github.com/Quuxplusone/coro
+
+##################################################
+
+C++의 코루틴을 정리하자면 이렇다.
+
+장점
+
+- 명시적인 동기화 없이 co_yield, co_await를 통해 다른 루틴과 협력하여 작업(cooperative multitasking)하는 것이 가능하다.
+
+- 실행을 통제하는 것이 가능하며 중단된 작업을 다른 함수나 스레드에서 재개할 수 있다.
+
+- 스레드 기반의 동시성 프로그래밍은 운영체제의 스케쥴러가 컨텍스트 스위칭을 유발하지만 코루틴 기반은 이를 요구하지 않는다.
+
+단점
+
+- C++20 기준 내장 코루틴 타입을 지원하지 않기에 사용자가 직접 코루틴 타입을 만들어야 한다.
+
+- 코루틴이란 기능을 지원하지만 뼈대만 지원할 뿐 나머지는 사용자가 직접 채워야 하기에 난해할 수 있다.
+
+- 컴파일러는 정해진 인터페이스를 토대로 코루틴 타입을 판별하기 때문에 반드시 특정 양식대로 코루틴 타입을 만들어야 한다.
