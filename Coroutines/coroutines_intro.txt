@@ -898,7 +898,7 @@ struct CoroType
     };
     
     CoroType(const std::coroutine_handle<promise_type>& handle)
-        : _handle{ handle }
+        : handle{ handle }
     { }
     ...
 };
@@ -4434,7 +4434,9 @@ main - Out of try-catch
 
 @ 코루틴 사용 유형(Task)
 
-co_await, co_yield를 활용하여 비동기 작업을 수행하는 유형의 코루틴이다.
+하나의 작업을 완료하기 위해 co_await, co_yield를 기반으로 비동기 기능을 활용하는 유형의 코루틴이다.
+
+이러한 유형의 코루틴 타입은 이름에 Task를 붙이는 것이 좋다.
 
 code)---------------------------------------------
 // Task에 해당하면 코루틴 타입의 이름에 Task를 붙이는 것이 좋다.
@@ -4450,9 +4452,10 @@ CoroTask<int> CoroSimpleAsyncTask()
 code)---------------------------------------------
 struct NetworkFileDownloadAwaiter
 {
+    int  bytesToRead = 0;
     bool nextAvailable = true;
 
-    // 대기하지 않고 즉시 실행
+    // 재개할 때 다운로드하게 false를 반환한다.
     bool await_ready()
     {
         return false;
@@ -4465,7 +4468,8 @@ struct NetworkFileDownloadAwaiter
         // !! 실제 네트워크 코드가 들어가야 함. !!
 
         // 실제로 읽은 총 바이트의 수는 다음 변수 등을 통해 저장하면 된다.
-        // handle.task.readBytes;
+        // handle.promise().coroInst->totalReadBytes;
+        // handle.promise().totalReadBytes;
 
         // 더 이상 다운로드 할 수 없는 상태라면 nextAvailable을 false로 갱신해야 한다.
     }
@@ -4498,6 +4502,8 @@ CoroNetworkFileDownloadTask CoroNetDownload()
 
 코루틴을 재개할 때마다 일정한 패턴으로 값을 생성하는 유형의 코루틴이다.
 
+이러한 유형의 코루틴 타입은 이름에 Generator를 붙이는 것이 좋다.
+
 code)---------------------------------------------
 // Generator에 해당하면 코루틴 타입의 이름에 Generator를 붙이는 것이 좋다.
 CoroGenerator<int> CoroFibonacci()
@@ -4517,6 +4523,20 @@ CoroGenerator<int> CoroFibonacci()
 
     // co_yield를 사용하고 있기 때문에 co_return은 생략해도 된다.
     // co_return;
+}
+--------------------------------------------------
+
+code)---------------------------------------------
+CoroGenerator<int> CoroRange(int start, int end)
+{
+    while (start < end)
+    {
+        co_yield start;
+
+        start++;
+    }
+
+    co_return;
 }
 --------------------------------------------------
 
