@@ -825,7 +825,7 @@ promise_type은 인터페이스에 맞춰서 최소한 다음 5개의 함수를 
 
 !! 중요 !!
 
-코루틴 핸들이 소멸된다고 해도 이게 코루틴 프레임까지 소멸까지 자동적으로 연계되는 건 아니다.
+코루틴 핸들이 소멸된다고 해도 이게 코루틴 프레임의 소멸까지 자동적으로 연계되는 건 아니다.
 
 코루틴 함수 실행을 마치면 final_suspend()가 호출되는데 이때 종료 시점을 유예하는 std::suspend_always와 같은 awaiter가 반환되면
 
@@ -1516,7 +1516,7 @@ CoroType CoroFunc()
 
 # Custom Awaiter
 
-awaiter 인터페이스는 3개의 함수를 정의해야 하여 이 조건을 만족하면 사용자가 만든 awaiter를 사용할 수 있다.
+awaiter 인터페이스는 3개의 함수를 정의해야 하며 이 조건을 만족하면 사용자가 만든 awaiter를 사용할 수 있다.
 
 자세한 건 "Awaiter 필수 함수"에 나온 내용과 custom_awaiters.cpp의 예시 코드를 참고하도록 한다.
 
@@ -2334,9 +2334,9 @@ https://en.cppreference.com/w/cpp/language/coroutines#co_yield
 
 co_yield를 쓰면 코루틴을 끝마치지 않고 중간 결과를 산출할 수 있다.
 
-co_yield를 쓰면 코루틴 실행을 유예시키고 재개할 때마다 매번 값을 생성하는 것이 가능하다(이러한 유형을 generator라고 함).
+co_yield를 쓰면 코루틴 실행을 유예시키고 재개할 때마다 매번 값을 생성할 수 있다(이러한 유형을 generator라고 함).
 
-마찬가지로 co_yield로 반환한 값을 호출자 쪽으로 전파하기 위해선 결과를 코루틴 프레임 내에 보관하고 있어야 한다.
+마찬가지로 co_yield로 반환한 값을 호출자 쪽으로 전파하려면 결과를 코루틴 프레임 내에 보관하고 있어야 한다.
 
 co_yield <value>는 다음과 같은 특징이 있다.
 
@@ -2356,7 +2356,7 @@ co_yield <value>는 다음과 같은 특징이 있다.
 - (중요) 마찬가지로 산출된 값이 호출자에게 직접적으로 전달되는 개념이 아니다.
 
 
-@ co_yield <value>로 중간중간 값을 산출하며 코루틴을 유예시키는 예시 코드
+@ co_yield <value>로 중간중간 값을 산출하며 코루틴을 유예하는 예시 코드
 
 code)---------------------------------------------
 struct CoroType
@@ -2512,7 +2512,7 @@ main - Coroutine is done!
 
 이 함수가 반환하는 awaiter를 std::suspend_always에서 std::suspend_never로 변경하면
 
-코루틴 객체가 생성될 때 유예하지 않고 코루틴 함수를 실행할 것이며 이게 우리가 의도한 동작이다.
+코루틴 객체가 생성된 이후 실행이 유예되지 않고 이어서 코루틴 함수를 실행할 것이며 이것이 우리가 의도한 동작이다.
 
 code)---------------------------------------------
 struct CoroType
@@ -2578,7 +2578,7 @@ https://en.cppreference.com/w/cpp/language/coroutines#Execution
 
 coroutines 문서의 "When a coroutine begins execution, it performs the following:" 쪽에 자세하게 설명되어 있다.
 
-코루틴을 다루는 과정을 통틀어 코루틴의 생명주기라고 한다.
+문서를 보면 코루틴의 생명주기 자체는 나오지 않지만 나름대로 분석해서 정리하였다.
 
 코루틴이 다양한 상황에서 유연하게 동작하는 만큼 생명주기 또한 복잡하다.
 
@@ -2677,7 +2677,7 @@ final_suspend()에서 반환한 awaiter가 코루틴 종료 지점을 유예하�
 
 일반적으로 종료 지점을 유예하지 않으면 여러모로 불편한 점이 많기 때문에
 
-대부분의 경우 final_suspend()는 std::suspend_never 같이 종료 지점을 유예하는 awaiter를 반환하는 것이 좋다.
+대부분의 경우 final_suspend()는 std::suspend_always 같이 종료 지점을 유예하기 위한 awaiter를 반환하는 것이 좋다.
 
 
 @ 코루틴 객체 소멸 단계
@@ -2696,7 +2696,7 @@ final_suspend()에서 반환한 awaiter가 코루틴 종료 지점을 유예하�
 
 3. 코루틴 프레임에 접근 가능한 handle을 어딘가에 보관한 상태가 아니라면 메모리 누수가 발생한다.
 
-보통은 소멸자 내 handle.destroy()를 호출하여 메모리 누수를 방지하지만 이러한 코드를 작성하는 건 전적으로 사용자의 몫이다.
+보통은 코루틴 객체의 소멸자 내 handle.destroy()를 호출하여 메모리 누수를 방지하지만 이러한 코드를 작성하는 건 전적으로 사용자의 몫이다.
 
 
 @ 코루틴 프레임(코루틴 상태) 소멸 단계
@@ -2719,15 +2719,17 @@ final_suspend()에서 반환한 awaiter가 코루틴 종료 지점을 유예하�
 
 정말 특별한 경우가 아니라면 final_suspend()는 std::suspend_always와 같이 종료 지점을 유예하는 awaiter를 반환하는 것이 좋다.
 
-그리고 코루틴 프레임의 소멸을 handle.destroy()로 진행하는 것이 좋으며 해당 함수는 코루틴 객체의 소멸자에 작성하는 것이 좋다.
+코루틴 소멸을 진행할 때는 명시적으로 handle.destroy()를 쓰는 방식을 쓰도록 하며
 
-꼭 handle.destroy()를 코루틴 객체의 소멸자 내에서 작성하란 법은 없지만 그렇게 해야 하는 이유가 있자면 이유를 반드시 명시해야 한다.
+해당 함수는 가급적 코루틴 객체의 소멸자에 작성하는 것이 좋다.
+
+handle.destroy()를 꼭 코루틴 객체의 소멸자 내에 작성하란 법은 없지만 그렇게 해야 하는 이유가 있다면 반드시 이유를 명시해야 한다.
 
 task.handle.destroy(); // 이처럼 코루틴 객체의 소멸자 밖에서 코루틴 프레임을 해제하는 것도 가능함.
 
-이렇게 원하는 시점에 코루틴 프레임을 해제하는 것이 가능하지만 정말 특별한 이유가 없다면
+이렇게 원하는 시점에 코루틴 프레임을 해제할 수 있지만 정말 특별한 이유가 없다면
 
-코루틴 객체의 소멸자 내에서 handle.destroy()를 호출하게 코드를 작성하는 것이 좋다.
+코루틴 객체의 소멸자 내에서 handle.destroy()를 호출하게 코드를 작성하도록 한다.
 
 
 (주의) 코루틴 프레임이 소멸된 상태일 경우 handle.destroy()를 호출하면 안 된다.
@@ -3079,7 +3081,7 @@ CoroType CoroFunc()
 int main()
 {
     std::cout << "main - Calling coroutine\n";
-    auto task = CoroFunc(); // 코루틴이 생성되었긴 해도 실행된 건 아님.
+    auto task = CoroFunc();
 
     // 코루틴 자원을 코루틴 차원에서 해제하기 때문에 done()으로 상태를 확인하여 동작하는 건 위험하다.
     // while (!task.handle.done())
@@ -3133,7 +3135,7 @@ main - Coroutine is done!
 
 두 유형의 예외는 엄연히 다르다.
 
-아래 코드를 기반으로 예외를 던져서 테스트 해보면 얼추 들어맞는다.
+아래 의사코드를 기반으로 예외를 던져서 테스트 해보면 얼추 들어맞는다.
 
 pseudo)-------------------------------------------
 Coroutine::RunStateMachine()
@@ -3171,11 +3173,11 @@ unhandled_exception()은 코루틴을 실행하는 과정에서 던지는 예외
 
 즉, 코루틴 생성 단계과 코루틴 실행 단계는 구분해야 한다.
 
-코루틴 소멸 단계는 고려하지 않아도 된다.
+final_suspend()는 noexcept 유형으로 작성되어야 하며 소멸자에서 예외를 던지는 건 매우 이상한 상황이다.
 
-final_suspend()는 애초에 noexcept 유형으로 작성되며 소멸자에서 예외를 던지는 건 매우 이상한 상황이다.
+따라서 코루틴 소멸 단계에서 예외가 발생하는 상황은 고려하지 않아도 된다.
 
-따라서 코루틴 생성 단계와 코루틴 실행 단계만 잘 구분해서 예외처리하면 된다.
+사용자는 코루틴 생성 단계와 코루틴 실행 단계만 잘 구분해서 예외처리하면 된다.
 
 - 코루틴 생성 단계에서 발생하는 예외 : 호출자 쪽에서 try-catch로 받는다.
 
@@ -3191,23 +3193,21 @@ final_suspend()는 애초에 noexcept 유형으로 작성되며 소멸자에서 
 @ 코루틴 생성 단계로 간주하는 구간
 
 - operator new(size)
-
 - promise_type의 기본 생성자
-
 - get_return_object()
-
 - 코루틴 객체 생성자
-
 - initial_suspend()
 
-- (사용 주의) initial_suspend()가 반환하는 awaiter에 의해 유예되기 전까지의 구간
-  - await_ready(), await_suspend() 구간에서 발생하는 예외는 호출자 쪽이 받음.
-  - await_resume()까지 오면 코루틴 생성 단계가 아닌 실행 단계로 간주하기에 여기서 예외가 발생하면 unhandled_exception()으로 받음.
-    - unhandled_exception()의 실행을 마치면 final_suspend()를 호출함.
-      - 호출자 쪽에 코루틴 객체를 반환하지 않은 상태인데 unhandled_exception()이 호출되었어도 이어서 final_suspend()가 호출될 수 있음.
-    - unhandled_exception()에서 예외를 rethrow하여 전파하면 코루틴 로직 자체를 탈출하기 때문에 이 경우에는 final_suspend()가 호출되지 않음.
-  - (중요) 시작 지점의 awaiter에서 발생하는 예외는 직관적이지 않아 핸들링하기 어려움.
-    - 따라서 initial_suspend()가 반환하는 awaiter는 예외를 던지지 않게 설계하는 것이 좋음.
+(사용 주의) initial_suspend()가 반환하는 awaiter는 코루틴 생성 단계와 코루틴 실행 단계가 혼재되어 있다.
+- await_ready(), await_suspend() 구간에서 발생하는 예외는 코루틴 생성 단계로 보고 호출자 쪽이 받는다.
+- await_resume()까지 오면 코루틴 생성 단계가 아닌 실행 단계로 보기에 여기서 예외가 발생하면 unhandled_exception()으로 받는다.
+  - unhandled_exception()의 실행을 제대로 마치면 final_suspend()를 호출함.
+    - 호출자 쪽에 코루틴 객체를 반환하지 않은 상태인데 await_resume()에서 예외가 발생하면 unhandled_exception()로 받게 됨.
+      - 이 경우에는 호출자 쪽에 코루틴 객체가 반환되지 않았어도 final_suspend()가 호출될 수 있음.
+  - (주의) unhandled_exception()에서 예외를 rethrow하여 전파하면 코루틴 로직 자체를 탈출하기 때문에 이 경우에는 final_suspend()가 호출되지 않음.
+
+(중요) 시작 지점의 awaiter에서 발생하는 예외는 직관적이지 않아 예외 핸들링하기가 어렵다.
+-> initial_suspend()가 반환하는 awaiter는 예외를 던지지 않게 설계하는 것이 좋음.
 
 (중요) 코루틴 생성 단계에서 발생하는 예외는 코루틴의 unhandled_exception()이 아닌 호출자 쪽의 try-catch로 받는다.
 
@@ -3384,7 +3384,7 @@ struct CoroType
 
 output)-------------------------------------------
 main - Calling coroutine
-        <operator new(size)>
+        <operator new(size)> <----- 여기서 예외 발생
 
 #### EXCEPTION THROWN TO MAIN ####
 Crash from operator new(size)
@@ -3790,7 +3790,7 @@ main - Coroutine done!
 
 (중요) 코루틴 실행 단계에서 예외를 던지면 할당한 코루틴 자원은 사용자가 해제해야 한다.
 
-사용자 쪽에서는 여러 방식으로 코루틴 자원을 해제할 수 있다.
+사용자 쪽에서는 다양한 방식으로 코루틴 자원을 해제할 수 있다.
 
 - final_suspend()에서 std::suspend_never처럼 종료 지점을 유예하지 않는 awaiter를 반환하기
   - 이 방식은 unhandled_exception()에서 예외를 던지지 않아야 함.
@@ -3804,7 +3804,7 @@ main - Coroutine done!
 
 정말 특별한 일이 없다면 unhandled_exception()은 코루틴 함수 내에서 발생한 예외로 인해 호출될 것이다.
 
-예외를 unhandled_exception()으로 받으면 다음과 같은 방식으로 처리할 수 있다.
+예외를 unhandled_exception()으로 받으면 다양한 방식으로 핸들링 할 수 있다.
 
 1. 빈 상태로 두기
 
@@ -3936,6 +3936,7 @@ int main()
         std::cout << "main - Calling coroutine\n";
         auto task = CoroFunc();
 
+        // 예외가 발생하면 handle.done()은 true를 반환한다.
         while (!task.handle.done())
         {
             std::cout << "\nmain - Resuming coroutine\n";
@@ -3998,7 +3999,7 @@ struct CoroType
             coroInst->exceptionOccurred = true;
         }
         ...
-        CoroType* coroInst;
+        CoroType* coroInst = nullptr;
     };
 
     CoroType(promise_type* prom)
@@ -4127,7 +4128,7 @@ struct CoroType
         {
             std::cout << "\t<unhandled_exception()>\n";
 
-            // 코루틴 실행 도중 발생한 예외롤 호출자에게 전파한다.
+            // 코루틴 실행 도중 발생한 예외를 호출자에게 전파한다.
             std::rethrow_exception(std::current_exception());
         }
         ...
@@ -4169,7 +4170,7 @@ Crash from CoroFunc()
 
 이를 위해선 이동 생성자 혹은 이동 대입 연산자를 정의해야 한다.
 
-(중요) 이동이 적용되는 대상의 코루틴 프레임은 반드시 해제되어야 한다(안 그러면 메모리 누수 발생).
+(중요) 이동이 적용되기 이전의 대상이 가진 코루틴 프레임은 반드시 해제되어야 한다(안 그러면 메모리 누수 발생).
 
 비슷한 이유로 코루틴 핸들을 복사로 받고자 한다면 handle.destroy()를 여러 번 호출하지 않게 자체적인 레퍼런스 카운팅을 구현해야 한다.
 
@@ -4195,7 +4196,7 @@ struct CoroType
             return this;
         }
 
-        // 코루틴 실행 지점을 유예하지 않는다.
+        // 코루틴 실행 시작 지점을 유예하지 않는다.
         std::suspend_never initial_suspend() { std::cout << "\t<initial_suspend()>\n";  return { }; }
         std::suspend_always final_suspend() noexcept { std::cout << "\t<final_suspend()>\n"; return { }; }
 
@@ -4203,7 +4204,7 @@ struct CoroType
         {
             std::cout << "\t<unhandled_exception()>\n";
 
-            // 코루틴 실행 도중 발생한 예외롤 호출자에게 전파한다.
+            // 코루틴 실행 도중 발생한 예외를 호출자에게 전파한다.
             std::rethrow_exception(std::current_exception());
         }
 
@@ -4233,8 +4234,6 @@ struct CoroType
     CoroType()
     {
         std::cout << "\t<CoroType()>\n";
-
-        handle = nullptr;
     }
 
     CoroType(promise_type* prom)
@@ -4262,7 +4261,7 @@ struct CoroType
         }
     }
     
-    // 복사 생성자 정의
+    // 이동 대입 연산자 정의
     CoroType& operator=(CoroType&& rhs) noexcept // Move Assignment Operator
     {
         std::cout << "\t<operator=(CoroType&&)>\n";
@@ -4382,13 +4381,13 @@ main - Calling coroutine
         <operator new(size)>
         <promise_type()>
         <get_return_object()>
-        <CoroType(prom)> <----- 코루틴 생성 과정에서 내부적으로 발생한 임시 코루틴 객체의 생성자
+        <CoroType(prom)> <----- 코루틴 생성 과정에서 발생한 임시 코루틴 객체의 생성자
         <initial_suspend()>
 <Coroutine - Started>
 <Coroutine - Executing coroutine function>
 <Coroutine - This is CoroFunc1() - 1>
         <operator=(CoroType&&)> <----- 임시 코루틴 객체의 핸들을 외부 코루틴 변수 task에 이동 대입
-        <~CoroType()> <----- 코루틴 생성 과정에서 내부적으로 발생한 임시 코루틴 객체의 소멸자
+        <~CoroType()> <----- 코루틴 생성 과정에서 발생한 임시 코루틴 객체의 소멸자
 
 main - Coroutine isn't done!
 
@@ -4396,7 +4395,7 @@ main - Calling coroutine
         <operator new(size)>
         <promise_type()>
         <get_return_object()>
-        <CoroType(prom)> <----- 코루틴 생성 과정에서 내부적으로 발생한 임시 코루틴 객체의 생성자
+        <CoroType(prom)> <----- 코루틴 생성 과정에서 발생한 임시 코루틴 객체의 생성자
         <initial_suspend()>
 <Coroutine - Started>
 <Coroutine - Executing coroutine function>
@@ -4417,11 +4416,13 @@ main - Out of try-catch
         <operator delete(mem)> <----- handle.destroy()로 인한 자원 해제(2)
 --------------------------------------------------
 
-코루틴 생성 과정을 보면 반환되는 코루틴 객체를 이동 연산자로 대입하여 받고 있는 것을 볼 수 있다.
+코루틴 생성 과정에서 만들어져 반환되는 코루틴 객체를 이동 대입 연산자로 받고 있는 것을 볼 수 있다.
 
-이전에는 함수의 반환값이 변수에 직접 적용되는 RVO로 인해 해당 작업이 진행되지 않았을 뿐이다.
+이전에는 함수의 반환 값이 변수에 직접적으로 반영되는 RVO 방식이 적용되었지만
 
-변수를 따로 정의하고 함수의 반환 값도 따로 정의했기 때문에 RVO가 적용되지 않은 것이다(컴파일러에 따라 다를 수 있음).
+지금은 변수를 따로 정의하고 코루틴 함수를 invoke하는 부분도 따로 진행하고 있기 때문에 이러한 RVO가 적용되지 않는 것이다.
+
+!! 다만 이는 컴파일러마다 차이가 있을 수 있음. !!
 
 ##################################################
 
@@ -4547,6 +4548,8 @@ CoroGenerator<int> CoroRange(int start, int end)
 1. https://github.com/lewissbaker/cppcoro
 
 2. https://github.com/Quuxplusone/coro
+
+3. https://github.com/facebook/folly/tree/main/folly/coro
 
 ##################################################
 
