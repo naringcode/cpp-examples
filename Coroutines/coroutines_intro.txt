@@ -8,9 +8,34 @@
 
 다음 순서대로 보도록 하자.
 
-1. coroutines_intro.txt
+# 코루틴 개요
+1. coroutines_intro.txt <-----
 
-- 작성하는 중
+# 코루틴 구조
+2. coroutine_infrastructures.cpp
+3. get_return_object.cpp
+
+# Awaitable & Awaiter
+4. awaitable_and_awaiter.cpp
+5. custom_awaiters.cpp
+
+# 값 산출
+6. get_value_from_co_return_co_yield.cpp
+
+# 코루틴 생명주기
+7. coroutine_lifecycle.cpp
+8. parameters_and_local_variables_in_coroutines.cpp
+9. renew_coroutines_by_move.cpp
+
+# 코루틴 예외 처리
+10. coroutine_exceptions_init_stages.cpp
+11. coroutine_exceptions_exec_stages.cpp
+
+# 코루틴 예제
+12. coroutine_example_task.cpp
+13. coroutine_example_generator.cpp
+14. coroutine_example_command_with_lambda.cpp
+15. coroutine_example_coro_from_member_funcs.cpp
 
 ##################################################
 
