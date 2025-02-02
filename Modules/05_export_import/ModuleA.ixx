@@ -4,7 +4,7 @@ module;
 #include <iostream>
 
 // Module Preamble : Required
-export module ModuleA; // ¸ğµâ ÀÌ¸§
+export module ModuleA; // ëª¨ë“ˆ ì´ë¦„
 
 // Module Purview / Module Interface : Optional
 export void PrintA()
