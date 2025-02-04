@@ -1,0 +1,193 @@
+https://en.cppreference.com/w/cpp/iterator#Iterator_concepts
+https://learn.microsoft.com/en-us/cpp/standard-library/iterator-concepts?view=msvc-170
+
+C++20에 도입된 컨셉을 기반으로 한 iterator concepts을 쓰면
+
+제약을 걸어 특정 컨테이너만 사용 가능하게 알고리즘을 구현할 수 있다.
+
+
+STL 컨테이너 혹은 사용자 정의 컨테이너를 활용한 알고리즘을 구현할 때
+
+이러한 컨셉을 쓰면 컨테이너의 특성을 명확히 하는 것이 가능하다.
+
+
+C++20에 도입된 컨테이너에 적용 가능한 반복자 컨셉은 다음과 같다.
+
+https://en.cppreference.com/w/cpp/iterator/input_or_output_iterator
+https://en.cppreference.com/w/cpp/iterator/input_iterator
+https://en.cppreference.com/w/cpp/iterator/output_iterator
+https://en.cppreference.com/w/cpp/iterator/forward_iterator
+https://en.cppreference.com/w/cpp/iterator/bidirectional_iterator
+https://en.cppreference.com/w/cpp/iterator/random_access_iterator
+https://en.cppreference.com/w/cpp/iterator/contiguous_iterator
+
+- input_or_output_iterator : 모든 iterator 컨셉이 만족하는 기본 반복자 컨셉
+
+- input_iterator : 한 방향으로 이동이 가능하며 읽기(입력)가 가능한 반복자
+
+- output_iterator : 한 방향으로 이동이 가능하며 쓰기(출력)가 가능한 반복자
+
+- forward_iterator : input_iterator + 대상을 여러 번 읽는 것이 가능한 반복자
+
+- bidirectional_iterator : forward_iterator + 양방향 접근이 가능한 반복자
+
+- random_access_iterator : bidirectional_iterator + 임의 접근이 가능한 반복자
+
+- contiguous_iterator : random_access_iterator + 연속된 메모리 위으며 크기가 같고 포인터로 접근 가능한 반복자
+
+이러한 반복자 컨셉은 계층적이다.
+
+template< class I >
+    concept forward_iterator =
+        std::input_iterator<I> &&
+        std::derived_from</*ITER_CONCEPT*/<I>, std::forward_iterator_tag> &&
+        std::incrementable<I> &&
+        std::sentinel_for<I, I>;
+: forward_iterator는 input_iterator를 기반으로 한다.
+
+template< class I >
+    concept bidirectional_iterator =
+        std::forward_iterator<I> &&
+        std::derived_from</*ITER_CONCEPT*/<I>, std::bidirectional_iterator_tag> &&
+        requires(I i) {
+            { --i } -> std::same_as<I&>;
+            { i-- } -> std::same_as<I>;
+        };
+: bidirectional_iterator는 forward_iterator를 기반으로 한다.
+
+template< class I >
+    concept random_access_iterator =
+        std::bidirectional_iterator<I> &&
+        std::derived_from</*ITER_CONCEPT*/<I>, std::random_access_iterator_tag> &&
+        std::totally_ordered<I> &&
+        std::sized_sentinel_for<I, I> &&
+        requires(I i, const I j, const std::iter_difference_t<I> n) {
+            { i += n } -> std::same_as<I&>;
+            { j +  n } -> std::same_as<I>;
+            { n +  j } -> std::same_as<I>;
+            { i -= n } -> std::same_as<I&>;
+            { j -  n } -> std::same_as<I>;
+            {  j[n]  } -> std::same_as<std::iter_reference_t<I>>;
+        };
+: random_access_iterator는 bidirectional_iterator를 기반으로 한다.
+
+template< class I >
+    concept contiguous_iterator =
+        std::random_access_iterator<I> &&
+        std::derived_from</*ITER_CONCEPT*/<I>, std::contiguous_iterator_tag> &&
+        std::is_lvalue_reference_v<std::iter_reference_t<I>> &&
+        std::same_as<
+            std::iter_value_t<I>, std::remove_cvref_t<std::iter_reference_t<I>>
+        > &&
+        requires(const I& i) {
+            { std::to_address(i) } ->
+              std::same_as<std::add_pointer_t<std::iter_reference_t<I>>>;
+        };
+: contiguous_iterator는 random_access_iterator를 기반으로 한다.
+
+계층적이란 것은 input_iterator 기반으로 구현한 알고리즘은 forward_iterator의 특성을 가지는 컨테이너를 받을 수 있다는 뜻이다.
+- forward_iterator는 이미 input_iterator의 특성을 가지고 있으니까.
+
+마찬가지로 forward_iterator 기반으로 구현한 건 bidirectional_iterator도 사용할 수 있다는 것이고,
+
+bidirectional_iterator 기반으로 만든 건 random_access_iterator도 사용할 수 있다는 것이다.
+
+
+https://en.cppreference.com/w/cpp/algorithm
+https://en.cppreference.com/w/cpp/ranges
+
+<algorithm>의 함수들을 보면 각각 어떠한 iterator를 사용하라고 명시되어 있다.
+
+- std::find() : input iterator, forward iterator (인자를 어떻게 넣느냐에 따라 요구하는 iterator가 다름)
+
+- std::fill() : forward iterator
+
+- std::reverse() : bidirectional iterator
+
+- std::sort() : random access iterator
+
+C++20 기준 이전에 구현된 <algorithm> 함수들은 컨셉이 적용되지 않아 어떠한 제약도 걸리지 않았지만
+
+그러한 함수들의 템플릿 인자를 보면 InputIt, ForwardIt 이런 식으로 되어 있다.
+
+하지만 이러한 함수들은 컴파일 과정을 거치기 이전까지 에러를 파악할 수 없다.
+
+https://en.cppreference.com/w/cpp/algorithm/ranges/find
+template <std::input_iterator I, std::sentinel_for<I> S, class T, class Proj = std::identity>
+    requires std::indirect_binary_predicate<ranges::equal_to, std::projected<I, Proj>, const T*>
+constexpr I find(I first, S last, const T& value, Proj proj = {});
+
+- std::ranges::find()
+
+C++20에 도입된 Ranges를 보면 같은 기능을 수행하는 알고리즘이라고 해도 Concepts라는 제약이 걸려 있기 때문에
+
+컴파일 과정을 통해 템플릿을 인스턴스화하기 이전에 에러를 검출할 수 있다.
+
+
+이러한 반복자 컨셉도 사용자 수준에서 직접 만드는 것이 가능하다.
+
+사용자 수준에서 반복자를 구성하기 위해선 다음 조건을 충족해야 한다.
+
+- 컨테이너는 템플릿 클래스나 구조체로 작성되어야 한다.
+
+- 해당 컨테이너 내부에 반복자로 사용할 iterator 타입이 모델링되어 있어야 한다.
+  - 직접 구조체나 클래스로 모델링하기도 하고 이미 만들어진 템플릿을 사용하기도 함.
+  - 이러한 반복자는 STL 알고리즘 함수가 사용하며 반복자 내부에는 특정 타입이 별칭으로 적용되어 있어야 함.
+
+- 컨테이너에는 반복자 타입을 반환하는 begin(), end()와 같은 함수가 있어야 한다.
+
+- 알고리즘에 의해 사용되는 연산자를 오버로딩해야 한다.
+
+// 이미 만들어진 iterator를 가져와 쓰는 방식
+template <class _Ty, class _Alloc = allocator<_Ty>>
+class vector
+{
+    ...
+public:
+    using iterator = _Vector_iterator<_Scary_val>; // _Vector_iterator는 템플릿 클래스
+    ...
+    [[nodiscard]] constexpr iterator begin() noexcept {
+        auto& _My_data = _Mypair._Myval2;
+        return iterator(_My_data._Myfirst, _STD addressof(_My_data));
+    }
+
+    [[nodiscard]] constexpr const_iterator begin() const noexcept {
+        auto& _My_data = _Mypair._Myval2;
+        return const_iterator(_My_data._Myfirst, _STD addressof(_My_data));
+    }
+};
+
+// 직접 iterator를 모델링하는 방식
+template <typename T>
+class Container
+{
+public:
+    struct Iterator
+    { ... };
+
+    Iterator begin() { ... }
+    Iterator end() { ... }
+    ...
+};
+
+
+(중요) 어떤 방식을 쓰든 반복자 내에는 알고리즘이 요구하는 연산자가 정의되어 있어야 한다.
+
+https://en.cppreference.com/w/cpp/iterator/input_iterator
+예시 : 알고리즘이 input_iterator 컨셉을 사용한다면 요구되는 최소한의 조건
+
+struct Iterator
+{
+    using difference_type = std::ptrdiff_t;
+    using value_type = int;
+ 
+    int operator*() const;
+ 
+    SimpleInputIterator& operator++();
+    void operator++(int) { ++*this; }
+};
+
+
+알고리즘이 요구하는 특성에 맞게 반복자를 구성하면 사용자가 만든 자료구조도 알고리즘에 적용하여 사용할 수 있다.
+
+STL 컨테이너는 이러한 특성에 맞게 반복자가 다 구성되어 있다.
