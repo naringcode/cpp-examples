@@ -91,7 +91,7 @@ constexpr auto MyInvoke(MV mv, Object* obj)
     return obj->*mv;
 }
 
-// 스마트 포인터 멤버 함수 호출 : _Pmf_refwrap
+// 스마트 포인터 멤버 함수 호출 : _Invoker_strategy::_Pmf_refwrap
 template <typename MF, typename Wrapped, typename... Args>
     requires MemberFunc<MF> && SmartPointer<Wrapped>
 constexpr auto MyInvoke(MF mf, Wrapped&& wrapped, Args&&... args)
@@ -101,7 +101,7 @@ constexpr auto MyInvoke(MF mf, Wrapped&& wrapped, Args&&... args)
     return (wrapped.get()->*mf)(std::forward<Args&&>(args)...);
 }
 
-// 스마트 포인터 멤버 변수 접근 : _Pmd_refwrap
+// 스마트 포인터 멤버 변수 접근 : _Invoker_strategy::_Pmd_refwrap
 template <typename MV, typename Wrapped, typename... Args>
     requires MemberObject<MV> && SmartPointer<Wrapped>
 constexpr auto MyInvoke(MV mv, Wrapped&& wrapped)
