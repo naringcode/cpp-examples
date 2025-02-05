@@ -1,4 +1,4 @@
-// Update Date : 2025-02-03
+// Update Date : 2025-02-04
 // OS : Windows 10 64bit
 // Program : Visual Studio 2022
 // Version : C++20
@@ -13,6 +13,8 @@
 
 // https://en.cppreference.com/w/cpp/ranges#Range_adaptors
 // https://learn.microsoft.com/ko-kr/cpp/standard-library/range-concepts?view=msvc-170
+// https://learn.microsoft.com/ko-kr/cpp/standard-library/range-functions?view=msvc-170
+// https://learn.microsoft.com/ko-kr/cpp/standard-library/view-classes?view=msvc-170
 
 // 기본적인 내용은 "iterator_concepts.txt"에서 확인하도록 한다.
 
