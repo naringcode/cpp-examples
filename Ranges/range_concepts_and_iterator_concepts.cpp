@@ -24,6 +24,35 @@
 #include <span>
 #include <mdspan> // C++23
 
+// Concepts에 대한 내용을 충분히 숙지한 다음 Ranges를 보도록 한다.
+// Ranges의 동작 방식을 잘 이해하기 위해선 Concepts에 대한 선행 학습이 필요하다.
+// 
+// 다음 순서대로 보도록 하자.
+// 
+// # Ranges 개요
+// 1. ranges_intro.txt
+// 
+// # Ranges 알고리즘
+// 2. Concepts/CustomContainerIterators(사전지식)
+// 3. range_concepts_and_iterator_concepts.cpp
+// 4. legacy_algorithms_and_range_algorithms.cpp
+// 5. return_types_by_range_algorithms.cpp
+// 
+// # Projections
+// 6. implementation_of_invoke.cpp(사전지식)
+// 7. range_algorithm_projections.cpp
+// 
+// # Views
+// 8. views_by_constructors.cpp
+// 9. views_by_range_adaptors.cpp
+// 10. algorithms_with_and_without_views.cpp
+// 11. view_composition.cpp
+// 12. lazy_evaluation_of_views.cpp
+// 
+// # Range Factories
+// 13. range_factories.cpp
+//
+
 // https://en.cppreference.com/w/cpp/ranges#Range_concepts
 // https://en.cppreference.com/w/cpp/iterator#Iterator_concepts
 // https://learn.microsoft.com/ko-kr/cpp/standard-library/range-concepts?view=msvc-170
