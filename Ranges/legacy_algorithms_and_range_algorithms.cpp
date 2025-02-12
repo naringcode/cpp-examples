@@ -45,6 +45,7 @@
 //
 
 // https://en.cppreference.com/w/cpp/algorithm
+// https://en.cppreference.com/w/cpp/algorithm/ranges
 // https://en.cppreference.com/w/cpp/algorithm/execution_policy_tag
 
 #define BEGIN_NS(name) namespace name {
