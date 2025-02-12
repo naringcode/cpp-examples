@@ -104,6 +104,7 @@ void ForEach(Range&& range, Functor functor, Projection proj = { })
 
     while (beginIter != endIter)    
     {
+        // 특정 연산을 수행하기 전에 컨테이너의 원소를 변환한다.
         auto&& elem = std::invoke(proj, *beginIter++);
 
         functor(elem);
