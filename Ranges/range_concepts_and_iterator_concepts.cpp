@@ -40,7 +40,7 @@
 // 
 // # Projections
 // 6. implementation_of_invoke.cpp(사전지식)
-// 7. range_algorithm_projections.cpp
+// 7. range_algorithms_with_projections.cpp
 // 8. implementation_of_projections.cpp
 // 
 // # Views
@@ -49,9 +49,10 @@
 // 11. algorithms_with_and_without_views.cpp
 // 12. view_composition.cpp
 // 13. lazy_evaluation_of_views.cpp
+// 14. view_working_with_range_algorithms.cpp
 // 
 // # Range Factories
-// 14. range_factories.cpp
+// 15. range_factories.cpp
 //
 
 // https://en.cppreference.com/w/cpp/ranges#Range_concepts
