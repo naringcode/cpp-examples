@@ -1,7 +1,7 @@
 // Update Date : 2025-02-12
 // OS : Windows 10 64bit
 // Program : Visual Studio 2022
-// Version : C++23
+// Version : C++23(experimental)
 // Configuration : Debug-x64, Release-x64
 
 #include <iostream>
