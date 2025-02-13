@@ -284,7 +284,6 @@ void Run()
             "James", "Mary", "David", "Susan", "Michael"
         };
 
-
         std::string delim = "###";
         auto singleViewDelim = std::ranges::single_view(delim);
 
@@ -324,6 +323,21 @@ void Run()
         // auto joinWithView4 = std::views::join_with(names, singleViewDelim);
         // 
         // Print(joinWithView4, "join_with_view 3"); // delimiter조차 평탄화 대상임.
+    }
+    
+    std::cout << '\n';
+
+    // https://en.cppreference.com/w/cpp/ranges/reverse_view
+    // views::reverse() : reverse_view를 생성하는 Range 어댑터
+    // reverse_view : view나 range의 요소를 역순으로 조회하기 위한 view
+    {
+        // 생성자로 View를 생성하는 방식(템플릿 인자는 생략함)
+        // auto reverseView = std::ranges::reverse_view{ data };
+
+        // 어댑터로 View를 생성하는 방식
+        auto reverseView = std::views::reverse(data);
+
+        Print(reverseView, "reverse_view");
     }
 
     std::cout << '\n';

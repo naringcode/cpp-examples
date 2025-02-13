@@ -236,7 +236,7 @@ void Run()
     std::cout << '\n';
 
     // https://en.cppreference.com/w/cpp/ranges/join_with_view
-    // join_with_view(C++23) : join_view를 보강한 view로 delimiter를 추가할 수 있다.
+    // join_with_view (C++23) : join_view를 보강한 view로 delimiter를 추가할 수 있다.
     {
         using namespace std::string_literals;
 
@@ -244,7 +244,6 @@ void Run()
         std::vector<std::string> names{
             "James", "Mary", "David", "Susan", "Michael"
         };
-
 
         std::string delim = "###";
         auto singleViewDelim = std::ranges::single_view(delim);
@@ -273,6 +272,16 @@ void Run()
         //     joinWithView4{ names, singleViewDelim };
         // 
         // Print(joinWithView4, "join_with_view 3"); // delimiter조차 평탄화 대상임.
+    }
+
+    std::cout << '\n';
+
+    // https://en.cppreference.com/w/cpp/ranges/reverse_view
+    // reverse_view : view나 range의 요소를 역순으로 조회하기 위한 view
+    {
+        auto reverseView = std::ranges::reverse_view<std::ranges::ref_view<std::vector<int>>>{ data };
+
+        Print(reverseView, "reverse_view");
     }
 
     std::cout << '\n';
