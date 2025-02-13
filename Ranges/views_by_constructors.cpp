@@ -201,7 +201,7 @@ void Run()
             dropWhileView{ data, under50 };
 
         // 임의로 넣은 모든 요소를 출력할 확률이 높다.
-        Print(dropWhileView, "take_while_view");
+        Print(dropWhileView, "drop_while_view");
     }
 
     std::cout << '\n';
