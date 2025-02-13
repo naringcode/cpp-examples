@@ -51,8 +51,7 @@
 #define BEGIN_NS(name) namespace name {
 #define END_NS }
 
-// template <std::ranges::range Container>
-template <typename Container>
+template <std::ranges::range Container>
 void Print(Container&& container, std::string_view msg = "", char separator = ' ')
 {
     if (msg == "")
