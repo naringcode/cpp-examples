@@ -62,6 +62,9 @@ void Print(Container&& container, std::string_view msg = "", char separator = ' 
     std::cout << "]\n";
 }
 
+// View 클래스는 그 자체로 begin()과 end()를 제공하는 Range이다.
+// 따라서 Range-based for loop로 순회할 수 있으며 Ranges 알고리즘 함수의 인자로 사용하는 것도 가능하다.
+
 int main()
 {
     std::vector<int> data{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
@@ -70,10 +73,19 @@ int main()
     // 짝수만 조회하는 view 생성
     auto evenView = data | std::views::filter([](int elem) { return elem % 2 == 0; });
 
-    // Ranges 알고리즘을 사용하여 출력
-    std::cout << "for_each() : ";
-    std::ranges::for_each(evenView, [](int elem) { std::cout << elem << ' '; });
+    // Ranged-based for loop로 순회하며 출력
+    std::cout << "Ranged-based for loop : ";
+    for (int elem : evenView)
+    {
+        std::cout << elem << ' ';
+    }
+
     std::cout << '\n';
+
+    // Ranges 알고리즘을 사용하여 출력
+    std::cout << "ranges::for_each() : ";
+    std::ranges::for_each(evenView, [](int elem) { std::cout << elem << ' '; });
+    std::cout << "\n\n";
 
     // Ranges 알고리즘을 사용하여 복사
     std::ranges::copy(evenView, std::back_inserter(copies));
