@@ -145,6 +145,19 @@ void Run()
         Print(istreamView, "file input stream");
 
         fileInStream.close();
+
+        // cin도 input stream이기 때문에 istream_view로 적용할 수 있다.
+        // auto commandView = std::views::istream<std::string>(std::cin);
+        // 
+        // std::cout << "Enter commands(exit to stop) :\n";
+        // 
+        // for (const std::string& command : commandView)
+        // {
+        //     if (command == "exit")
+        //         break;
+        // 
+        //     std::cout << "Received : " << command << '\n';
+        // }
     }
 
     std::cout << '\n';
