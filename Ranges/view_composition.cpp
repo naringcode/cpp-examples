@@ -157,7 +157,10 @@ void Run()
     Print(reversed, "Reversed");
 
     // 지역에 거쳐가는 View를 임시 객체로 두지 않고 어댑터가 반환하는 View를 묶어서 바로 연계하는 것도 가능하다.
-    // 재귀적인 특성 혹은 스택과 같은 특성을 고려하면 코드는 다음과 같이 작성되어야 한다.
+    // View의 기능이 결합되는 방식을 함수처럼 표현하면 이런 느낌이다
+    // Reverse(Square(TakeFive(FilterOdd(data))));
+    //
+    // 따라서 기능이 결합되는 특징을 고려해서 코드를 작성한다면 이런 식으로 되야 한다.
     auto composition =
         std::views::reverse(
             std::views::transform(
@@ -184,6 +187,12 @@ BEGIN_NS(Case03)
 // View는 Range를 결합할 목적으로 사용 가능한 일종의 구문 설탕(syntactic sugar)을 제공한다.
 // 바로 Pipe 연산자로 이걸 사용하면 임시 객체를 생성하지도 않고 사람이 읽기도 편한 코드를 작성할 수 있다.
 
+// https://youtu.be/L_bomNazb8M?si=YojUUl-5cvwlw_ja
+// https://www.cppstories.com/2024/pipe-operator/
+//
+// Pipe 연산자로 기능을 결합하여 함수형 프로그래밍 방식을 적용하는 건 꽤 일반적인 방식이다.
+// !! Ranges 라이브러리는 이걸 활용하여 View의 기능을 결합하는 것임. !!
+
 void Run()
 {
     std::vector<int> data(20);
@@ -191,6 +200,10 @@ void Run()
 
     Print(data, "data");
 
+    // Reverse(Square(TakeFive(FilterOdd(data))));
+    // 함수가 이렇게 호출된다고 가정했을 때 기능이 적용되는 순서는 data -> FilterOdd -> TakeFive -> Square -> Reverse이다.
+    // Pipe 연산자로 이러한 로직을 작성한다고 하면 똑같은 순서를 따르면 된다.
+    //
     // View composition by pipe operator
     auto composedView = data | std::views::filter([](int elem) { return elem % 2 != 0; })
                              | std::views::take(5)
