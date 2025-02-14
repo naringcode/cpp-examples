@@ -1,4 +1,4 @@
-// Update Date : 2025-02-12
+// Update Date : 2025-02-14
 // OS : Windows 10 64bit
 // Program : Visual Studio 2022
 // Version : C++20
@@ -69,7 +69,7 @@ void Print(Container&& container, std::string_view msg = "", char separator = ' 
     std::cout << "]\n";
 }
 
-struct TwiceAndBackupOdds
+struct TwiceAndBackupOddNums
 {
     std::vector<int> oddNums;
 
@@ -96,11 +96,11 @@ void Run()
     std::ranges::sort(data);
     Print(data, "Data");
 
-    // twice all numbers(use legacy for_each())
-    auto backupOdds = std::for_each(data.begin(), data.end(), TwiceAndBackupOdds{ });
+    // twice all numbers and backup odd numbers(use legacy for_each())
+    auto backupOddNums = std::for_each(data.begin(), data.end(), TwiceAndBackupOddNums{ });
 
     Print(data, "Twice");
-    Print(backupOdds.oddNums, "Backup Odds");
+    Print(backupOddNums.oddNums, "Backup OddNums");
 }
 
 END_NS
@@ -121,26 +121,26 @@ void Run()
     // twice all numbers(use ranges version for_each())
 
     // in_fun_result로 받는 방식(기본)
-    // std::ranges::in_fun_result<std::vector<int>::iterator, TwiceAndBackupOdds> result
-    //     = std::ranges::for_each(data, TwiceAndBackupOdds{ });
+    // std::ranges::in_fun_result<std::vector<int>::iterator, TwiceAndBackupOddNums> result
+    //     = std::ranges::for_each(data, TwiceAndBackupOddNums{ });
 
     // in_fun_result로 받는 방식(템플릿 인자 추론)
-    // std::ranges::in_fun_result result = std::ranges::for_each(data, TwiceAndBackupOdds{ });
+    // std::ranges::in_fun_result result = std::ranges::for_each(data, TwiceAndBackupOddNums{ });
 
     // in_fun_result로 받는 방식(auto를 통한 타입 추론)
-    // auto result = std::ranges::for_each(data, TwiceAndBackupOdds{ });
+    // auto result = std::ranges::for_each(data, TwiceAndBackupOddNums{ });
 
     // in_fun_result를 ranges::for_each()의 반환에 대응되는 별칭으로 받는 방식
     // for_each_result<I, F>의 템플릿 인자는 컴파일 타임에 추론된다.
-    // std::ranges::for_each_result result = std::ranges::for_each(data, TwiceAndBackupOdds{ });
+    // std::ranges::for_each_result result = std::ranges::for_each(data, TwiceAndBackupOddNums{ });
     
     // structured binding을 통한 직접적인 값 추출
-    auto [iter, fnObj] = std::ranges::for_each(data, TwiceAndBackupOdds{ });
+    auto [iter, fnObj] = std::ranges::for_each(data, TwiceAndBackupOddNums{ });
 
     Print(data, "Twice");
 
-    // Print(result.fun.oddNums, "Backup Odds");
-    Print(fnObj.oddNums, "Backup Odds"); // fnObj는 사용한 Functor이며 마찬가지로 이동 생성자로 받아옴.
+    // Print(result.fun.oddNums, "Backup OddNums");
+    Print(fnObj.oddNums, "Backup OddNums"); // fnObj는 사용한 Functor이며 마찬가지로 이동 생성자로 받아옴.
 
     // for_each()는 모든 요소를 순회하기 때문에 iter는 end를 가리키고 있어야 한다.
     // if (result.in == data.end())
