@@ -1,0 +1,2352 @@
+Update Date : 2025-02-14
+OS : Windows 10 64bit
+Program : Visual Studio 2022
+Version : C++20, C++23
+Configuration : Debug-x64, Release-x64
+
+Concepts에 대한 내용을 충분히 숙지한 다음 Ranges를 보도록 한다.
+Ranges의 동작 방식을 잘 이해하기 위해선 Concepts에 대한 선행 학습이 필요하다.
+
+다음 순서대로 보도록 하자.
+
+# Ranges 개요
+1. ranges_intro.txt <-----
+
+# Ranges 알고리즘
+2. Concepts/CustomContainerIterators(사전지식)
+3. range_concepts_and_iterator_concepts.cpp
+4. legacy_algorithms_and_range_algorithms.cpp
+5. return_types_by_range_algorithms.cpp
+
+# Projections
+6. implementation_of_invoke.cpp(사전지식)
+7. range_algorithms_with_projections.cpp
+8. implementation_of_projections.cpp
+
+# Views
+9. views_by_constructors.cpp
+10. views_by_range_adaptors.cpp
+11. algorithms_with_and_without_views.cpp
+12. view_composition.cpp
+13. lazy_evaluation_of_views.cpp
+14. view_working_with_range_algorithms.cpp
+
+# Range Factories
+15. range_factories.cpp
+
+##################################################
+
+https://en.cppreference.com/w/cpp/algorithm
+https://en.cppreference.com/w/cpp/ranges
+
+Ranges는 C++20부터 지원하는 기능으로 기존의 Iterator로 할 수 있는 일을
+
+보다 간결하게 직관적으로 안전하게 사용할 수 있도록 개선한 라이브러리이다.
+
+Ranges 라이브러리는 기존 <algorithm> 헤더 내 알고리즘의 사용 방식을 개선하였고,
+
+동시에 STL 컨테이너의 데이터를 직관적으로 처리하여 사용할 수 있도록 설계되었다.
+
+
+Ranges 라이브러리는 크게 분류하면 Ranges 알고리즘과 Views로 구분할 수 있다.
+
+- Ranges 알고리즘(std::ranges::)
+  - Range Algorithm Functions
+  - Projections
+
+- Views(std::ranges::views::, std::views::)
+  - Range Adaptors
+  - View Composition(Function Composition)
+  - Range factories
+
+std::views 네임스페이스는 std::ranges::views의 별칭이기 때문에 둘은 같다고 봐야 한다.
+
+namespace views = ranges::views;
+
+
+Range는 컨테이너를 지칭하는 용어가 아니라 데이터 시퀀스를 다루기 위해 사용되는 추상화된 인터페이스이다.
+
+##################################################
+
+https://en.cppreference.com/w/cpp/algorithm
+https://learn.microsoft.com/ko-kr/cpp/standard-library/range-concepts?view=msvc-170
+
+# Ranges 알고리즘
+
+Ranges 알고리즘의 사용 방식은 기존 <algorithm>에서 제공하는 알고리즘의 사용 방식과 유사하다.
+
+기존 <algorithm> 헤더의 단점은 이러하다.
+
+- 시작과 끝을 나타내는 반복자를 지정해줘야 하기에 코드가 장황해짐.
+
+- 코드가 장황해지는 만큼 코드의 흐름을 파악하기 어렵고 유지보수하기 힘듦.
+
+- 템플릿에 걸린 제약이 없어 에러 발생 시 원인을 파악하기 힘듦.
+
+
+알고리즘을 반복자 기반으로 사용하면 sub-range를 표현하기 쉽다.
+
+하지만 대부분의 경우에는 컨테이너의 일부가 아닌 전체 요소를 대상으로 작업하기 때문에
+
+알고리즘 함수를 사용할 때마다 begin()과 end()를 지정하는 것은 가독성도 떨어지고 비효율적이다.
+
+code)---------------------------------------------
+std::vector<int> vec(10);
+std::generate(vec.begin(), vec.end(), [] { return std::random_device{ }() % 10; });
+
+// 정렬
+std::sort(vec.begin(), vec.end());
+
+// 전체 출력
+std::for_each(vec.begin(), vec.end(), [](int elem) { 
+    std::cout << elem << ' ';
+});
+
+std::cout << '\n';
+
+// 짝수만 출력
+std::for_each(vec.begin(), vec.end(), [](int elem) { 
+    if (elem % 2 == 0)
+    {
+        std::cout << elem << ' ';
+    }
+});
+
+std::cout << '\n';
+
+// 특정 요소 찾기
+auto iter = std::find_if(vec.begin(), vec.end(), [](int elem) { 
+    return elem == 5;
+});
+
+if (iter != vec.end())
+{
+    std::cout << "Found : " << *iter << '\n';
+}
+else
+{
+    std::cout << "Not Found";
+}
+--------------------------------------------------
+
+이처럼 알고리즘 함수는 대부분의 경우 전체 요소를 대상으로 작업한다.
+
+따라서 시작과 끝을 나타내는 반복자를 매번 지정하는 방식은 번거롭다고 불필요하다고 할 수 있다.
+
+==================================================
+
+https://en.cppreference.com/w/cpp/ranges#Range_concepts
+https://en.cppreference.com/w/cpp/iterator#Iterator_concepts
+https://learn.microsoft.com/ko-kr/cpp/standard-library/range-concepts?view=msvc-170
+https://learn.microsoft.com/en-us/cpp/standard-library/iterator-concepts?view=msvc-170
+
+Ranges 알고리즘은 std::ranges 내에 있으며 기존 <algorithm>에서 제공한 대부분의 기능을 지원한다.
+
+기존 알고리즘이 반복자 기반으로 동작했다면 Ranges 알고리즘은 컨테이너를 기반으로 동작한다(기존의 반복자 방식도 지원).
+
+또한 Ranges에는 C++20에 도입된 Concepts가 적용되어 있기 때문에 에러의 원인을 파악하기 훨씬 수월하다.
+
+Ranges 알고리즘 함수는 2가지 제약 조건을 만족해야 한다.
+
+- range 제약
+
+- iterator 제약
+
+
+@ range 제약
+
+range 제약은 전달 대상이 범위를 가지는 대상임을 명시하기 위해서 사용하는 조건이다.
+
+STL에서 지원하는 대부분의 컨테이너는 이 range 조건을 만족한다.
+
+template <class T>
+concept range = requires( T& t ) {
+    ranges::begin(t); // equality-preserving for forward iterators
+    ranges::end(t);
+};
+
+cppreference를 보면 range 클래스의 begin()과 end()는 다음 조건을 만족해야 한다고 나와 있다.
+- begin() : input_or_output_iterator를 기반으로 하는 반복자를 반환해야 한다.
+- end() : sentinel_for<It>과 호환되는 반복자를 반환해야 하며 It은 begin()이 반환하는 값에 대한 타입이다.
+
+template <class S, class I>
+concept sentinel_for = std::semiregular<S>
+    && std::input_or_output_iterator<I> &&
+    && __WeaklyEqualityComparableWith<S, I>;
+
+C++20 이전에는 begin()과 end()는 같은 타입의 반복자여야 했다.
+
+C++20 이후에는 sentinel_for라는 제약을 두어 range의 끝 부분을 보다 유연하게 적용할 수 있다.
+
+Ranges 방식은 반복자의 시작과 끝이 다른 타입일 수 있으나 서로 호환 가능해야 한다.
+
+code)---------------------------------------------
+std::cout << std::ranges::range<std::vector<int>> << '\n';  // true
+std::cout << std::ranges::range<std::list<int>> << '\n';    // true
+std::cout << std::ranges::range<std::priority_queue<int>> << '\n'; // false
+std::cout << std::ranges::range<int> << '\n'; // false
+--------------------------------------------------
+
+
+@ iterator 제약
+
+iterator 제약은 알고리즘의 특성에 사용될 수 있는 컨테이너의 특성을 나타내기 위해 사용되는 조건이다.
+
+- input_or_output_iterator : 모든 iterator 컨셉이 만족하는 기본 반복자 컨셉
+
+- input_iterator : 한 방향으로 이동이 가능하며 읽기(입력)가 가능한 반복자
+
+- output_iterator : 한 방향으로 이동이 가능하며 쓰기(출력)가 가능한 반복자
+
+- forward_iterator : input_iterator + 대상을 여러 번 읽는 것이 가능한 반복자
+
+- bidirectional_iterator : forward_iterator + 양방향 접근이 가능한 반복자
+
+- random_access_iterator : bidirectional_iterator + 임의 접근이 가능한 반복자
+
+- contiguous_iterator : random_access_iterator + 연속된 메모리 위으며 크기가 같고 포인터로 접근 가능한 반복자
+
+iterator 제약에 대한 자세한 내용은 "Concepts/CustomContainerIterators"를 참고하도록 한다.
+
+예를 들면 std::ranges::sort()의 반복자 제약은 random_access_iterator이다.
+
+즉, std::ranges::sort()에 적용되는 대상은 임의 접근이 가능한 컨테이너여야 한다는 뜻이다.
+
+code)---------------------------------------------
+std::cout << std::random_access_iterator<std::vector<int>::iterator> << '\n'; // true
+std::cout << std::random_access_iterator<std::list<int>::iterator> << '\n';   // false
+--------------------------------------------------
+
+
+Ranges 알고리즘 함수가 컨테이너를 대상으로 사용되면 이러한 range 제약과 iterator 제약은 묶여서 동작한다.
+
+std::ranges::sort()의 경우에는 range와 random_access_iterator가 묶인 random_access_range를 사용한다.
+
+template <class _Rng>
+concept random_access_range = range<_Rng> && random_access_iterator<iterator_t<_Rng>>;
+
+iterator 제약에 해당하는 만큼 추가적인 range 제약이 존재하며,
+
+특성에 따라 iterator에 해당하지 않음에도 기능 자체가 range 제약으로 확장된 경우도 존재한다.
+
+- input_range, output_range, forward_range, bidirectional_range, random_access_range, contiguous_range
+: iterator 기반 제약
+
+- sized_range
+: 상수 시간에 계산 가능한 size()를 가진 range
+
+
+!! 주의 !!
+
+참고로 STL 컨테이너가 그 자체로 range로 간주될 수 있다고 해도, STL 컨테이너가 view로 간주될 수 있다는 것은 아니다.
+
+STL 컨테이너를 view로 사용하려면 std::views::all()를 적용해야 한다.
+
+(주의) 다만 모든 view는 range이지만, 반대로 모든 range가 view인 것은 아니다.
+
+template <class _Ty>
+concept view = range<_Ty> && movable<_Ty> && enable_view<_Ty>;
+
+code)---------------------------------------------
+std::vector<int> vec = { 1, 2, 3, 4 }; // range
+auto view = std::views::all(vec); // std::ranges::all_view
+
+// view는 항상 range를 만족
+static_assert(std::ranges::range<decltype(view)>);
+static_assert(std::ranges::view<decltype(view)>);
+
+// 아래 코드는 안 됨.
+// static_assert(std::ranges::range<decltype(vec)>);
+// static_assert(std::ranges::view<decltype(vec)>); // 에러 발생
+--------------------------------------------------
+
+==================================================
+
+https://en.cppreference.com/w/cpp/ranges
+https://en.cppreference.com/w/cpp/algorithm/ranges
+
+C++20부터는 Ranges 알고리즘 함수를 사용하여 2개의 반복자가 아닌 컨테이너를 대상으로 작업하는 것이 가능하다.
+
+code)---------------------------------------------
+std::vector<int> vec(10);
+std::ranges::generate(vec, [] { return std::random_device{ }() % 10; });
+
+// 정렬
+std::ranges::sort(vec);
+
+// 전체 출력
+std::ranges::for_each(vec, [](int elem) {
+    std::cout << elem << ' ';
+});
+
+std::cout << '\n';
+
+// 짝수만 출력
+std::ranges::for_each(vec, [](int elem) {
+    if (elem % 2 == 0)
+    {
+        std::cout << elem << ' ';
+    }
+});
+
+std::cout << '\n';
+
+// 특정 요소 찾기
+auto iter = std::ranges::find_if(vec, [](int elem) {
+    return elem == 5;
+});
+
+if (iter != vec.end())
+{
+    std::cout << "Found : " << *iter << '\n';
+}
+else
+{
+    std::cout << "Not Found";
+}
+--------------------------------------------------
+
+물론 이전 방식처럼 iterator 기반으로 사용하는 것도 가능하다.
+
+차이가 있다면 Ranges 알고리즘 방식은 제약이 걸려있기 때문에 잘못된 인자를 전달함에 따른 에러가 발생했을 때
+
+원인을 파악하기 쉽다는 장점이 있다.
+
+code)---------------------------------------------
+std::vector<int> vec(10);
+std::ranges::generate(vec.begin(), vec.end(), [] { return std::random_device{ }() % 10; });
+
+// 정렬
+std::ranges::sort(vec.begin(), vec.end());
+
+// 전체 출력
+std::ranges::for_each(vec.begin(), vec.end(), [](int elem) {
+    std::cout << elem << ' ';
+});
+
+std::cout << '\n';
+
+// 짝수만 출력
+std::ranges::for_each(vec.begin(), vec.end(), [](int elem) {
+    if (elem % 2 == 0)
+    {
+        std::cout << elem << ' ';
+    }
+});
+
+std::cout << '\n';
+
+// 특정 요소 찾기
+auto iter = std::ranges::find_if(vec.begin(), vec.end(), [](int elem) {
+    return elem == 5;
+});
+
+if (iter != vec.end())
+{
+    std::cout << "Found : " << *iter << '\n';
+}
+else
+{
+    std::cout << "Not Found";
+}
+--------------------------------------------------
+
+
+기존 알고리즘 함수를 Ranges 알고리즘 함수로 적용하면 이런 느낌이다.
+
+std::generate(vec.begin(), vec.end(), [] { return std::random_device{ }() % 10; });
+-> std::ranges::generate(vec.begin(), vec.end(), [] { return std::random_device{ }() % 10; });
+-> std::ranges::generate(vec, [] { return std::random_device{ }() % 10; });
+
+Ranges 알고리즘은 기존 방식처럼 두 쌍의 iterator pair를 받는 방식도 지원하고
+
+그냥 begin()과 end()를 가지는 컨테이너를 인자로 넣는 방식도 지원한다.
+
+Ranges 알고리즘을 쓰면 에러를 확인하기 더 쉽고 컨테이너의 특성을 명확하게 할 수 있으니
+
+이전 방식의 알고리즘 함수 사용 대신 Ranges 알고리즘 함수를 쓰도록 하자.
+
+==================================================
+
+Ranges 알고리즘을 쓸 때는 반드시 전달 대상이 되는 컨테이너가 알고리즘의 특성에 맞아야 한다.
+
+code)---------------------------------------------
+std::list<int> data(10);
+std::ranges::generate(data, []() { return std::random_device{ }() % 10; });
+
+// std::list는 random_access_iterator의 조건을 만족하지 않기 때문에 정렬 불가능
+// std::ranges::sort(data);
+
+// bidirectional_iterator
+std::ranges::reverse(data);
+--------------------------------------------------
+
+code)---------------------------------------------
+std::forward_list<int> data(10);
+std::ranges::generate(data, []() { return std::random_device{ }() % 10; });
+
+// std::forward_list는 random_access_iterator의 조건을 만족하지 않기 때문에 정렬 불가능
+// std::ranges::sort(data);
+
+// std::forward_list는 bidirectional_iterator의 조건을 만족하지 않기 때문에 반전 불가능
+// std::ranges::reverse(data);
+--------------------------------------------------
+
+
+이러한 특성을 이용하면 사용자가 정의한 알고리즘의 특성에 제약을 거는 것도 가능하다.
+
+code)---------------------------------------------
+template <typename T>
+    // requires std::random_access_iterator<typename T::iterator>
+    requires std::ranges::random_access_range<T>
+const typename T::value_type& PickRandom(const T& container)
+{
+    auto idx = std::random_device{ }() % container.size();
+
+    return container[idx];
+}
+
+int main()
+{
+    std::vector<int> data(10);
+    std::ranges::generate(data, []() { return std::random_device{ }() % 10; });
+
+    std::cout << PickRandom(data);
+
+    return 0;
+}
+--------------------------------------------------
+
+random_access_range<T>와 random_access_iterator<typename T::iterator>는 다르다는 것을 분명히 알아야 한다.
+
+random_access_range<T>는 range가 랜덤 접근 가능한지 판별하기 위한 용도로 사용하고,
+
+random_access_iterator<typename T::iterator>는 T::iterator가 랜덤 접근 가능한 반복자인지 판별하기 위한 용도로 사용한다.
+
+random_access_range<T>는 범위(range)를 판단하기에 begin(), end()를 제공해야 하며 랜덤 접근 반복자를 반환해야 한다.
+
+random_access_iterator<...>는 랜덤 접근 가능한 반복자이기 때문에 operator[]와 같은 연산을 내부적으로 지원해야 한다.
+
+!! 대상을 범위로 한정할 것인지 반복자에 한정할 것인지에 따라 관점이 달라지는 것임. !!
+
+==================================================
+
+https://en.cppreference.com/w/cpp/algorithm/execution_policy_tag
+
+(주의) C++20 기준 Ranges 알고리즘 함수는 병렬 실행 정책을 지원하지 않는다.
+
+기존 알고리즘 함수는 병렬 실행 정책을 지정해서 CPU 코어를 최대한 활용할 수 있었고,
+
+또한 SIMD를 적용하여 함수 실행을 최적화하는 것이 가능했다.
+
+std::generate(std::execution::par, data.begin(), data.end(), ...);
+std::generate(std::execution::par_unseq, data.begin(), data.end(), ...);
+
+std::for_each(std::execution::par, data.begin(), data.end(), ...);
+
+std::sort(std::execution::par, data.begin(), data.end());
+
+하지만 C++20 기준 Ranges 알고리즘 함수는 병렬 실행 정책을 지원하지 않기 때문에 다음과 같은 코드는 에러가 발생한다.
+
+std::ranges::generate(std::execution::par, data, ...);
+std::ranges::for_each(std::execution::par, data, ...);
+
+이는 Ranges 알고리즘 함수의 주요한 단점이니 숙지해야 한다.
+
+!! 추후 C++ 버전이 올라가면 Ranges 알고리즘 함수에도 병렬 정책이 도입될 수 있음. !!
+
+##################################################
+
+https://en.cppreference.com/w/cpp/algorithm/ranges#Return_types
+https://en.cppreference.com/w/cpp/algorithm/ranges/for_each
+
+# Ranges 알고리즘의 반환 타입
+
+Ranges 알고리즘에는 특별한 타입을 반환하는 함수들이 있다.
+
+사용자는 알고리즘 함수가 반환하는 특별한 타입을 통해 더 많은 정보를 제공받을 수 있다.
+
+이러한 특별한 타입은 고유한 이름이 있으나 사용하는 알고리즘 함수의 이름에 "_result"를 붙인 별칭으로도 표현될 수 있다.
+
+예를 들면 std::ranges::for_each()가 반환하는 타입은 "std::ranges::in_fun_result"인데
+
+이 반환 결과를 "std::ranges::for_each_result"로 받을 수 있다는 뜻이다.
+
+constexpr for_each_result<I, Fun> for_each( I first, S last, Fun f, Proj proj = {} );
+
+namespace std::ranges
+{
+    template<class I, class F>
+    struct in_fun_result
+    {
+        [[no_unique_address]] I in;
+        [[no_unique_address]] F fun;
+ 
+        template<class I2, class F2>
+        requires std::convertible_to<const I&, I2> && std::convertible_to<const F&, F2>
+        constexpr operator in_fun_result<I2, F2>() const &
+        {
+            return {in, fun};
+        }
+ 
+        template<class I2, class F2>
+        requires std::convertible_to<I, I2> && std::convertible_to<F, F2>
+        constexpr operator in_fun_result<I2, F2>() &&
+        {
+            return {std::move(in), std::move(fun)};
+        }
+    };
+}
+
+template< class I, class F >
+using for_each_result = ranges::in_fun_result<I, F>;
+
+이러한 특성을 통해 작업의 복잡성을 줄일 수 있다.
+
+==================================================
+
+@ 반환 타입 목록
+
+- in_fun_result : 반복자 하나와 함수 객체 하나
+  - for_each(), for_each_n()
+
+- in_in_result : 반복자 두 개
+  - mismatch(), swap_ranges()
+
+- in_out_result : 반복자 두 개
+  - copy(), transform(), replace(), ...
+
+- in_in_out_result : 반복자 세 개
+  - transform(), merge(), ...
+
+- in_out_out_result : 반복자 세 개
+  - partition_copy()
+
+- min_max_result : 최소 값과 최대 값에 대한 결과
+  - minmax(), minmax_element()
+
+- in_found_result : 반복자와 boolean 플래그
+  - next_permutation(), prev_permutation()
+
+- in_value_result(C++23)
+  - fold_left_with_iter(), fold_left_first_with_iter()
+
+- out_value_result(C++23)
+  - ranges::iota()
+
+문서를 보면 알고리즘 함수가 어떤 타입을 반환하는지 확인할 수 있다.
+
+문서를 조회했을 때 "_result"가 포함된 타입을 반환하면 특별한 타입을 반환하는 함수인 것이다.
+
+all_of(), sort(), min()처럼 단일 값을 반환하는 Ranges 알고리즘 함수도 있으니 주의하자.
+
+==================================================
+
+https://en.cppreference.com/w/cpp/algorithm/ranges/return_types/in_fun_result
+
+@ 반환 결과가 다른 경우 1 - in_fun_result
+
+기존 알고리즘도 함수 실행 후 무언가 특별한 값을 반환하는 경우가 있다.
+
+예를 들면 std::for_each()의 경우 사용한 Fn을 반환한다.
+
+code)---------------------------------------------
+template <std::ranges::range Container>
+void Print(Container&& container, std::string_view msg = "", char separator = ' ')
+{
+    if (msg == "")
+    {
+        std::cout << "[ ";
+    }
+    else
+    {
+        std::cout << std::format("{:<12} : [ ", msg);
+    }
+
+    for (const auto& elem : container)
+    {
+        std::cout << std::format("{}{}", elem, separator);
+    }
+
+    std::cout << "]\n";
+}
+
+struct TwiceAndBackupOddNums
+{
+    std::vector<int> oddNums;
+
+    void operator()(int& elem)
+    {
+        if (elem % 2 != 0)
+        {
+            oddNums.push_back(elem);
+        }
+
+        elem *= 2;
+    }
+};
+
+int main()
+{
+    std::vector<int> data(10);
+    std::ranges::generate(data, []() { return std::random_device{ }() % 10; });
+
+    std::ranges::sort(data);
+    Print(data, "Data");
+
+    // twice all numbers and backup odd numbers(use legacy for_each())
+    auto backupOddNums = std::for_each(data.begin(), data.end(), TwiceAndBackupOddNums{ });
+
+    Print(data, "Twice");
+    Print(backupOddNums.oddNums, "Backup OddNums");
+
+    return 0;
+}
+--------------------------------------------------
+
+위 코드는 모든 값을 2배로 증가시키되 기존 홀수는 TwiceAndBackupOdds에 백업한다.
+
+backupOdds의 타입은 TwiceAndBackupOdds로 이동 연산자를 통해 소유권을 이전 받는다.
+
+이 코드를 Ranges 방식으로 개선하면 다음과 같다(반환하는 값을 잘 보도록 한다).
+
+code)---------------------------------------------
+std::vector<int> data(10);
+std::ranges::generate(data, []() { return std::random_device{ }() % 10; });
+
+std::ranges::sort(data);
+Print(data, "Data");
+
+// twice all numbers(use ranges version for_each())
+
+// in_fun_result로 받는 방식(기본)
+// std::ranges::in_fun_result<std::vector<int>::iterator, TwiceAndBackupOddNums> result
+//     = std::ranges::for_each(data, TwiceAndBackupOddNums{ });
+
+// in_fun_result로 받는 방식(템플릿 인자 추론)
+// std::ranges::in_fun_result result = std::ranges::for_each(data, TwiceAndBackupOddNums{ });
+
+// in_fun_result로 받는 방식(auto를 통한 타입 추론)
+// auto result = std::ranges::for_each(data, TwiceAndBackupOddNums{ });
+
+// in_fun_result를 ranges::for_each()의 반환에 대응되는 별칭으로 받는 방식
+// for_each_result<I, F>의 템플릿 인자는 컴파일 타임에 추론된다.
+// std::ranges::for_each_result result = std::ranges::for_each(data, TwiceAndBackupOddNums{ });
+
+// structured binding을 통한 직접적인 값 추출
+auto [iter, fnObj] = std::ranges::for_each(data, TwiceAndBackupOddNums{ });
+
+Print(data, "Twice");
+
+// Print(result.fun.oddNums, "Backup OddNums");
+Print(fnObj.oddNums, "Backup OddNums"); // fnObj는 사용한 Functor이며 마찬가지로 이동 생성자로 받아옴.
+
+// for_each()는 모든 요소를 순회하기 때문에 iter는 end를 가리키고 있어야 한다.
+// if (result.in == data.end())
+if (iter == data.end())
+{
+    std::cout << "iter reached to the end\n";
+}
+else
+{
+    std::cout << "iter did not reach to the end\n";
+}
+--------------------------------------------------
+
+기존 Fn 외 순회에 사용한 iterator를 함께 반환하는 것을 볼 수 있다.
+
+std::ranges::for_each()의 결과를 받는 방법은 다양하다.
+
+여기서 일반적으로 가장 좋은 건 structured binding을 통해 반환 값을 직접적으로 명시하는 방식이다.
+
+==================================================
+
+https://en.cppreference.com/w/cpp/algorithm/ranges/return_types/in_out_result
+
+@ 반환 결과가 다른 경우 2 - in_out_result
+
+in_out_result는 두 개의 iterator로 구성되어 있다.
+
+해당 유형을 반환하는 Ranges 함수는 굉장히 많다.
+- transform(), copy(), copy_backward(), move(), replace(), remove() 등
+
+컨테이너에서 홀수 값만 복사하는 기능을 기본 알고리즘으로 구현해 보자.
+
+code)---------------------------------------------
+std::vector<int> data(10);
+std::ranges::generate(data, []() { return std::random_device{ }() % 10; });
+
+std::ranges::sort(data);
+Print(data, "Data");
+
+// 실제 개발할 때는 크기를 지정해서 컨테이너를 할당하는 것보다 std::back_inserter()를 쓰는 것이 안전하다.
+std::vector<int> copies(10); // capacity가 아닌 size임.
+
+copies.push_back(100);
+copies.push_back(200);
+copies.push_back(300);
+
+Print(copies, "Before copy");
+std::cout << '\n';
+
+// 홀수 값만 복사(copies.begin() 대신 std::back_inserter(copies)를 쓰는 방법도 있음)
+auto iter = std::copy_if(data.begin(), data.end(), copies.begin(),
+                         [](const int& elem) {
+                             return elem % 2 != 0;
+                         });
+
+// 마지막으로 copy한 element의 다음 iterator를 가리킨다.
+// 따라서 실제로 작업할 때는 유효할 수도 있고 유효하지 않을 수도 있다.
+if (iter != copies.end())
+{
+    std::cout << "Distance from begin : " << std::distance(copies.begin(), iter) << '\n';
+
+    std::cout << "Current iter value  : " << *iter << '\n';
+    std::cout << "Previous iter value : " << *(iter - 1) << '\n';
+
+    std::cout << '\n';
+}
+
+// copies의 앞 부분부터 덮어쓰며 값을 갱신한 것을 볼 수 있다.
+Print(copies, "After copy");
+--------------------------------------------------
+
+copy_if()의 ranges 버전은 2개의 반복자를 가지는 in_out_result를 반환한다.
+
+마찬가지로 copy_if_result로 받는 것도 가능하지만 structured binding으로 받는 게 작업하기 쉽다.
+
+code)---------------------------------------------
+std::vector<int> data(10);
+std::ranges::generate(data, []() { return std::random_device{ }() % 10; });
+
+std::ranges::sort(data);
+Print(data, "Data");
+
+// 실제 개발할 때는 크기를 지정해서 컨테이너를 할당하는 것보다 std::back_inserter()를 쓰는 것이 안전하다.
+std::vector<int> copies(10); // capacity가 아닌 size임.
+
+copies.push_back(100);
+copies.push_back(200);
+copies.push_back(300);
+
+Print(copies, "Before copy");
+std::cout << '\n';
+
+// 홀수 값만 복사(copies.begin() 대신 std::back_inserter(copies)를 쓰는 방법도 있음)
+// in  : 복사 원본이 되는 컨테이너의 반복자로 끝을 가리킴(여기선 data).
+// out : 복사 대상이 되는 컨테이너의 반복자로 마지막으로 copy한 element의 다음 iterator를 가리킴(여기선 copies).
+auto [in, out] = std::ranges::copy_if(data, copies.begin(),
+                                      [](const int& elem) {
+                                          return elem % 2 != 0;
+                                      });
+
+// in은 원본 컨테이너의 끝을 가리키는 반복자이다.
+if (in == data.end())
+{
+    std::cout << "inIter reached to the end\n";
+    std::cout << '\n';
+}
+
+// out은 마지막으로 copy한 element의 다음 iterator를 가리킨다.
+// 따라서 실제로 작업할 때는 유효할 수도 있고 유효하지 않을 수도 있다.
+if (out != copies.end())
+{
+    std::cout << "Distance from begin : " << std::distance(copies.begin(), out) << '\n';
+
+    std::cout << "Current outIter value  : " << *out << '\n';
+    std::cout << "Previous outIter value : " << *(out - 1) << '\n';
+
+    std::cout << '\n';
+}
+
+// copies의 앞 부분부터 덮어쓰며 값을 갱신한 것을 볼 수 있다.
+Print(copies, "After copy");
+--------------------------------------------------
+
+종합해보면 Ranges 알고리즘에서 지원하는 함수의 반환 타입은 더 많은 정보를 제공한다.
+
+사용자는 이러한 Ranges 알고리즘의 반환형을 통해 더욱 유연하게 대응할 수 있다.
+
+==================================================
+
+@ 비슷한 유형의 반환 결과
+
+std::for_each()와 std::ranges::for_each() 그리고 std::copy()와 std::ranges::copy()는 서로 반환 형태가 다르다.
+
+하지만 경우에 따라선 기존의 함수와 Ranges 함수의 반환 형태가 비슷한 경우도 존재한다.
+
+code)---------------------------------------------
+std::vector<int> data(10);
+std::ranges::generate(data, []() { return std::random_device{ }() % 10; });
+
+// auto [min, max] = std::minmax_element(data.begin(), data.end(), 
+//                                       [](const auto& lhs, const auto& rhs) {
+//                                           return lhs < rhs;
+//                                       });
+
+auto [min, max] = std::ranges::minmax_element(data,
+                                              [](const auto& lhs, const auto& rhs) {
+                                                  return lhs < rhs;
+                                              });
+
+std::cout << *min << '\n';
+std::cout << *max << '\n';
+--------------------------------------------------
+
+std::minmax_element()는 pair를 반환하고 std::ranges::minmax_element()는 minmax_element_result를 반환한다.
+
+전자의 경우 값에 접근하려면 pair.first, pair.second를 써야 하지만 후자는 res.min, res.max를 통해 값에 접근한다.
+
+하지만 structured binding으로 결과를 조회해보면 두 결과에 대한 구조는 같은 것을 볼 수 있다.
+
+이처럼 기존의 알고리즘이 반환하는 결과와 Ranges 알고리즘이 반환하는 결과에 큰 차이가 없는 경우도 존재한다.
+
+##################################################
+
+# Projections
+
+Projections는 Ranges 알고리즘 함수에서 지원하는 기능이며 연산의 기준을 설정할 수 있다.
+
+Invokable한 유형이라면 Projection의 대상이 될 수 있기 때문에
+
+컨테이너의 요소를 변환하는 람다식, 요소의 멤버 함수, 요소의 멤버 변수 등은 전부 Projection에 적용할 수 있다.
+
+Projection이 설정되면 알고리즘은 연산을 수행하기 전에 먼저 범위의 요소를 Projetion에 전달한다.
+
+그리고 알고리즘은 Projection을 통해 가공된 값을 토대로 연산을 수행한다.
+
+쉽게 생각하면 Projection 자체가 Invocable 대상이며 이를 토대로 유연하게 비교, 검색, 변형 등의 작업을 수행할 수 있다.
+
+Container -> Element -> Projection -> Invoke(functor, member variable, member function, ...) -> Algorithm
+
+(중요) Invokable은 Unary한 특성을 지녀야 한다.
+
+
+어떠한 2차원 점이 있고 이걸 정렬한다고 해보자.
+
+그럼 기준은 크게 3가지로 분류할 수 있을 것이다.
+
+1. x의 값을 기준으로 정렬
+
+2. y의 값을 기준으로 정렬
+
+3. 원점으로부터의 거리를 기준으로 정렬
+
+code)---------------------------------------------
+struct Point
+{
+    Point() = default;
+    Point(double x, double y)
+        : x{ x }, y{ y }
+    { }
+
+    friend std::ostream& operator<<(std::ostream& os, const Point& p)
+    {
+        os << "Point[ x : " << p.x << ", y : " << p.y << ", length : " << p.Length() << " ]";
+
+        return os;
+    }
+
+    double Length() const
+    {
+        // distance from the origin point
+        return sqrt(pow(x, 2) + pow(y, 2));
+    }
+
+    double GetX() const
+    {
+        return x;
+    }
+
+    double GetY() const
+    {
+        return y;
+    }
+
+    double x{ };
+    double y{ };
+};
+
+void Run()
+{
+    std::vector<Point> data;
+
+    for (int i = 0; i < 5; i++)
+    {
+        data.emplace_back(std::random_device{ }() % 10, std::random_device{ }() % 10);
+    }
+
+    auto printer = [](auto elem) { std::cout << "  " << elem << '\n'; };
+
+    // unsorted
+    std::cout << "############### Unsorted points ###############\n";
+    std::ranges::for_each(data, printer);
+    std::cout << '\n';
+
+    // sorting by x(less)
+    std::cout << "############### Sorting by x(less) ###############\n";
+    std::ranges::sort(data, std::less{ }, &Point::x); // 멤버 변수를 전달하는 방식
+    std::ranges::for_each(data, printer);
+    std::cout << '\n';
+
+    // sorting by x(greater)
+    std::cout << "############### Sorting by x(greater) ###############\n";
+    std::ranges::sort(data, std::greater{ }, &Point::GetX); // 멤버 함수를 전달하는 방식(멤버 변수가 private 안에 있을 경우 사용하면 됨)
+    std::ranges::for_each(data, printer);
+    std::cout << '\n';
+
+    // sorting by y(less)
+    std::cout << "############### Sorting by y(less) ###############\n";
+    std::ranges::sort(data, std::less{ }, &Point::y); // 멤버 변수를 전달하는 방식
+    std::ranges::for_each(data, printer);
+    std::cout << '\n';
+
+    // sorting by y(greater)
+    std::cout << "############### Sorting by y(greater) ###############\n";
+    std::ranges::sort(data, std::greater{ }, &Point::GetY); // 멤버 함수를 전달하는 방식(멤버 변수가 private 안에 있을 경우 사용하면 됨)
+    std::ranges::for_each(data, printer);
+    std::cout << '\n';
+
+    // sorting by length(less)
+    std::cout << "############### Sorting by length(less) ###############\n";
+    std::ranges::sort(data, std::less{ }, &Point::Length); // 멤버 함수를 전달하는 방식
+    std::ranges::for_each(data, printer);
+    std::cout << '\n';
+
+    // sorting by length(greater)
+    std::cout << "############### Sorting by length(greater) ###############\n";
+    std::ranges::sort(data, std::greater{ }, 
+                      [](const Point& p) // 람다식을 전달하는 방식
+                      { 
+                          return sqrt(pow(p.x, 2) + pow(p.y, 2)); 
+                      });
+    std::ranges::for_each(data, printer);
+    std::cout << '\n';
+}
+--------------------------------------------------
+
+보이는 것처럼 람다식, 멤버 변수, 멤버 함수를 전달해서 다양한 방식으로 요소를 정렬한 것을 볼 수 있다.
+
+정렬은 기본적으로 operator<()를 진행된다는 것도 확인할 수 있다.
+
+또한 Projection을 거치면 가공한 형태를 Predicate에서 받아서 사용하는 것도 가능하다.
+
+code)---------------------------------------------
+void Run()
+{
+    std::vector<Point> data;
+
+    for (int i = 0; i < 5; i++)
+    {
+        data.emplace_back(std::random_device{ }() % 10, std::random_device{ }() % 10);
+    }
+
+    auto printer = [](auto elem) { std::cout << "  " << elem << '\n'; };
+
+    // sorting by length(less)
+    std::cout << "############### Sorting by length(less) ###############\n";
+    std::ranges::sort(data, std::less{ }, &Point::Length); // 멤버 함수를 전달하는 방식
+    std::ranges::for_each(data, printer);
+    std::cout << '\n';
+
+    // point to degree
+    std::cout << "############### Point to degree ###############\n";
+    std::ranges::for_each(data, printer, // 가공하여 반환한 값을 printer를 통해 출력하기
+                          [](const Point& p) {
+                              std::cout << "  " << p << "  ->";
+
+                              return atan2(p.y, p.x) * (180.0 / std::numbers::pi);
+                          });
+
+    // original
+    std::cout << "############### Original ###############\n";
+    std::ranges::for_each(data, printer); // 원본을 변형하지 않았기에 원본 대상은 그대로임.
+    std::cout << '\n';
+}
+--------------------------------------------------
+
+이처럼 Projection을 활용하면 element를 가공하여 변환하고 이를 받아 사용하는 것이 가능하다.
+
+매번 기준에 따른 함수나 람다식을 구성할 필요가 없으니 재사용성이 증가하고
+
+Ranges 함수 밖에서 기준에 따른 선처리를 할 필요가 없으니 가독성도 좋아진다.
+
+==================================================
+
+@ Projection 구현하기
+
+Projection은 특별한 게 아니며 Projection이 적용된 알고리즘을 사용자 수준에서 충분히 구현하는 것도 가능하다.
+
+std::invoke()에 대한 자세한 내용은 "implementation_of_invoke.cpp"를 참고하도록 한다.
+
+code)---------------------------------------------
+// Projection의 기본 값으로 사용할 구조체
+struct Identity
+{
+    // 반환 타입을 반드시 명시해야 하며 단순 auto로 지정하면 안 된다.
+    // auto로 지정하면 반환한 값을 값 타입으로 추론한다.
+    // 반환 타입을 원본 그대로(값이면 값, 참조면 참조) 반환하고자 한다면 T&&, auto&&, decltype(auto)처럼 반환형을 확실하게 명시해야 한다.
+    template <typename T>
+    constexpr T&& operator()(T&& elem) const noexcept
+    {
+        return std::forward<T>(elem);
+    }
+};
+
+template <typename Range, typename Functor, typename Projection = Identity>
+void ForEach(Range&& range, Functor functor, Projection proj = { })
+{
+    auto beginIter = range.begin();
+    auto endIter   = range.end();
+
+    while (beginIter != endIter)    
+    {
+        // 특정 연산을 수행하기 전에 컨테이너의 원소를 변환한다.
+        auto&& elem = std::invoke(proj, *beginIter++);
+
+        functor(elem);
+    }
+}
+
+void Run01()
+{
+    std::vector<Point> data;
+
+    for (int i = 0; i < 5; i++)
+    {
+        data.emplace_back(std::random_device{ }() % 10, std::random_device{ }() % 10);
+    }
+
+    auto printer = [](auto elem) { std::cout << "  " << elem << '\n'; };
+
+    // sorting by length(less)
+    std::cout << "############### Sorting by length(less) ###############\n";
+    std::ranges::sort(data, std::less{ }, &Point::Length); // 멤버 함수를 전달하는 방식
+    ForEach(data, printer); // 기본 Projection을 사용하는 방식
+    std::cout << '\n';
+
+    // x 값만 출력
+    std::cout << "############### Print x ###############\n";
+    ForEach(data, printer, &Point::x); // 멤버 변수를 전달하는 방식
+    std::cout << '\n';
+    
+    // y 값만 출력
+    std::cout << "############### Print y ###############\n";
+    ForEach(data, printer, &Point::GetY); // 멤버 함수를 전달하는 방식(멤버 변수가 private 안에 있을 경우 사용하면 됨)
+    std::cout << '\n';
+
+    // length 값만 출력
+    std::cout << "############### Print length ###############\n";
+    ForEach(data, printer, [](const Point& p) { return sqrt(pow(p.x, 2) + pow(p.y, 2)); }); // 람다식을 전달하는 방식
+    std::cout << '\n';
+}
+
+void Run02()
+{
+    std::vector<std::string> names{
+        "James", "Mary", "David", "Susan", "Michael"
+    };
+
+    auto printer = [](auto elem) { std::cout << "  " << elem << '\n'; };
+
+    // 이름 기본 출력
+    std::cout << "############### Names ###############\n";
+    ForEach(names, printer); // 기본 Projection을 사용하는 방식
+    std::cout << '\n';
+
+    // 대문자 출력
+    auto upper = [](const std::string& name) {
+        std::string temp = name;
+        
+        // ForEach()에 의해 순회되고 있는데 내부에서 추가적으로 ForEach() 호출
+        ForEach(temp, [](char& ch) { ch = std::toupper(ch); });
+
+        return temp;
+    };
+
+    std::cout << "############### Upper ###############\n";
+    ForEach(names, printer, upper); // Projection을 통해 가공한 값을 전달하는 방식
+    std::cout << '\n';
+
+    // 소문자 출력
+    auto lower = [](const std::string& name) {
+        std::string temp = name;
+        
+        // ForEach()에 의해 순회되고 있는데 내부에서 추가적으로 ForEach() 호출
+        ForEach(temp, [](char& ch) { ch = std::tolower(ch); });
+
+        return temp;
+    };
+
+    std::cout << "############### Lower ###############\n";
+    ForEach(names, printer, lower); // Projection을 통해 가공한 값을 전달하는 방식 
+    std::cout << '\n';
+}
+--------------------------------------------------
+
+tuple-like 자료형은 keys, values, element<Idx>로 필터링하는 것이 가능하다.
+
+code)---------------------------------------------
+std::map<std::string, int> students{
+    { "James", 11 }, { "Mary", 12 }, { "David", 13 }, { "Susan", 14 }, { "Michael", 15 }
+};
+
+// 이름 출력
+std::cout << "Names : ";
+for (auto names : students | std::views::keys)
+{
+    std::cout << names << ' ';
+}
+
+std::cout << '\n';
+
+// 나이 출력
+std::cout << "Ages  : ";
+std::ranges::copy(students | std::views::values,
+                  std::ostream_iterator<int>(std::cout, ", "));
+
+std::cout << '\n';
+
+// 사전으로 볼 때 'K' 이전에 오는 이름만 출력
+auto nameView = students | std::views::elements<0>
+                         | std::views::filter([](const std::string& name) { return name[0] < 'K'; });
+
+Print(nameView, "Filter Names");
+
+std::cout << '\n';
+--------------------------------------------------
+
+##################################################
+
+https://learn.microsoft.com/en-us/cpp/standard-library/view-classes?view=msvc-170
+
+# Views
+
+Views를 사용하면 데이터를 복사하지 않고 실제 데이터의 변경 없이 연산을 조합하여 가공된 데이터를 조회할 수 있다.
+
+Views는 다음과 같은 특징이 있다.
+
+- View 클래스를 제외한 나머지 기능은 std::ranges::views 네임스페이스 안에 정의되어 있다.
+  - std::ranges::views 대신 std::views 네임스페이스를 쓰는 것도 가능함.
+  - namespace views = ranges::views;
+
+- View는 경량화된 Range 혹은 Sub-range이다.
+
+- View는 그 자체로 Range이기 때문에 또 다른 View를 생성하기 위한 인자로 전달할 수 있다(체이닝 가능).
+
+- (중요) View는 데이터를 소유하지 않는다.
+  - 아주 예외적으로 owning_view처럼 데이터를 가지는 view도 있긴 함(조건이 특수한 상황).
+  - 일반적인 경우라면 View는 원본 컨테이너의 데이터를 가리키는 형태로 되어 있음.
+
+- View의 생성 자체는 상수 시간에 이루어 진다(평가는 나중에 이루어짐).
+
+
+다음은 Views를 다룰 때 특히 명심하거나 주의해야 하는 내용이다.
+
+- View는 데이터를 소유하지 않지만 각 Range 혹은 Sub-range의 원소를 원본의 레퍼런스 형태로 받을 수 있다.
+  원소를 값으로 전달하면 문제 없지만 원소를 원본의 레퍼런스 형태로 받고 값을 변경하면 수정사항이 원본에 반영된다.
+  View를 통해서 원본의 값을 수정하는 것이 가능하기 때문에 이에 따라 발생할 수 있는 부작용을 주의해야 한다.
+
+- View는 그 즉시 평가되는 것이 아닌 필요한 시점에 평가되는 lazy evaluation 방식으로 동작한다.
+  - View는 매번 실제로 요소에 접근할 때마다 평가가 이루어짐.
+
+
+https://en.cppreference.com/w/cpp/ranges/view_interface
+https://en.cppreference.com/w/cpp/ranges#Range_adaptors
+
+@ View 클래스
+
+- 모든 View 클래스는 std::ranges 네임스페이스 안에 있다.
+
+- 모든 View는 std::ranges::view_interface를 상속 받아 구현된다.
+
+- Base 클래스가 있기 때문에 view_interface의 멤버 함수를 사용할 수 있다.
+  - empty()
+  - cbegin() (C++23)
+  - cend() (C++23)
+  - operator bool()
+  - data()
+  - size()
+  - front()
+  - back()
+  - operator[]
+
+- view_interface에는 다양한 기본 함수가 있지만 이를 상속하여 파생된 View는 특성에 맞게 필요한 것만 사용한다.
+  - 각 View와 관련된 문서를 보면 "Inherited from std::ranges::view_interface"가 있으니 거기서 확인하면 됨.
+  - 예를 들면 front()는 forward_range의 특성을 만족하고 operator[]는 random_access_range의 특성을 만족함.
+
+- View 클래스는 그 자체로 Range이기 때문에 begin()과 end()를 제공하며 이를 통해 요소를 반복(iterate)할 수 있다.
+  - 따라서 Range-based for loop를 통해 원소를 순회하는 것이 가능함.
+  - 심지어 Ranges 알고리즘 함수의 인자로 넣는 것도 가능함.
+
+- View를 통해 목적에 맞게 원본 데이터의 변경 없이 컨테이너로부터 가공된 데이터를 구할 수 있다.
+
+
+view만 따로 놓고 보면 이것 자체는 concept 제약 조건이다.
+
+template <class _Ty>
+concept view = range<_Ty> && movable<_Ty> && enable_view<_Ty>;
+
+(주의) 모든 view는 range의 조건을 만족하지만, 반대로 모든 range가 view의 조건을 만족하는 것은 아니다.
+
+==================================================
+
+@ 생성자를 통한 View 생성
+
+View는 기본적으로 Range 조건을 만족하는 변수를 인자로 받아 생성하는 것이 가능하다.
+
+View 또한 클래스인 만큼 생성자를 통해서 직접적으로 생성하는 것이 가능하지만 이 방식은 너무 복잡하다.
+
+// data 앞의 3개의 원소를 가지고 오는 take_view를 생성자로 만드는 예시
+std::ranges::take_view<std::ranges::ref_view<std::vector<int>>> takeView{ data, 3 };
+
+생상자를 직접적으로 적용하는 방식은 이러하지만 실제로는 이렇게 작업하지 않는다.
+
+템플릿 인자를 생략할 순 있지만 직접적으로 이렇게 View를 생성하는 경우는 거의 없으니 참고만 하자.
+
+공식 문서를 봐도 생성자로 View를 생성하는 예시는 거의 없다(대부분 Range 어댑터를 사용하여 View를 생성함).
+
+code)---------------------------------------------
+std::vector<int> data(10);
+std::ranges::generate(data, []() { return std::random_device{ }() % 100; });
+
+std::ranges::sort(data);
+
+// 정렬되지 않은 임의의 요소 추가
+data.push_back(30);
+data.push_back(40);
+data.push_back(50);
+data.push_back(60);
+data.push_back(70);
+
+Print(data, "data");
+
+// https://en.cppreference.com/w/cpp/ranges/ref_view
+// https://en.cppreference.com/w/cpp/ranges/all_view
+// ref_view : range를 view로 사용하기 위한 view
+{
+    // 모든 view는 range가 될 수 있지만 반대로 모든 range를 view로 사용할 수 있는 건 아니다.
+    // 하지만 range를 ref_view로 감싸면 view처럼 사용할 수 있다.
+    std::ranges::ref_view<std::vector<int>> refView{ data };
+
+    Print(refView, "ref_view");
+}
+
+std::cout << '\n';
+
+// https://en.cppreference.com/w/cpp/ranges/filter_view
+// filter_view : Predicate의 조건을 만족하는 element만 조회하기 위한 view
+{
+    auto even = [](int elem) { return elem % 2 == 0; };
+    auto odd  = [](int elem) { return elem % 2 != 0; };
+    
+    // (주의) 다음과 같이 컨테이너를 직접 지정하는 방식은 불가능하다.
+    // std::ranges::filter_view<std::vector<int>, decltype(even)> filterEvenView{ data, even };
+
+    // 컨테이너를 view로 사용할 때는 ref_view로 감싸야 한다(STL 컨테이너는 range이긴 하나 그 자체로 view인 것은 아님).
+    std::ranges::filter_view<std::ranges::ref_view<std::vector<int>>, decltype(even)>
+        filterEvenView{ data, even };
+
+    // 템플릿 인자를 생략하여 컴파일러가 추론하는 방식을 사용하는 것도 가능하다(!! 안 되는 유형도 있으니 주의 !!)
+    std::ranges::filter_view/*<std::ranges::ref_view<std::vector<int>>, decltype(odd)>*/
+        filterOddView{ data, odd };
+
+    // view 자체는 range이기 때문에 ranged-based 로직이나 알고리즘을 사용할 수 있다.
+    std::cout << "filter_view(even) : ";
+
+    // ranged-based for
+    for (int elem : filterEvenView)
+    {
+        std::cout << elem << ' ';
+    }
+
+    // ranges::for_each()
+    std::cout << "\nfilter_view(odd)  : ";
+    std::ranges::for_each(filterOddView, [](int elem) { std::cout << elem << ' '; });
+}
+
+std::cout << "\n\n";
+
+// https://en.cppreference.com/w/cpp/ranges/transform_view
+// transform_view : 원본으로부터 원소를 받아 이를 변형시켜서 조회하기 위한 view
+{
+    // 레퍼런스 형태로 받을 경우 elem에 변형을 가하면 원본 값도 바뀌니 주의해야 한다.
+    auto twice = [](const int& elem) { return elem * 2; };
+
+    std::ranges::transform_view/*<std::ranges::ref_view<std::vector<int>>, decltype(twice)>*/
+        transformView{ data, twice };
+
+    Print(transformView, "transform_view");
+    
+    // 원본은 바뀌지 않는다.
+    Print(data, "original");
+}
+
+std::cout << '\n';
+
+// https://en.cppreference.com/w/cpp/ranges/take_view
+// take_view : 다른 view나 range로부터 처음 N개의 요소를 조회하는 view
+{
+    // 이런 식으로 생성하는 것도 가능하다.
+    std::ranges::take_view/*<std::ranges::ref_view<std::vector<int>>>*/ takeView =
+        std::ranges::take_view/*<std::ranges::ref_view<std::vector<int>>>*/{data, 3};
+
+    Print(takeView, "take_view");
+}
+
+std::cout << '\n';
+
+// https://en.cppreference.com/w/cpp/ranges/take_while_view
+// take_while_view : Predicate가 false를 반환할 때까지 요소를 계속해서 조회하는 view
+{
+    // 마찬가지로 레퍼런스 형태로 받을 경우 elem에 변형을 가하면 원본 값도 바뀌니 주의해야 한다.
+    auto under50 = [](const int& elem) { return elem < 50; };
+
+    std::ranges::take_while_view/*<std::ranges::ref_view<std::vector<int>>, decltype(under50)>*/
+        takeWhileView{ data, under50 };
+
+    // 임의로 넣은 30, 40은 출력하지 않는다.
+    Print(takeWhileView, "take_while_view");
+}
+
+std::cout << '\n';
+
+// https://en.cppreference.com/w/cpp/ranges/drop_view
+// drop_view : 다른 view나 range로부터 처음 N개의 요소를 스킵하고 그 이후 요소를 조회하는 view
+{
+    auto dropView = std::ranges::drop_view/*<std::ranges::ref_view<std::vector<int>>>*/{ data, 5 };
+
+    Print(dropView, "drop_view");
+}
+
+std::cout << '\n';
+
+// https://en.cppreference.com/w/cpp/ranges/drop_while_view
+// drop_while_view : Predicate가 false를 반환할 때까지 요소를 스킵한 다음 true를 반환한 지점부터 조회하는 view
+{
+    // 마찬가지로 레퍼런스 형태로 받을 경우 elem에 변형을 가하면 원본 값도 바뀌니 주의해야 한다.
+    auto under50 = [](const int& elem) { return elem < 50; };
+
+    std::ranges::drop_while_view/*<std::ranges::ref_view<std::vector<int>>, decltype(under50)>*/
+        dropWhileView{ data, under50 };
+
+    // 임의로 넣은 모든 요소를 출력할 확률이 높다.
+    Print(dropWhileView, "take_while_view");
+}
+
+std::cout << '\n';
+
+// https://en.cppreference.com/w/cpp/ranges/join_view
+// join_view : view나 range의 요소를 평탄화(flattening)하여 조회하기 위한 view
+{
+    // 단일 값 자체는 평탄화하는 것이 불가능하다(에러 발생).
+    // std::ranges::join_view<std::ranges::ref_view<std::vector<int>>> joinView{ data };
+
+    // 숫자 원소 평탄화
+    std::vector<std::vector<int>> nestedData{
+        { 1 }, { 2, 3 }, { 4, 5, 6 }, { 7, 8, 9, 10 }
+    };
+
+    std::ranges::join_view/*<std::ranges::ref_view<std::vector<std::vector<int>>>>*/
+        joinViewNums{ nestedData };
+
+    Print(joinViewNums, "join_view 1");
+
+    // 문자열 원소 평탄화
+    std::vector<std::string> names{
+        "James", "Mary", "David", "Susan", "Michael"
+    };
+
+    std::ranges::join_view/*<std::ranges::ref_view<std::vector<std::string>>>*/
+        joinViewNames{ names };
+
+    Print(joinViewNames, "join_view 2"); // string을 컨테이너로 취급하여 문자 하나하나를 평탄화함.
+}
+
+std::cout << '\n';
+
+// https://en.cppreference.com/w/cpp/ranges/join_with_view
+// join_with_view(C++23) : join_view를 보강한 view로 delimiter를 추가할 수 있다.
+{
+    using namespace std::string_literals;
+
+    // 문자열 원소 평탄화
+    std::vector<std::string> names{
+        "James", "Mary", "David", "Susan", "Michael"
+    };
+
+
+    std::string delim = "###";
+    auto singleViewDelim = std::ranges::single_view(delim);
+
+    // owning_view는 아주 예외적으로 데이터를 가지는 view(r-value를 직접 전달한 유형)
+    std::ranges::join_with_view<std::ranges::ref_view<std::vector<std::string>>, std::ranges::owning_view<std::string>>
+        joinWithView1{ names, "###"s };
+
+    Print(joinWithView1, "join_with_view 1"); // delimiter조차 평탄화 대상임.
+
+    // r-value가 아닌 l-value로 전달하면 원본이 있다는 뜻이니 ref_view로 받는다.
+    std::ranges::join_with_view<std::ranges::ref_view<std::vector<std::string>>, std::ranges::ref_view<std::string>>
+        joinWithView2{ names, delim };        
+
+    Print(joinWithView2, "join_with_view 2"); // delimiter조차 평탄화 대상임.
+
+    // single_view는 Range factory로 단 하나의 요소를 Range로 감싼 view이다(여기선 char 하나를 감쌈).
+    std::ranges::join_with_view<std::ranges::ref_view<std::vector<std::string>>, std::ranges::single_view<char>>
+        joinWithView3{ names, '#' };
+
+    Print(joinWithView3, "join_with_view 3"); // delimiter조차 평탄화 대상임.
+
+    // 가능할 것 같은데 해당 유형은 사용할 수 없다.
+    // Visual Studio 2022 기준 아직 C++23이 실험적인 기능이라 지원하지 않는 것으니 나중에 확인해봐야 한다.
+    // std::ranges::join_with_view<std::ranges::ref_view<std::vector<std::string>>, std::ranges::single_view<std::string>>
+    //     joinWithView4{ names, singleViewDelim };
+    // 
+    // Print(joinWithView4, "join_with_view 3"); // delimiter조차 평탄화 대상임.
+}
+--------------------------------------------------
+
+tuple(혹은 tuple-like)처럼 복합 원소로 구성된 컨테이너로부터
+
+특정 위치에 있는 값을 조회할 수 있는 기능을 제공하는 View 클래스도 존재한다.
+
+code)---------------------------------------------
+using Tuple = std::tuple<int, char, std::string>;
+using Pair  = std::pair<int, std::string>;
+
+// data 1
+std::vector<Tuple> tuples{
+    { 100, 'A', "James" },
+    { 200, 'B', "Mary" },
+    { 300, 'C', "David" },
+    { 400, 'D', "Susan" },
+    { 500, 'E', "Michael" },
+};
+
+// data 2
+std::vector<Pair> pairs{
+    { 1, "one" },
+    { 2, "two" },
+    { 3, "three" },
+    { 4, "four" }
+};
+
+// data 3
+std::map<std::string, std::string> mp{
+    { "Korea", "Seoul" },
+    { "Japan", "Tokyo" },
+    { "China", "Beijing" },
+};
+
+// https://en.cppreference.com/w/cpp/ranges/elements_view
+// elements_view : tuple 스타일 자료형에서 특정 위치에 있는 요소를 조회하기 위한 view
+{
+    // elements_view에서 특정 요소만 조회하려면 원본 컨테이너를 레퍼런스 형태로 알고 있어야 한다.
+    std::ranges::elements_view<std::views::all_t<std::vector<Tuple>&>, 0>    tupleCol0_view{ tuples };
+    std::ranges::elements_view<std::ranges::ref_view<std::vector<Tuple>>, 1> tupleCol1_view{ tuples };
+    std::ranges::elements_view<std::ranges::ref_view<std::vector<Tuple>>, 2> tupleCol2_view{ tuples };
+
+    // (주의) elements_view는 특정 위치를 템플릿 인자로 지정해야 하기 때문에 인자를 추론하는 방식은 사용하지 못 한다.
+    // 다음 코드는 사용 불가
+    // std::ranges::elements_view/*<std::views::all_t<std::vector<Tuple>&>, 0>*/    tupleCol0_view{ tuples };
+    // std::ranges::elements_view/*<std::ranges::ref_view<std::vector<Tuple>>, 1>*/ tupleCol1_view{ tuples };
+
+    Print(tupleCol0_view, "tuple col 0");
+    Print(tupleCol1_view, "tuple col 1");
+    Print(tupleCol2_view, "tuple col 2");
+
+    std::cout << '\n';
+
+    // pair 또한 tuple-like 자료형이기 때문에 elements_view를 사용할 수 있다.
+    auto pairFirstView  = std::ranges::elements_view<std::views::all_t<std::vector<Pair>&>, 0>{ pairs };
+    auto pairSecondView = std::ranges::elements_view<std::ranges::ref_view<std::vector<Pair>>, 1>{ pairs };
+  
+    Print(pairFirstView, "pair first");
+    Print(pairSecondView, "pair second");
+
+    std::cout << '\n';
+
+    // map도 어떻게 보면 첫 번째 위치는 key, 두 번째 위치는 value로 볼 수 있기 때문에 elements_view를 사용할 수 있다.
+    auto mapFirstView  = std::ranges::elements_view<std::views::all_t<std::map<std::string, std::string>&>, 0>{ mp };
+    auto mapSecondView = std::ranges::elements_view<std::ranges::ref_view<std::map<std::string, std::string>>, 1>{ mp };
+  
+    Print(mapFirstView, "map first");
+    Print(mapSecondView, "map second");
+}
+
+std::cout << '\n';
+
+// https://en.cppreference.com/w/cpp/ranges/keys_view
+// https://en.cppreference.com/w/cpp/ranges/values_view
+// keys_view와 values_view는 elements_view을 특수화한 별칭이다.
+// keys_view   : elements_view에서 첫 번째 값(0번)만 추출하는 view
+// values_view : elements_view에서 두 번째 값(1번)만 추출하는 view
+{
+    // tuple은 엄밀히 말하자면 key, value가 묶인 pair와 같은 요소는 아니다.
+    // 하지만 keys_view와 values_view는 elements_view를 특수화한 형태이기 때문에 아래 코드는 사용 가능하다.
+    std::ranges::keys_view<std::views::all_t<std::vector<Tuple>&>>      tupleKeysView{ tuples };
+    std::ranges::values_view<std::ranges::ref_view<std::vector<Tuple>>> tupleValuesView{ tuples };
+
+    // (주의) 실제로는 위치를 템플릿 인자로 넣는 elements_view를 사용하기 때문에 인자를 추론하는 방식은 사용하지 못 한다.
+    // 다음 코드는 사용 불가
+    // std::ranges::keys_view/*<std::views::all_t<std::vector<Tuple>&>>*/      tupleKeysView{tuples};
+    // std::ranges::values_view/*<std::ranges::ref_view<std::vector<Tuple>>>*/ tupleValuesView{tuples};
+
+    Print(tupleKeysView, "tuple keys?");
+    Print(tupleValuesView, "tuple values?");
+
+    std::cout << '\n';
+
+    // keys_view와 values_view를 사용하는 정석적인 예시 1
+    auto pairKeysView   = std::ranges::keys_view<std::views::all_t<std::vector<Pair>&>>{ pairs };
+    auto pairValuesView = std::ranges::values_view<std::ranges::ref_view<std::vector<Pair>>>{ pairs };
+
+    Print(pairKeysView, "pair keys");
+    Print(pairValuesView, "pair values");
+
+    std::cout << '\n';
+
+    // keys_view와 values_view를 사용하는 정석적인 예시 2
+    auto mapKeysView   = std::ranges::keys_view<std::views::all_t<std::map<std::string, std::string>&>>{ mp };
+    auto mapValuesView = std::ranges::values_view<std::ranges::ref_view<std::map<std::string, std::string>>>{ mp };
+
+    Print(mapKeysView, "map keys");
+    Print(mapValuesView, "map values");
+}
+--------------------------------------------------
+
+==================================================
+
+https://en.cppreference.com/w/cpp/ranges#Range_adaptors
+https://learn.microsoft.com/ko-kr/cpp/standard-library/range-adaptors?view=msvc-170
+
+@ Range adaptors
+
+일반적인 상황이라면 생성자를 호출하는 방식으로 View를 만들지 않는다.
+
+보통은 간편하게 Ranges 라이브러리가 제공하는 Range 어댑터를 사용하여 View를 생성한다.
+
+(중요) 공식 문서를 봐도 거의 대부분의 경우 Range 어댑터를 사용하여 View를 생성한다.
+
+Range 어댑터는 라이브러리 차원에서 미리 생성해둔 Functor이지 사용자가 생성하는 객체가 아니다.
+
+사용자는 이미 만들어진 Range 어댑터의 operator()()를 호출하여 새로운 View를 생성하는 것이다.
+
+View를 수동으로 생성하는 것보다 Range 어댑터를 쓰는 방식이 훨씬 코드가 간결하다.
+
+(중요) 무엇보다 View의 핵심 기능 중 하나인 Composition을 쉽게 작업하려면 Range adaptors의 사용은 필수라고 봐야 한다.
+
+!! 주의 !!
+
+Adaptor라는 단어가 붙긴 하지만 디자인 패턴에서 말하는 Adapter pattern과는 다르니 혼동하면 안 된다.
+
+Range adaptors는 원본은 그대로 두고 데이터를 가공하여 가져올 목적의 View를 생성하는 도구일 뿐이지
+
+Adapter pattern처럼 호환성 인터페이스를 제공하는 그런 개념이 아니다.
+
+
+View 클래스는 std::ranges 안에 있지만 View adaptors는 std::ranges::views 네임스페이스 안에 있다.
+
+std::ranges::views의 또 다른 별칭은 std::views이니 이걸 사용해도 된다.
+
+namespace views = ranges::views;
+
+직접적인 생성자 방식으로 view를 생성하는 코드에서 ranges 네임스페이스 대신 views 네임스페이스를 쓰고,
+
+자료형의 접미사에 붙은 "_view"를 생략하면 View adaptor가 된다.
+
+auto takeView = std::ranges::take_view{ data, 3 }; // 생성자로 생성하는 방식
+auto takeView = std::views::take(data, 3); // View adaptor로 생성하는 방식
+
+(주의) View 클래스 ranges::ref_view와 어댑터 views::all()처럼 대응 관계가 예외적인 경우도 있다.
+
+code)---------------------------------------------
+void Run01()
+{
+    std::vector<int> data(10);
+    std::ranges::generate(data, []() { return std::random_device{ }() % 100; });
+
+    std::ranges::sort(data);
+
+    // 정렬되지 않은 임의의 요소 추가
+    data.push_back(30);
+    data.push_back(40);
+    data.push_back(50);
+    data.push_back(60);
+    data.push_back(70);
+
+    Print(data, "data");
+
+    // https://en.cppreference.com/w/cpp/ranges/ref_view
+    // https://en.cppreference.com/w/cpp/ranges/all_view
+    // views::all() : ref_view를 생성하는 Range 어댑터
+    // ref_view : range를 view로 사용하기 위한 view
+    {
+        // 생성자로 View를 생성하는 방식(템플릿 인자는 생략함)
+        // auto refView = std::ranges::ref_view{ data };
+        
+        // 어댑터를 사용할 때 다음과 같이 View 클래스의 이름을 명시해서 받아도 된다.
+        // std::ranges::ref_view<std::vector<int>> refView = std::views::all(data);
+        // std::ranges::ref_view refView = std::views::all(data);
+
+        // 하지만 이렇게 auto로 받는 방식이 장황하지 않고 깔끔하다.
+        auto refView = std::views::all(data); // std::ranges::ref_view<std::vector<int>> 생성
+
+        Print(refView, "ref_view");
+    }
+
+    std::cout << '\n';
+
+    // https://en.cppreference.com/w/cpp/ranges/filter_view
+    // views::filter() : filter_view를 생성하는 Range 어댑터
+    // filter_view : Predicate의 조건을 만족하는 element만 조회하기 위한 view
+    {
+        auto even = [](int elem) { return elem % 2 == 0; };
+        auto odd  = [](int elem) { return elem % 2 != 0; };
+
+        // 생성자로 View를 생성하는 방식(템플릿 인자는 생략함)
+        // auto filterEvenView = std::ranges::filter_view{ data, even };
+        // auto filterOddView  = std::ranges::filter_view{ data, odd };
+
+        // 어댑터로 View를 생성하는 방식
+        auto filterEvenView = std::views::filter(data, even);
+        auto filterOddView  = std::views::filter(data, odd);
+
+        // view 자체는 range이기 때문에 ranged-based 로직이나 알고리즘을 사용할 수 있다.
+        std::cout << "filter_view(even) : ";
+
+        // ranged-based for
+        for (int elem : filterEvenView)
+        {
+            std::cout << elem << ' ';
+        }
+
+        // ranges::for_each()
+        std::cout << "\nfilter_view(odd)  : ";
+        std::ranges::for_each(filterOddView, [](int elem) { std::cout << elem << ' '; });
+    }
+
+    std::cout << "\n\n";
+
+    // https://en.cppreference.com/w/cpp/ranges/transform_view
+    // views::transform() : transform_view를 생성하는 Range 어댑터
+    // transform_view : 원본으로부터 원소를 받아 이를 변형시켜서 조회하기 위한 view
+    {
+        // 레퍼런스 형태로 받을 경우 elem에 변형을 가하면 원본 값도 바뀌니 주의해야 한다.
+        auto twice = [](const int& elem) { return elem * 2; };
+
+        // 생성자로 View를 생성하는 방식(템플릿 인자는 생략함)
+        // auto transformView = std::ranges::transform_view{ data, twice };
+
+        // 어댑터로 View를 생성하는 방식
+        auto transformView = std::views::transform(data, twice);
+
+        Print(transformView, "transform_view");
+        
+        // 원본은 바뀌지 않는다.
+        Print(data, "original");
+    }
+
+    std::cout << '\n';
+
+    // https://en.cppreference.com/w/cpp/ranges/take_view
+    // views::take() : take_view를 생성하는 Range 어댑터
+    // take_view : 다른 view나 range로부터 처음 N개의 요소를 조회하는 view
+    {
+        // 생성자로 View를 생성하는 방식(템플릿 인자는 생략함)
+        // auto takeView = std::ranges::take_view{ data, 3 };
+
+        // 어댑터로 View를 생성하는 방식
+        auto takeView = std::views::take(data, 3);
+
+        Print(takeView, "take_view");
+    }
+
+    std::cout << '\n';
+
+    // https://en.cppreference.com/w/cpp/ranges/take_while_view
+    // views::take_while() : take_while_view를 생성하는 Range 어댑터
+    // take_while_view : Predicate가 false를 반환할 때까지 요소를 계속해서 조회하는 view
+    {
+        // 마찬가지로 레퍼런스 형태로 받을 경우 elem에 변형을 가하면 원본 값도 바뀌니 주의해야 한다.
+        auto under50 = [](const int& elem) { return elem < 50; };
+
+        // 생성자로 View를 생성하는 방식(템플릿 인자는 생략함)
+        // auto takeWhileView = std::ranges::take_while_view{ data, under50 };
+
+        // 어댑터로 View를 생성하는 방식
+        auto takeWhileView = std::views::take_while(data, under50);
+
+        // 임의로 넣은 30, 40은 출력하지 않는다.
+        Print(takeWhileView, "take_while_view");
+    }
+
+    std::cout << '\n';
+
+    // https://en.cppreference.com/w/cpp/ranges/drop_view
+    // views::drop() : drop_view를 생성하는 Range 어댑터
+    // drop_view : 다른 view나 range로부터 처음 N개의 요소를 스킵하고 그 이후 요소를 조회하는 view
+    {
+        // 생성자로 View를 생성하는 방식(템플릿 인자는 생략함)
+        // auto dropView = std::ranges::drop_view{ data, 5 };
+
+        // 어댑터로 View를 생성하는 방식
+        auto dropView = std::views::drop(data, 5);
+
+        Print(dropView, "drop_view");
+    }
+
+    std::cout << '\n';
+
+    // https://en.cppreference.com/w/cpp/ranges/drop_while_view
+    // views::drop_while() : drop_while_view를 생성하는 Range 어댑터
+    // drop_while_view : Predicate가 false를 반환할 때까지 요소를 스킵한 다음 true를 반환한 지점부터 조회하는 view
+    {
+        // 마찬가지로 레퍼런스 형태로 받을 경우 elem에 변형을 가하면 원본 값도 바뀌니 주의해야 한다.
+        auto under50 = [](const int& elem) { return elem < 50; };
+        
+        // 생성자로 View를 생성하는 방식(템플릿 인자는 생략함)
+        // auto dropWhileView = std::ranges::drop_while_view{ data, under50 };
+
+        // 어댑터로 View를 생성하는 방식
+        auto dropWhileView = std::views::drop_while(data, under50);
+
+        // 임의로 넣은 모든 요소를 출력할 확률이 높다.
+        Print(dropWhileView, "drop_while_view");
+    }
+
+    std::cout << '\n';
+
+    // https://en.cppreference.com/w/cpp/ranges/join_view
+    // views::join() : join_view를 생성하는 Range 어댑터
+    // join_view : view나 range의 요소를 평탄화(flattening)하여 조회하기 위한 view
+    {
+        // 단일 값 자체는 평탄화하는 것이 불가능하다(에러 발생).
+        // auto joinView = std::ranges::join_view{ data };
+
+        // 어댑터로 해도 마찬가지로 단일 값이면 평탄화하는 것이 불가능하다(에러 발생).
+        // auto joinView = std::views::join(data);
+
+        // 숫자 원소 평탄화
+        std::vector<std::vector<int>> nestedData{
+            { 1 }, { 2, 3 }, { 4, 5, 6 }, { 7, 8, 9, 10 }
+        };
+
+        // 생성자로 View를 생성하는 방식(템플릿 인자는 생략함)
+        // auto joinViewNums = std::ranges::join_view{ nestedData };
+
+        // 어댑터로 View를 생성하는 방식
+        auto joinViewNums = std::views::join(nestedData);
+
+        Print(joinViewNums, "join_view 1");
+
+        // 문자열 원소 평탄화
+        std::vector<std::string> names{
+            "James", "Mary", "David", "Susan", "Michael"
+        };
+        
+        // 생성자로 View를 생성하는 방식(템플릿 인자는 생략함)
+        // auto joinViewNames = std::ranges::join_view{ names };
+
+        // 어댑터로 View를 생성하는 방식
+        auto joinViewNames = std::views::join(names);
+
+        Print(joinViewNames, "join_view 2"); // string을 컨테이너로 취급하여 문자 하나하나를 평탄화함.
+    }
+
+    std::cout << '\n';
+
+    // https://en.cppreference.com/w/cpp/ranges/join_with_view
+    // views::join_with() (C++23) : join_with_view를 생성하는 Range 어댑터
+    // join_with_view (C++23) : join_view를 보강한 view로 delimiter를 추가할 수 있다.
+    {
+        using namespace std::string_literals;
+
+        // 문자열 원소 평탄화
+        std::vector<std::string> names{
+            "James", "Mary", "David", "Susan", "Michael"
+        };
+
+
+        std::string delim = "###";
+        auto singleViewDelim = std::ranges::single_view(delim);
+
+        // 생성자로 View를 생성하는 방식(템플릿 인자는 생략함)
+        // 마우스 인스펙터로 조회하면 owning_view로 delimiter를 받는데 이는 아주 예외적으로 데이터를 가지는 view이다.
+        // !! delimiter를 r-value를 직접 전달했기 때문에 해당 유형이 사용됨. !!
+        // auto joinWithView1 = std::ranges::join_with_view{ names, "###"s };
+
+        // 어댑터로 View를 생성하는 방식
+        // 마찬가지로 마우스 인스펙터로 조회해보면 owning_view로 delimiter를 받는다.
+        auto joinWithView1 = std::views::join_with(names, "###"s);
+
+        Print(joinWithView1, "join_with_view 1"); // delimiter조차 평탄화 대상임.
+
+        // 생성자로 View를 생성하는 방식(템플릿 인자는 생략함)
+        // delimiter의 원본이 있기 때문에 ref_view로 받는다(r-value가 아닌 l-value 형태로 받기 때문).
+        // auto joinWithView2 = std::ranges::join_with_view{ names, delim };
+
+        // 어댑터로 View를 생성하는 방식
+        // 마찬가지로 마우스 인스펙터로 조회해보면 ref_view로 delimiter를 받는다.
+        auto joinWithView2 = std::views::join_with(names, delim);
+        
+        Print(joinWithView2, "join_with_view 2"); // delimiter조차 평탄화 대상임.
+
+        // 생성자로 View를 생성하는 방식(템플릿 인자는 생략함)
+        // single_view<char>로 delimiter를 받는데 이건 단일 요소 'char'를 감싼 Range를 표현하는 Range factory이다.
+        // auto joinWithView3 = std::ranges::join_with_view{ names, '#' };
+
+        // 어댑터로 View를 생성하는 방식
+        // 마찬가지로 마우스 인스펙터로 조회해보면 single_view로 delimiter를 받는다.
+        auto joinWithView3 = std::views::join_with(names, '#');
+
+        Print(joinWithView3, "join_with_view 3"); // delimiter조차 평탄화 대상임.
+
+        // 가능할 것 같은데 해당 유형은 사용할 수 없다.
+        // Visual Studio 2022 기준 아직 C++23이 실험적인 기능이라 지원하지 않는 것으니 나중에 확인해봐야 한다.
+        // auto joinWithView4 = std::views::join_with(names, singleViewDelim);
+        // 
+        // Print(joinWithView4, "join_with_view 3"); // delimiter조차 평탄화 대상임.
+    }
+
+    std::cout << '\n';
+}
+
+void Run02()
+{
+    using Tuple = std::tuple<int, char, std::string>;
+    using Pair  = std::pair<int, std::string>;
+
+    // data 1
+    std::vector<Tuple> tuples{
+        { 100, 'A', "James" },
+        { 200, 'B', "Mary" },
+        { 300, 'C', "David" },
+        { 400, 'D', "Susan" },
+        { 500, 'E', "Michael" },
+    };
+
+    // data 2
+    std::vector<Pair> pairs{
+        { 1, "one" },
+        { 2, "two" },
+        { 3, "three" },
+        { 4, "four" }
+    };
+
+    // data 3
+    std::map<std::string, std::string> mp{
+        { "Korea", "Seoul" },
+        { "Japan", "Tokyo" },
+        { "China", "Beijing" },
+    };
+
+    // https://en.cppreference.com/w/cpp/ranges/elements_view
+    // views::elements<Idx>() : elements_view를 생성하는 Range 어댑터
+    // elements_view : tuple 스타일 자료형에서 특정 위치에 있는 요소를 조회하기 위한 view
+    {
+        // elements_view에서 특정 요소만 조회하려면 원본 컨테이너를 레퍼런스 형태로 알고 있어야 한다.
+        // std::ranges::elements_view<std::views::all_t<std::vector<Tuple>&>, 0>    tupleCol0_view{ tuples };
+        // std::ranges::elements_view<std::ranges::ref_view<std::vector<Tuple>>, 1> tupleCol1_view{ tuples };
+        // std::ranges::elements_view<std::ranges::ref_view<std::vector<Tuple>>, 2> tupleCol2_view{ tuples };
+
+        // (주의) elements_view는 특정 위치를 템플릿 인자로 지정해야 하기 때문에 인자를 추론하는 방식은 사용하지 못 한다.
+        // 다음 코드는 사용 불가
+        // std::ranges::elements_view/*<std::views::all_t<std::vector<Tuple>&>, 0>*/    tupleCol0_view{ tuples };
+        // std::ranges::elements_view/*<std::ranges::ref_view<std::vector<Tuple>>, 1>*/ tupleCol1_view{ tuples };
+
+        // 어댑터로 View를 생성하는 방식(!! 간결함 !!)
+        auto tupleCol0_view = std::views::elements<0>(tuples);
+        auto tupleCol1_view = std::views::elements<1>(tuples);
+        auto tupleCol2_view = std::views::elements<2>(tuples);
+
+        Print(tupleCol0_view, "tuple col 0");
+        Print(tupleCol1_view, "tuple col 1");
+        Print(tupleCol2_view, "tuple col 2");
+
+        std::cout << '\n';
+
+        // pair 또한 tuple-like 자료형이기 때문에 elements_view를 사용할 수 있다.
+        // auto pairFirstView  = std::ranges::elements_view<std::views::all_t<std::vector<Pair>&>, 0>{ pairs };
+        // auto pairSecondView = std::ranges::elements_view<std::ranges::ref_view<std::vector<Pair>>, 1>{ pairs };
+
+        // 어댑터로 View를 생성하는 방식(!! 간결함 !!)
+        auto pairFirstView  = std::views::elements<0>(pairs);
+        auto pairSecondView = std::views::elements<1>(pairs);
+
+        Print(pairFirstView, "pair first");
+        Print(pairSecondView, "pair second");
+
+        std::cout << '\n';
+
+        // map도 어떻게 보면 첫 번째 위치는 key, 두 번째 위치는 value로 볼 수 있기 때문에 elements_view를 사용할 수 있다.
+        // auto mapFirstView  = std::ranges::elements_view<std::views::all_t<std::map<std::string, std::string>&>, 0>{ mp };
+        // auto mapSecondView = std::ranges::elements_view<std::ranges::ref_view<std::map<std::string, std::string>>, 1>{ mp };
+
+        // 어댑터로 View를 생성하는 방식(!! 간결함 !!)
+        auto mapFirstView  = std::views::elements<0>(mp);
+        auto mapSecondView = std::views::elements<1>(mp);
+
+        Print(mapFirstView, "map first");
+        Print(mapSecondView, "map second");
+    }
+    
+    std::cout << '\n';
+
+    // https://en.cppreference.com/w/cpp/ranges/keys_view
+    // https://en.cppreference.com/w/cpp/ranges/values_view
+    // keys_view와 values_view는 elements_view을 특수화한 별칭이다.
+    // views::keys()와 views::values()는 이러한 keys_view와 values_view를 생성하기 위한 어댑터이다.
+    // 
+    // views::keys<Idx>()   : keys_view를 생성하는 Range 어댑터
+    // views::values<Idx>() : values_view를 생성하는 Range 어댑터
+    // 
+    // keys_view   : elements_view에서 첫 번째 값(0번)만 추출하는 view
+    // values_view : elements_view에서 두 번째 값(1번)만 추출하는 view
+    {
+        // tuple은 엄밀히 말하자면 key, value가 묶인 pair와 같은 요소는 아니다.
+        // 하지만 keys_view와 values_view는 elements_view를 특수화한 형태이기 때문에 아래 코드는 사용 가능하다.
+        // std::ranges::keys_view<std::views::all_t<std::vector<Tuple>&>>      tupleKeysView{ tuples };
+        // std::ranges::values_view<std::ranges::ref_view<std::vector<Tuple>>> tupleValuesView{ tuples };
+
+        // (주의) 실제로는 위치를 템플릿 인자로 넣는 elements_view를 사용하기 때문에 인자를 추론하는 방식은 사용하지 못 한다.
+        // 다음 코드는 사용 불가
+        // std::ranges::keys_view/*<std::views::all_t<std::vector<Tuple>&>>*/      tupleKeysView{tuples};
+        // std::ranges::values_view/*<std::ranges::ref_view<std::vector<Tuple>>>*/ tupleValuesView{tuples};
+
+        // 어댑터로 View를 생성하는 방식(!! 간결함 !!)
+        auto tupleKeysView   = std::views::keys(tuples);
+        auto tupleValuesView = std::views::values(tuples);
+
+        Print(tupleKeysView, "tuple keys?");
+        Print(tupleValuesView, "tuple values?");
+
+        std::cout << '\n';
+
+        // keys_view와 values_view를 사용하는 정석적인 예시 1
+        // auto pairKeysView   = std::ranges::keys_view<std::views::all_t<std::vector<Pair>&>>{ pairs };
+        // auto pairValuesView = std::ranges::values_view<std::ranges::ref_view<std::vector<Pair>>>{ pairs };
+
+        // 어댑터로 View를 생성하는 방식(!! 간결함 !!)
+        auto pairKeysView   = std::views::keys(pairs);
+        auto pairValuesView = std::views::values(pairs);
+
+        Print(pairKeysView, "pair keys");
+        Print(pairValuesView, "pair values");
+
+        std::cout << '\n';
+
+        // keys_view와 values_view를 사용하는 정석적인 예시 2
+        // auto mapKeysView   = std::ranges::keys_view<std::views::all_t<std::map<std::string, std::string>&>>{ mp };
+        // auto mapValuesView = std::ranges::values_view<std::ranges::ref_view<std::map<std::string, std::string>>>{ mp };
+
+        // 어댑터로 View를 생성하는 방식(!! 간결함 !!)
+        auto mapKeysView   = std::views::keys(mp);
+        auto mapValuesView = std::views::values(mp);
+
+        Print(mapKeysView, "map keys");
+        Print(mapValuesView, "map values");
+    }
+}
+--------------------------------------------------
+
+==================================================
+
+https://en.cppreference.com/w/cpp/ranges#Example
+https://hackingcpp.com/cpp/std/range_views_intro.html
+
+@ View composition
+
+기존 알고리즘 함수를 통해 여러 차례 가공한 데이터를 가져오려면
+
+어딘가에 중간 복사본을 만들거나 복잡한 분기문을 작성해야 하는 경우가 많다.
+
+하지만 View는 다른 View를 Range로 받아 뷰 체이닝을 통해 연계하는 것이 가능한데(View는 그 자체로 Range의 조건을 충족함)
+
+이러한 특성을 통해 View는 서로 결합될 수 있으며 손쉽게 여러 차례 가공한 데이터를 조회할 수 있다.
+
+(중요) 이렇게 View를 결합한다고 해도 평가 자체는 접근할 때 이루어지는 lazy evaluation 방식으로 동작한다.
+
+
+[ Range ] -> 홀수 필터링 -> 첫 5개 요소만 가져오기 -> 제곱하기 -> 역순으로 조회
+
+기존의 알고리즘으로 작업한다면 매 단계마다 값을 정제하는 과정에서 컨테이너를 하나씩 생성하는 것이 일반적일 것이다.
+
+하지만 View composition을 사용하면 원본을 복사하지 않고 그저 가공하여 데이터를 조회하는 것이 가능하다. 
+
+이런 식으로 말이다.
+
+[ Ranges ] -> ranges::filter_view -> ranges::take_view -> ranges::transform_view -> ranges::reverse_view
+
+
+먼저 기존의 알고리즘 방식으로 위에 나온 순서대로 데이터를 정제하는 작업을 진행해 보자.
+
+code)---------------------------------------------
+std::vector<int> data(20);
+std::ranges::generate(data, []() { return std::random_device{ }() % 100; });
+
+Print(data, "data");
+
+// 홀수 필터링
+std::vector<int> filterOdd;
+
+std::copy_if(data.begin(), data.end(), std::back_inserter(filterOdd),
+             [](int elem) {
+                 return elem % 2 != 0;
+             });
+
+Print(filterOdd, "Filter Odd");
+
+// 첫 5개 요소만 가져오기(필터링된 영역의 최대 범위를 벗어나지 않게 처리해야 함)
+std::vector<int> takeFive{ 
+    filterOdd.begin(), 
+    filterOdd.begin() + std::min((size_t)5, filterOdd.size())
+};
+
+Print(takeFive, "Take 5");
+
+// 각 요소 제곱하기
+std::vector<int> squared;
+
+std::transform(takeFive.begin(), takeFive.end(), std::back_inserter(squared),
+               [](int elem) {
+                   return elem * elem;
+               });
+
+Print(squared, "Squared");
+
+// 역순으로 조회
+std::vector<int> reversed{ squared.rbegin(), squared.rend() };
+
+Print(reversed, "Reversed");
+--------------------------------------------------
+
+이것을 Views 기반으로 적용하면 복사하거나 번거로운 작업 없이 원본의 레퍼런스 참조하는 형태로 데이터를 정제할 수 있다.
+
+(중요) View도 일종의 Range이기 때문에 스스로를 인자로 전달하여 작업을 연계하는 것이 가능하다.
+
+code)---------------------------------------------
+std::vector<int> data(20);
+std::ranges::generate(data, []() { return std::random_device{ }() % 100; });
+
+Print(data, "data");
+
+// 홀수 필터링
+auto filterOdd = std::views::filter(data, [](int elem) { return elem % 2 != 0; });
+
+Print(filterOdd, "Filter Odd");
+
+// 첫 5개 요소만 가져오기
+auto takeFive = std::views::take(filterOdd, 5); // 최대 영역을 벗어나지 않게 내부적으로 처리됨.
+
+Print(takeFive, "Take 5");
+
+// 각 요소 제곱하기
+auto squared = std::views::transform(takeFive, [](int elem) { return elem * elem; });
+
+Print(squared, "Squared");
+
+// 역순으로 조회
+auto reversed = std::views::reverse(squared);
+
+Print(reversed, "Reversed");
+--------------------------------------------------
+
+지역에 거쳐가는 View를 임시 객체로 두지 않고 어댑터가 반환하는 View를 묶어서 바로 연계하는 것도 가능하다.
+
+code)---------------------------------------------
+std::vector<int> data(20);
+std::ranges::generate(data, []() { return std::random_device{ }() % 100; });
+
+// 재귀적인 특성 혹은 스택과 같은 특성을 고려하면 코드는 다음과 같이 작성되어야 한다.
+auto composition =
+    std::views::reverse(
+        std::views::transform(
+            std::views::take(
+                std::views::filter(
+                    data,
+                    [](int elem) { return elem % 2 != 0; }),
+                5),
+            [](int elem) { return elem * elem; }));
+
+Print(composition, "Composition");
+--------------------------------------------------
+
+==================================================
+
+https://en.wikipedia.org/wiki/Syntactic_sugar
+
+@ View composition by pipe operator
+
+지역에 거쳐가는 임시 객체를 만드는 방법이나 뷰를 하나로 묶어서 연계하는 방법은 가독성이 떨어지고 경우에 따라서 이해하기 힘들다.
+
+View는 Range를 결합할 목적으로 사용 가능한 일종의 구문 설탕(syntactic sugar)을 제공한다.
+
+바로 Pipe 연산자로 이걸 사용하면 임시 객체를 생성하지도 않고 사람이 읽기도 편한 코드를 작성할 수 있다.
+
+code)---------------------------------------------
+std::vector<int> data(20);
+std::ranges::generate(data, []() { return std::random_device{ }() % 100; });
+
+Print(data, "data");
+
+// View composition by pipe operator
+auto composedView = data | std::views::filter([](int elem) { return elem % 2 != 0; })
+                         | std::views::take(5)
+                         | std::views::transform([](int elem) { return elem * elem; })
+                         | std::views::reverse; // reverse는 괄호를 붙이면 안 됨(함수가 아닌 객체임).
+
+Print(composedView, "Composed");
+
+// 어댑터로 전달되는 과정을 보면 어댑터에 data를 직접적으로 넣지 않고 있다.
+// 
+// 각 filter(), take(), transform()이 반환하는 것을 보면 _Range_closure(MSVC 기준)로 되어 있는데
+// 이건 View가 아니라 Range를 결합하기 위해 생성하는 객체이다.
+// 
+// 공식 문서를 확인해 보면 해당 유형은 "range adaptor closure"를 반환한다고 되어 있다.
+// View를 반환하는 것이 아니기 때문에 reverse는 그냥 그대로 전달해야 한다.
+//
+// composedView를 조회해보면 reverse_view로 나오는데 이건 Pipe 연산자에 의해서 그렇게 생성된 것이다.
+// Pipe 연산자는 왼쪽에서 오른쪽으로 결합되는데 따라서 마지막으로 작업한 std::views::reverse에 맞는 view가 반환된 것이다.
+--------------------------------------------------
+
+==================================================
+
+https://en.wikipedia.org/wiki/Lazy_evaluation
+
+@ Lazy evaluation
+
+Views는 lazy evaluation 방식으로 동작한다.
+
+즉, 생성될 때 평가가 이루어지는 것이 아닌 매번 요소에 접근할 때마다 이루어진다.
+
+(주의) Views가 lazy evaluation을 지원하는 것이지 Ranges 알고리즘 함수는 그 즉시 연산을 수행한다.
+
+code)---------------------------------------------
+void Run()
+{
+    std::vector<int> data(10);
+    std::ranges::generate(data, []() { return std::random_device{ }() % 100; });
+
+    // (주의) Views가 lazy evaluation을 지원하는 것이지 Ranges 알고리즘 함수는 그 즉시 연산을 수행한다.
+    std::ranges::sort(data);
+
+    Print(data, "data");
+
+    // 짝수 필터링
+    auto even = [](int elem) {
+            std::cout << "  check even : " << elem << '\n';
+
+            return elem % 2 == 0;
+        };
+
+    auto filterEven = data | std::views::filter(even);
+
+    std::cout << "########## Eval Check 1 ##########\n";
+
+    // 제곱하기
+    auto square = [](int elem) {
+            std::cout << "    pass to square : " << elem << '\n';
+
+            return elem * elem;
+        };
+
+    auto squaredView = filterEven | std::views::transform(square);
+
+    std::cout << "########## Eval Check 2 ##########\n";
+
+    // 지연 평가 확인하기
+    for (int elem : squaredView)
+    {
+        // 생성될 때 평가가 이루어지는 것이 아닌 매번 요소에 접근할 때마다 이루어진다.
+        // elem으로 받아오는 건 최종적으로 평가가 완료된 data의 elements이다.
+        std::cout << "      result : " << elem << '\n';
+    }
+}
+--------------------------------------------------
+
+==================================================
+
+@ View를 Range 알고리즘과 혼용하기
+
+View 클래스는 그 자체로 begin()과 end()를 제공하는 Range이다.
+
+따라서 Range-based for loop로 순회할 수 있으며 Ranges 알고리즘 함수의 인자로 사용하는 것도 가능하다.
+
+code)---------------------------------------------
+std::vector<int> data{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+std::vector<int> copies;
+
+// 짝수만 조회하는 view 생성
+auto evenView = data | std::views::filter([](int elem) { return elem % 2 == 0; });
+
+// Ranged-based for loop로 순회하며 출력
+std::cout << "Ranged-based for loop : ";
+for (int elem : evenView)
+{
+    std::cout << elem << ' ';
+}
+
+std::cout << '\n';
+
+// Ranges 알고리즘을 사용하여 출력
+std::cout << "ranges::for_each() : ";
+std::ranges::for_each(evenView, [](int elem) { std::cout << elem << ' '; });
+std::cout << "\n\n";
+
+// Ranges 알고리즘을 사용하여 복사
+std::ranges::copy(evenView, std::back_inserter(copies));
+Print(copies, "Copies");
+std::cout << '\n';
+
+// View composition을 통해 짝수를 제곱한 다음 뒤집고 앞에서 3개의 요소만 가져오는 view 생성
+auto complexView = evenView | std::views::transform([](int elem) { return elem * elem; })
+                            | std::views::reverse
+                            | std::views::take(3);
+
+// 짝수를 제곱한 결과를 ranges::copy()를 통해 ostream_iterator로 출력
+std::cout << "ostream_iterator : ";
+std::ranges::copy(complexView, std::ostream_iterator<int>(std::cout, " "));
+std::cout << '\n';
+
+// view를 find_if()와 연계하여 홀수를 찾는 작업 진행
+auto iter = std::ranges::find_if(complexView, [](int elem) { return elem % 2 != 0; });
+
+// view도 range이기 때문에 end()를 호출하는 것이 가능하다.
+// 하지만 view에 따라서 Range의 끝을 파악하기 위해 범위 전체를 탐색하는 과정을 거치는 경우도 있으니 주의하자(상황에 따라 비효율적임).
+if (iter != complexView.end()) // end() 호출은 최적화 수준이나 view에 따라서 비효율적일 수 있음.
+{
+    std::cout << "complexView has at least one odd number.\n\n";
+}
+else
+{
+    std::cout << "all numbers in complexView are even.\n\n";
+}
+
+// C++23부터는 ranges::to()를 통해 view나 range가 반환하는 결과를 원하는 Range 컨테이너로 받을 수 있다.
+auto retVec = std::ranges::to<std::vector<int>>(complexView); // view -> range
+auto retSet = std::ranges::to<std::set<int>>(retVec); // range -> range
+
+Print(retVec, "view -> vector");
+Print(retSet, "vector -> set");
+--------------------------------------------------
+
+##################################################
+
+https://en.cppreference.com/w/cpp/ranges#Range_factories
+
+# Range factories
+
+Range factories는 특수 목적 Range(View)를 생성하기 위한 기능을 제공하는 유틸리티 모음이다.
+
+C++20 기준으로 views::empty, views::single, views::iota, views::istream_view가 있다.
+
+- views::empty : 요소를 가지지 않는 빈 View인 ranges::empty_view를 "복사"
+
+- views::single : 단 하나의 요소만 가지는 View인 ranges::single_view를 생성
+
+- views::iota : 순차적으로 증가하는 값을 생성하는 View인 ranges::iota_view를 생성
+
+- views::istream : operator>>를 통해 요소를 input stream으로 사용하기 위한 View인 ranges::basic_istream_view를 생성
+
+- views::repeat (C++23) : 계속해서 똑같은 값을 생성하는 View인 ranges::repeat_view를 생성
+
+Range factories는 어떠한 소스로부터 원하는 목적의 View를 생성하고자 할 때 유용하게 쓸 수 있다.
+
+code)---------------------------------------------
+void Run()
+{
+    // https://en.cppreference.com/w/cpp/ranges/empty_view
+    // empty_view : 요소를 가지지 않는 빈 View
+    {
+        auto emptyView = std::views::empty<int>; // 인자를 넣으면 안 됨.
+
+        // std::views::empty<T>는 그 자체로 클래스의 인스턴스이기에 그냥 복사하는 방식으로 사용해야 한다.
+        // namespace views {
+        //     template<class T>
+        //     constexpr empty_view<T> empty{};
+        // }
+
+        // empty_view는 비어있는 Range를 표현하기 위해 사용하며 Range 계의 nullptr이라고 보면 된다.
+        // 단순하게 View를 받는 함수를 호출하고자 할 때 유용하게 사용할 수 있다.
+        Print(emptyView, "empty");
+    }
+
+    std::cout << '\n';
+
+    // https://en.cppreference.com/w/cpp/ranges/single_view
+    // single_view : 단 하나의 요소만 가지는 View
+    {
+        auto singleView = std::views::single(100);
+
+        // single_view는 하나의 값을 View로 래핑해서 사용하고자 할 때 유용하게 쓸 수 있다.
+        Print(singleView, "single");
+    }
+
+    std::cout << '\n';
+
+    // https://en.cppreference.com/w/cpp/ranges/iota_view
+    // iota_view : 순차적으로 증가하는 값을 생성하는 View
+    {
+        // iota_view는 단독으로 인자 하나만 넣어서 사용하면 값을 무한히 생성하기 때문에 조심해야 한다.
+        // Print(std::views::iota(1), "iota"); // 값을 무한히 생성함.
+        Print(std::views::iota(1, 10), "iota(1, 10)"); // 1 ~ 9의 값을 순차적으로 생성함.
+        Print(std::views::iota(1) | std::views::take(10), "iota + take"); // 이렇게 take()를 통해 제한을 주는 것도 가능함.
+
+        // 값을 누적해서 반환하는 개념이 아닌 begin()부터 시작하면 초기화된다.
+        auto iotaView = std::views::iota(1);
+        Print(iotaView | std::views::take(10), "iota 1");
+        Print(iotaView | std::views::take(10), "iota 2");
+    }
+
+    std::cout << '\n';
+
+    // https://en.cppreference.com/w/cpp/ranges/basic_istream_view
+    // basic_istream_view : operator>>를 통해 요소를 input stream으로 사용하기 위한 View
+    {
+        std::string str{ "This is a string" };
+
+        // string 자체는 operator>>를 쓸 수 없으니 input stream으로 변환한 다음 넘겨야 한다.
+        std::istringstream istream{ str };
+        auto istreamView = std::views::istream<std::string>(istream); // stream으로 표현된 문자열을 view로 생성
+
+        Print(istreamView, "istream"); // istream_view는 항상 공백(space)을 delimiter로 사용함.
+
+        // istream_view는 input stream 유형이라면 어떠한 것이라도 받을 수 있다.
+        std::ofstream fileOutStream{ "data.txt" };
+        fileOutStream << "1 2 3\nOne\nTwo\nThree";
+        fileOutStream.close();
+
+        // std::ifstream fileInStream{ __FILE__ };
+        std::ifstream fileInStream{ "data.txt" };
+
+        if (!fileInStream)
+        {
+            std::cout << "Could not open a file\n";
+
+            return;
+        }
+
+        istreamView = std::views::istream<std::string>(fileInStream);
+
+        Print(istreamView, "file input stream");
+
+        fileInStream.close();
+    }
+
+    std::cout << '\n';
+
+    // https://en.cppreference.com/w/cpp/ranges/repeat_view
+    // repeat_view (C++23) : 계속해서 똑같은 값을 생성하는 View
+    {
+        // iota_view처럼 단독으로 인자 하나만 넣어서 사용하면 값을 무한히 생성하기 때문에 조심해야 한다.
+        // Print(std::views::repeat("Hello World!"), "repeat");
+        
+        // iota_view처럼 반복 제한을 repeat_view 차원에서 걸 수도 있고 take()를 통해 걸 수도 있다.
+        Print(std::views::repeat("Hello World!", 3), "repeat 3 times");
+
+        // 문자열 외 사용자가 지정한 요소라면 어떤 것이든 반복하는 것이 가능하다.
+        Print(std::views::repeat(100) | std::views::take(5), "repeat + take");
+    }
+}
+--------------------------------------------------
