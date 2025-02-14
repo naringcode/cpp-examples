@@ -106,12 +106,16 @@ void Run()
     std::cout << "########## Eval Check 2 ##########\n";
 
     // 지연 평가 확인하기
+    // View가 생성될 때 평가가 이루어지는 것이 아닌 매번 data의 element에 접근할 때마다 평가가 이루어진다.
+    // View는 생성되는 그 순간 프로그램의 흐름에 어떠한 영향도 끼치지 않는다.
     for (int elem : squaredView)
     {
-        // 생성될 때 평가가 이루어지는 것이 아닌 매번 요소에 접근할 때마다 이루어진다.
-        // elem으로 받아오는 건 최종적으로 평가가 완료된 data의 elements이다.
+        // elem으로 받아오는 건 접근 후 최종적으로 평가가 완료된 data의 개별 element이다. 
+        // View를 쓰면 원본 data의 elements를 보관하는 그런 작업을 거치지 않아도 된다.
         std::cout << "      result : " << elem << '\n';
     }
+
+    // 
 }
 
 END_NS
