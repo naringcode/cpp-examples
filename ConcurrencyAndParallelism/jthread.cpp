@@ -108,7 +108,7 @@ void Task(std::stop_token token)
 
 void Run()
 {
-    // stop_token을 생성하지 않아도 jthread 차원에서 stop_token을 전달한다.
+    // stop_token을 생성하지 않아도 jthread 차원에서 stop_token을 만들어 전달한다.
     std::jthread th{ Task };
 
     // 이런 식으로 jthread에서 stop_token을 꺼내오는 것도 가능하다.
@@ -120,7 +120,7 @@ void Run()
     std::cin.get();
 
     // (주의) 해당 함수는 stop_token을 활성화할 뿐 작업 스레드를 종료시키진 않는다.
-    th.request_stop(); // 주석처리해도 jthread 차원에서 request_stop()을 호출하지만 이 경우 Run()에 있는 callback는 호출하지 않음.
+    th.request_stop(); // 주석처리해도 jthread 차원에서 request_stop()을 호출하지만 이 경우 Run()에 있는 callback는 호출하지 않음(버그인지는 모르겠음).
 }
 
 END_NS
@@ -164,9 +164,10 @@ void Run()
     std::stop_source source;
     srcInfo(source);
 
-    // (주의??) token을 직접 넘기는 방식을 쓰면 명시적으로 request_stop()을 호출해야 한다.
-    // token을 직접 넘겼는데 request_stop()를 호출하지 않으면 stop_requested()는 계속 false를 반환한다.
-    // 이 사항은 MSVC의 버그일 수도 있으니 나중에 컴파일러 버전이 올라가면 따로 테스트해봐야 한다.
+    // (주의?) stop_source를 통해 token을 가져와 인자로 넘기는 방식을 사용하면 명시적으로 request_stop()을 호출해야 한다.
+    // stop_source로 token을 가져와 직접 넘겼는데 request_stop()을 호출하지 않으면 stop_requested()는 계속 false를 반환한다.
+    // 이건 stop_source의 문제일 수도 있고 MSVC의 버그일 수도 있으니 나중에 컴파일러 버전이 올라가면 더 테스트해봐야 한다.
+    // cppreference에서 이 부분에 대해 명시된 것이 없어서 약간 혼란스럽다.
     std::jthread threads[4];
     threads[0] = std::jthread(task, source.get_token(), "worker 1");
     threads[1] = std::jthread(task, source.get_token(), "worker 2");
@@ -224,9 +225,10 @@ void Run()
     // std::jthread interruptible(TaskWithInterrupt);
     // std::jthread nonInterruptible(TaskWithoutInterrupt);
 
-    // MSVC의 버그인지는 모르겠는데 TaskWithInterrupt가 TaskWithoutInterrupt보다 선행된 상태에서
-    // request_stop()을 호출하지 않고 jthread의 소멸 단계를 거치면 stop_requested()가 true를 반환하지 않는다.
-    // jthread의 선언 순서가 실행 순서에 영향을 미치면 안 되는데 버그 같아 보인다.
+    // !! 순서 주의 !!
+    // jthread는 내부에서 request_stop()와 join()를 호출한다.
+    // 만약 interruptible 먼저 선행되면 해당 작업이 전부 완료된 이후 nonInterruptible의 request_stop()과 join()을 호출한다.
+    // 즉, TaskWithInterrupt()에서 stop_requested()로 true를 받기 이전에 모든 작업이 완료되어 버린다.
     std::jthread nonInterruptible(TaskWithoutInterrupt);
     std::jthread interruptible(TaskWithInterrupt);
 
