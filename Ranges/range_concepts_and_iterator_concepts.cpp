@@ -5,6 +5,7 @@
 // Configuration : Debug-x64, Release-x64
 
 #include <iostream>
+#include <format>
 #include <algorithm>
 #include <ranges>
 #include <string>
