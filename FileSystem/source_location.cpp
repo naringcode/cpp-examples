@@ -8,8 +8,7 @@
 #include <filesystem>
 #include <source_location>
 
-// https://en.cppreference.com/w/cpp/io/basic_osyncstream
-// https://en.wikipedia.org/wiki/Interleaving
+// https://en.cppreference.com/w/cpp/utility/source_location
 
 // C++20부터는 매크로에 의존하여 사용했던 파일 정보 출력(?)을 대체하기 위한 클래스를 제공한다.
 
