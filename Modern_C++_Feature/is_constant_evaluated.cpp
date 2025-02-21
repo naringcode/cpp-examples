@@ -129,7 +129,7 @@ constexpr int Factorial(int num)
     }
     else
     {
-        // 런타임에 평가를 진행하기에 결과 자체는 최적화되지 않는다.
+        // 런타임에 평가를 진행하기에 결과 최적화는 컴파일러의 최적화 수준에 의존적이다.
         if (num <= 1)
             return 1;
 
@@ -144,7 +144,7 @@ void Run()
     // int facto2 = Factorial(100); // 값이 int의 범위를 벗어나지만 에러는 발생하지 않음.
 
     constexpr int facto3 = Factorial(10); // 디스어셈블러로 보면 값이 바로 들어감!
-    int facto4 = Factorial(5);
+    int facto4 = Factorial(5); // 컴파일러의 최적화 수준에 따라 값이 바로 들어갈 수도 있고 함수를 호출할 수도 있음.
 
     std::cout << "facto3 : " << facto3 << '\n'; // compile-time
     std::cout << "facto4 : " << facto4 << '\n'; // runtime
