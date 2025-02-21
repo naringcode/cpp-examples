@@ -287,9 +287,13 @@ END_NS
 BEGIN_NS(Case03)
 
 // https://en.cppreference.com/w/cpp/utility/functional#Operator_function_objects
+// https://en.wikipedia.org/wiki/Partial_function
 
 // std::bind()는 operator function objects와 연계해서 사용하기 좋다.
 // C++ 알고리즘이 unary predicate(단항 predicate) 기반으로 동작할 경우 binary predicate(이항 predicate)을 단항 식으로 변환해서 사용할 수 있다.
+//
+// std::bind()는 인자를 특정 값으로 고정한 operator function objects를 통해 subset을 제한하는 방식으로 partial function을 구현하기에 용이하다.
+// !! 대부분의 경우에는 람다식을 쓰는 것이 가독성이 더 좋긴 함. !!
 
 void Run()
 {
@@ -319,7 +323,11 @@ void Run()
         std::cout << elem << ' ';
     }
 
-    std::cout << "\n\n";
+    std::cout << '\n';
+
+    std::cout << std::ranges::count_if(nums, greaterThan10) << '\n';
+
+    std::cout << '\n';
 
     // 간단한 기능이라면 람다식 대신 사용해서 자료를 변형하는 것도 가능하다.
     std::vector<int> results;
