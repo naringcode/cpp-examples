@@ -269,7 +269,6 @@ void Run()
 
 END_NS
 
-
 BEGIN_NS(Case02)
 
 // std::bind_front()도 std::bind()처럼 스마트 포인터를 연계해서 사용하는 것이 가능하다.
