@@ -121,7 +121,7 @@ void Run()
         std::set<int> set{ std::begin(sourceArr), std::end(sourceArr) };
         Print(set, "set");
 
-        // set 계열의 자료형은 vector와는 달리 erase()에서 key 값을 받는다.
+        // set과 map처럼 key나 key-value 기반의 컨테이너는 vector와는 달리 erase()에 key를 전달해서 요소를 삭제할 수 있다.
         set.erase(2);
         Print(set, "after erase()");
     }
@@ -133,7 +133,7 @@ void Run()
         std::multiset<int> multiSet{ std::begin(sourceArr), std::end(sourceArr) };
         Print(multiSet, "multiset");
 
-        // set 계열의 자료형은 vector와는 달리 erase()에서 key 값을 받는다.
+        // set과 map처럼 key나 key-value 기반의 컨테이너는 vector와는 달리 erase()에 key를 전달해서 요소를 삭제할 수 있다.
         multiSet.erase(2);
         Print(multiSet, "after erase()");
     }
@@ -145,7 +145,7 @@ void Run()
         std::unordered_set<int> unorderedSet{ std::begin(sourceArr), std::end(sourceArr) };
         Print(unorderedSet, "unordered_set");
 
-        // set 계열의 자료형은 vector와는 달리 erase()에서 key 값을 받는다.
+        // set과 map처럼 key나 key-value 기반의 컨테이너는 vector와는 달리 erase()에 key를 전달해서 요소를 삭제할 수 있다.
         unorderedSet.erase(2);
         Print(unorderedSet, "after erase()");
     }
@@ -157,7 +157,7 @@ void Run()
         std::unordered_multiset<int> unorderedMultiSet{ std::begin(sourceArr), std::end(sourceArr) };
         Print(unorderedMultiSet, "unordered_multiset");
 
-        // set 계열의 자료형은 vector와는 달리 erase()에서 key 값을 받는다.
+        // set과 map처럼 key나 key-value 기반의 컨테이너는 vector와는 달리 erase()에 key를 전달해서 요소를 삭제할 수 있다.
         unorderedMultiSet.erase(2);
         Print(unorderedMultiSet, "after erase()");
     }
@@ -175,11 +175,15 @@ BEGIN_NS(Case02)
 // https://en.cppreference.com/w/cpp/container/multiset/erase_if
 // https://en.cppreference.com/w/cpp/container/unordered_set/erase_if
 // https://en.cppreference.com/w/cpp/container/unordered_multiset/erase_if
+// https://en.cppreference.com/w/cpp/container/map/erase_if
+// https://en.cppreference.com/w/cpp/container/multimap/erase_if
+// https://en.cppreference.com/w/cpp/container/unordered_map/erase_if
+// https://en.cppreference.com/w/cpp/container/unordered_multimap/erase_if
 
 // C++20에는 전역 erase()를 제공하는데 이를 통해 일관된 인터페이스대로 코드를 작성하여 특정 값을 제거하는 것이 가능하다.
 // 전역 erase()를 사용하면 이따금 사용되는 remove() -> erase() 작업을 거치지 않아도 된다.
 //
-// set 계열의 자료형은 자체적인 erase()를 가져서 그런지 전역 erase()를 지원하지 않는다.
+// set이나 map 계열의 자료형은 자체적인 erase()를 가져서 그런지 전역 erase()를 지원하지 않는다.
 // 하지만 전역 erase_if()는 사용할 수 있기 때문에 이를 통해 인터페이스를 맞추면 된다.
 
 void Run()
@@ -274,7 +278,7 @@ void Run()
         // set.erase(2);
         // Print(set, "after erase()");
 
-        // set 계열의 자료형은 전역 erase()는 사용할 수 없지만 전역 erase_if()는 사용할 수 있다.
+        // set이나 map 계열의 자료형은 전역 erase()를 지원하지 않지만 전역 erase_if()는 사용할 수 있다.
         std::erase_if(set, [](int elem) { return elem == 2; });
 
         Print(set, "after erase_if()");
@@ -291,7 +295,7 @@ void Run()
         // multiSet.erase(2);
         // Print(multiSet, "after erase()");
 
-        // set 계열의 자료형은 전역 erase()는 사용할 수 없지만 전역 erase_if()는 사용할 수 있다.
+        // set이나 map 계열의 자료형은 전역 erase()를 지원하지 않지만 전역 erase_if()는 사용할 수 있다.
         std::erase_if(multiSet, [](int elem) { return elem == 2; });
 
         Print(multiSet, "after erase_if()");
@@ -308,7 +312,7 @@ void Run()
         // unorderedSet.erase(2);
         // Print(unorderedSet, "after erase()");
 
-        // set 계열의 자료형은 전역 erase()는 사용할 수 없지만 전역 erase_if()는 사용할 수 있다.
+        // set이나 map 계열의 자료형은 전역 erase()를 지원하지 않지만 전역 erase_if()는 사용할 수 있다.
         std::erase_if(unorderedSet, [](int elem) { return elem == 2; });
 
         Print(unorderedSet, "after erase_if()");
@@ -325,7 +329,7 @@ void Run()
         // unorderedMultiSet.erase(2);
         // Print(unorderedMultiSet, "after erase()");
 
-        // set 계열의 자료형은 전역 erase()는 사용할 수 없지만 전역 erase_if()는 사용할 수 있다.
+        // set이나 map 계열의 자료형은 전역 erase()를 지원하지 않지만 전역 erase_if()는 사용할 수 있다.
         std::erase_if(unorderedMultiSet, [](int elem) { return elem == 2; });
 
         Print(unorderedMultiSet, "after erase_if()");
