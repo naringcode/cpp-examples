@@ -289,7 +289,7 @@ BEGIN_NS(Case03)
 // https://en.cppreference.com/w/cpp/utility/functional#Operator_function_objects
 
 // std::bind()는 operator function objects와 연계해서 사용하기 좋다.
-// C++ 알고리즘이 binary predicate(이항 predicate) 기반으로 동작할 경우 이를 unary predicate(단항 predicate)로 변환해서 사용할 수 있다.
+// C++ 알고리즘이 unary predicate(단항 predicate) 기반으로 동작할 경우 binary predicate(이항 predicate)을 단항 식으로 변환해서 사용할 수 있다.
 
 void Run()
 {
