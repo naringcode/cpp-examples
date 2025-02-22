@@ -41,6 +41,11 @@
 // # Range Factories
 // 15. range_factories.cpp
 //
+// # 응용하기
+// 16. Functional/bind_and_mem_fn.cpp(Case03)
+// 17. Functional/bind_front_and_bind_back.cpp(Case03)
+// 18. STL/span.cpp(Case04)
+//
 
 // https://en.cppreference.com/w/cpp/ranges#Example
 // https://hackingcpp.com/cpp/std/range_views_intro.html

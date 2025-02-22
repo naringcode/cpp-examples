@@ -29,6 +29,9 @@ using namespace std;
 // # 위 항목을 한데 묶어서 정리한 내용
 // 7. concepts_details.cpp
 //
+// # 응용하기
+// 8. STL/span.cpp(Case02)
+//
 // Concepts을 학습한 다음 Ranges를 학습하도록 한다.
 // Ranges의 동작 방식을 잘 이해하기 위해선 Concepts에 대한 선행 학습이 필요하다.
 //
