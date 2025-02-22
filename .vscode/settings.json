@@ -98,7 +98,13 @@
         "coroutine": "cpp",
         "resumable": "cpp",
         "filesystem": "cpp",
-        "execution": "cpp"
+        "execution": "cpp",
+        "numbers": "cpp",
+        "unordered_set": "cpp",
+        "semaphore": "cpp",
+        "*.ipp": "cpp",
+        "latch": "cpp",
+        "syncstream": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
