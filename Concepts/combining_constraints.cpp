@@ -1,6 +1,6 @@
-// Update Date : 2025-01-17
+// Update Date : 2025-02-24
 // OS : Windows 10 64bit
-// Program : Visual Studio 2022, Visual Studio 2019, https://godbolt.org/ + gcc-14.2 with the -std=c++20 option
+// Program : Visual Studio 2022, vscode(gcc-14.2.0)
 // Version : C++20
 // Configuration : Debug-x64, Release-x64
 
@@ -81,7 +81,7 @@ void PrintSmallIntInfo(SignedSmallInteger auto x)
 
 // concept을 정의하기 위한 requires를 논리 연산자로 묶는 것도 가능하다.
 template <typename T>
-concept Addable = 
+concept Addable =
     requires(T x) { { x + x } -> std::same_as<T>; } ||
     requires(T x) { { x += x } -> std::same_as<T>; };
 
@@ -91,17 +91,17 @@ concept Subtractable =
     requires(T x) { { x -= x } -> std::same_as<T>; };
 
 template <typename T>
-concept OStreamable = requires (std::ostream& os, T x)
-{ 
+concept OStreamable = requires (std::ostream & os, T x)
+{
     { os << x } -> std::same_as<ostream&>;
 };
 
 // 논리 연산자는 concept을 정의하는 용도 외 템플릿 코드에서 requires clause를 적용하는 쪽에서도 사용할 수 있다.
 template <typename T>
-    requires Addable<T> && Subtractable<T> && OStreamable<T>
+    requires Addable<T>&& Subtractable<T>&& OStreamable<T>
 void PrintAddAndSubtract(T a, T b)
 {
-    cout << "PrintAddAndSubtract(), Type[" << typeid(T).name() <<"] : " << a + b << ", " << a - b << "\n";
+    cout << "PrintAddAndSubtract(), Type[" << typeid(T).name() << "] : " << a + b << ", " << a - b << "\n";
 }
 
 struct FooArithmeticA
@@ -156,7 +156,11 @@ int main()
 
     PrintSmallIntInfo('A');
     PrintSmallIntInfo(short{ 10 });
+#ifdef _MSC_VER
     PrintSmallIntInfo(unsigned short{ 20 });
+#elif defined(__GNUC__)
+    PrintSmallIntInfo((unsigned short){ 20 });
+#endif
 
     // 다음 Integral 자료형은 2바이트를 넘어서는 크기이기 때문에 컴파일 에러 발생
     // PrintSmallIntInfo(100);
@@ -168,7 +172,7 @@ int main()
 
     // 출력 방법을 정의하지 않았기 때문에 컴파일 에러 발생
     // PrintAddAndSubtract(FooArithmeticB{ }, FooArithmeticB{ });
-    
+
     // 덧셈과 뺄셈에 대한 연산자 오버로딩을 진행하지 않아 컴파일 에러 발생
     // PrintAddAndSubtract(FooArithmeticC{ }, FooArithmeticC{ });
 

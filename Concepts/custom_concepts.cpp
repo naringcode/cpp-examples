@@ -1,10 +1,11 @@
-// Update Date : 2025-01-16
+// Update Date : 2025-02-24
 // OS : Windows 10 64bit
-// Program : Visual Studio 2022, Visual Studio 2019, https://godbolt.org/ + gcc-14.2 with the -std=c++20 option
+// Program : Visual Studio 2022, vscode(gcc-14.2.0)
 // Version : C++20
 // Configuration : Debug-x64, Release-x64
 
 #include <iostream>
+#include <memory>
 #include <concepts>
 #include <vector>
 #include <list>

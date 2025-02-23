@@ -1,11 +1,13 @@
 // Update Date : 2025-01-19
 // OS : Windows 10 64bit
-// Program : Visual Studio 2022, Visual Studio 2019, https://godbolt.org/ + gcc-14.2 with the -std=c++20 option
+// Program : Visual Studio 2022, vscode(gcc-14.2.0)
 // Version : C++20
 // Configuration : Debug-x64, Release-x64
 
 #include <iostream>
+#include <functional>
 #include <algorithm>
+#include <memory>
 #include <concepts>
 #include <iterator>
 #include <array>
@@ -1164,7 +1166,11 @@ void Run()
 
     PrintSmallIntInfo('A');
     PrintSmallIntInfo(short{ 10 });
+#ifdef _MSC_VER
     PrintSmallIntInfo(unsigned short{ 20 });
+#elif defined(__GNUC__)
+    PrintSmallIntInfo((unsigned short){ 20 });
+#endif
 
     // 다음 Integral 자료형은 2바이트를 넘어서는 크기이기 때문에 컴파일 에러 발생
     // PrintSmallIntInfo(100);
