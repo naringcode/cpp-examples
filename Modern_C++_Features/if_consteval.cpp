@@ -1,6 +1,6 @@
-// Update Date : 2025-02-22
-// OS : None
-// Program : https://godbolt.org/ + gcc-14.2 with the -std=c++23 option
+// Update Date : 2025-02-23
+// OS : Windows 10 64bit
+// Program : vscode(gcc-14.2.0)
 // Version : C++23
 // Configuration : None
 
