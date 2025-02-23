@@ -3,16 +3,20 @@
         {
             "type": "cppbuild",
             "label": "C/C++: g++.exe build active file",
-            "command": "C:\\MinGW-W64\\GCC-13.1.0\\bin\\g++.exe",
+            "command": "C:/MinGW-W64/GCC-14.2.0/bin/g++.exe",
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
                 "${file}",
+                "-std=c++23",  // for c++23
+                "-lstdc++exp", // for <print> (https://stackoverflow.com/questions/78452682/stdprintln-print-not-working-in-winlibs-mingw-gcc-14-1)
                 "-o",
-                "${fileDirname}\\${fileBasenameNoExtension}.exe"
+                // "${fileDirname}\\${fileBasenameNoExtension}.exe"
+                // https://code.visualstudio.com/docs/reference/variables-reference
+                "${workspaceFolder}\\bin\\${fileBasenameNoExtension}.exe"
             ],
             "options": {
-                "cwd": "${fileDirname}"
+                "cwd": "C:/MinGW-W64/GCC-14.2.0/bin"
             },
             "problemMatcher": [
                 "$gcc"
