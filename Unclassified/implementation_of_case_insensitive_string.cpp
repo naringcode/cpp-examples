@@ -118,7 +118,7 @@ private:
         auto rhsLowerView = rhs._str   | std::views::transform(tolower);
         
         // 본래 일반 문자열 배열(char[])를 대상으로 사전 순서 비교를 하여 std::strong_ordering을 받기 위한 함수이다.
-        // 정적 배열을 대상으로 사용할 때는 std::begin()과 std::end()를 사용하도록 한다.
+        // 정적 배열을 대상으로 사용할 때는 std::begin()과 std::end()를 쓰도록 한다.
         auto threeWayCmp = std::lexicographical_compare_three_way(lhsLowerView.begin(), lhsLowerView.end(),
                                                                   rhsLowerView.begin(), rhsLowerView.end());
     
