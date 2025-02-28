@@ -1,0 +1,3793 @@
+Update Date : 2025-03-01
+OS : Windows 10 64bit
+Program : Visual Studio 2022
+Version : C++20
+Configuration : Debug-x64, Release-x64
+
+단계별 학습을 위해서라도 다음 순서대로 보도록 하자.
+
+# C++20 비교 연산자 개요(Three-way 비교 연산자를 위주로 다룸)
+1. c++20_comparison_operators_intro.txt <-----
+
+# C++20 이전의 비교 연산
+2. user_defined_comparison_operators_before_c++20.cpp
+
+# C++20 이후의 비교 연산
+3. three-way_comparison_operators_on_standard_types.cpp
+4. default_three-way_comparison_operators.cpp
+5. equality_operators_after_c++20.cpp
+6. lexicographical_equality_comparisons.cpp
+7. precautions_on_three-way_comparison_operators.cpp
+
+# operator<=> 반환 타입
+8. return_type_strong_ordering.cpp
+9. return_type_weak_ordering.cpp
+10. return_type_partial_ordering.cpp
+11. changing_ordering_category.cpp
+
+# default로 정의한 Three-way 비교 연산자를 기반으로 동작하는 객체의 부모 클래스와 멤버 객체 간 관계 연산
+12. default_three-way_rel_ops_on_inheritance_and_member_objects.cpp
+
+# Furthermore
+13. sorting_by_user_defined_three-way_comparison_operators.cpp
+14. compare_fallback_funcs_to_synthesize_three-way_comp.cpp
+15. lexicographical_compare_three_way_on_static_array.cpp
+
+# 응용하기
+16. implementation_of_case_insensitive_string.cpp
+
+##################################################
+
+https://en.cppreference.com/w/cpp/language/operator_comparison
+
+# 사용자 정의 비교 연산자(C++20 이전)
+
+C++은 6가지의 비교 연산자를 제공하며 이 비교 연산자들은 두 가지 부류로 구분할 수 있다.
+
+- 관계 연산자(Relational operators) : <, >, <=, >=
+
+- 동등 연산자(Equality operators) : ==, !=
+
+
+연산자 오버로딩을 사용하면 사용자 수준에서 비교 연산자의 기능을 정의하는 것이 가능하다(@는 임의의 연산자).
+
+bool T::operator@(const U& rhs) const; // 클래스 내부에 정의
+
+bool operator@(const T& lhs, const U& rhs); // 클래스 외부에 정의
+
+
+사용자가 만든 자료형을 STL 컨테이너나 알고리즘 함수 등에서 사용하고자 할 때는 사용자 정의 비교 연산자를 필요로 하는 경우가 있다.
+
+- 대부분의 경우에 필요한 사용자 정의 비교 연산자는 operator<나 operator==임.
+
+- 연관 컨테이너(Associative containers)에서는 operator<를 사용하고,
+  비연관 컨테이너(Unordered associative containers)에서는 operator==를 사용함.
+
+- 컨테이너를 정렬하거나 대소비교를 통해 원소를 찾는 알고리즘은 operator<를 사용하고,
+  find()처럼 정확하게 무언가를 특정하기 위한 알고리즘은 operator==를 사용함.
+
+- std::accumulate()처럼 operator+를 필요로 하는 경우도 있는데 이건 비교 연산자가 아니라서 예외로 봄.
+
+
+operator<와 operator==만 정의하면 나머지 비교 연산자의 수식을 유도하는 것이 가능하다.
+
+C++은 이러한 근거에 기반하여 rel_ops 네임스페이스를 제공한다.
+
+1. a != b : !(a == b)
+
+2. a > b : (b < a)
+
+3. a <= b : !(b < a)
+
+4. a >= b : !(a < b)
+
+
+사용자 정의 비교 연산자를 멤버 함수로 가지는 형태의 코드를 작성해 보자.
+
+code)---------------------------------------------
+struct Number
+{
+    int num = 0;
+
+    Number() = default;
+    Number(int num)
+        : num{ num }
+    { }
+
+    // C++ 내부에서 자주 사용하는 비교 연산자
+    bool operator<(const Number& rhs) const
+    {
+        return num < rhs.num;
+    }
+
+    bool operator==(const Number& rhs) const
+    {
+        return num == rhs.num;
+    }
+
+    // 나머지 비교 연산자는 위에서 정의한 두 개의 비교 연산자로부터 유도할 수 있다.
+    bool operator!=(const Number& rhs) const
+    {
+        return !(*this == rhs);
+    }
+
+    bool operator>(const Number& rhs) const
+    {
+        return rhs < *this;
+    }
+
+    bool operator<=(const Number& rhs) const
+    {
+        return !(rhs < *this);
+    }
+
+    bool operator>=(const Number& rhs) const
+    {
+        return !(*this < rhs);
+    }
+};
+
+void Run()
+{
+    Number num1{ 10 };
+    Number num2{ 20 };
+
+    std::cout << "num1 < num2  : " << (num1 < num2) << '\n';
+    std::cout << "num1 > num2  : " << (num1 > num2) << '\n';
+    std::cout << "num1 <= num2 : " << (num1 <= num2) << '\n';
+    std::cout << "num1 >= num2 : " << (num1 >= num2) << '\n';
+    std::cout << "num1 == num2 : " << (num1 == num2) << '\n';
+    std::cout << "num1 != num2 : " << (num1 != num2) << '\n';
+
+    std::cout << "-------------------------\n";
+
+    // num1과 정수 5를 비교하면 비교 연산자를 num1.operator@(5)로 받는다.
+    // 이 과정에서 operator@가 받는 Number의 생성자가 5를 받을 수 있기 때문에 암묵적으로 5를 Number로 변환해서 받을 수 있다.
+    std::cout << "num1 < 5  : " << (num1 < 5) << '\n';
+    std::cout << "num1 > 5  : " << (num1 > 5) << '\n';
+    std::cout << "num1 <= 5 : " << (num1 <= 5) << '\n';
+    std::cout << "num1 >= 5 : " << (num1 >= 5) << '\n';
+    std::cout << "num1 == 5 : " << (num1 == 5) << '\n';
+    std::cout << "num1 != 5 : " << (num1 != 5) << '\n';
+
+    std::cout << "-------------------------\n";
+
+    // 하지만 정수가 먼저 위치하게 되면 정수에 해당하는 멤버 변수는 찾을 수 없기 때문에 컴파일 에러가 발생한다.
+    // 15.operator@(num2) <----- 이런 코드는 존재할 수 없음.
+    // operator@(15, num2) <----- 이런 식으로 대응하는 함수도 없음.
+    // std::cout << "15 < num2  : " << (15 < num2) << '\n';
+    // std::cout << "15 > num2  : " << (15 > num2) << '\n';
+    // std::cout << "15 <= num2 : " << (15 <= num2) << '\n';
+    // std::cout << "15 >= num2 : " << (15 >= num2) << '\n';
+    // std::cout << "15 == num2 : " << (15 == num2) << '\n';
+    // std::cout << "15 != num2 : " << (15 != num2) << '\n';
+}
+--------------------------------------------------
+
+사용자 정의 비교 연산자를 멤버 함수로 정의했을 경우 정수가 왼쪽에 왔을 때 적절한 함수를 찾지 못 한다.
+
+하지만 사용자 정의 비교 연산자를 전역으로 작성하면 이런 문제가 해결된다.
+
+code)---------------------------------------------
+struct Number
+{
+    int num = 0;
+
+    Number() = default;
+    Number(int num)
+        : num{ num }
+    { }
+
+    // C++ 내부에서 자주 사용하는 비교 연산자
+    friend bool operator<(const Number& lhs, const Number& rhs)
+    {
+        return lhs.num < rhs.num;
+    }
+
+    friend bool operator==(const Number& lhs, const Number& rhs)
+    {
+        return lhs.num == rhs.num;
+    }
+
+    // 나머지 비교 연산자는 위에서 정의한 두 개의 비교 연산자로부터 유도할 수 있다.
+    friend bool operator!=(const Number& lhs, const Number& rhs)
+    {
+        return !(lhs == rhs);
+    }
+
+    friend bool operator>(const Number& lhs, const Number& rhs)
+    {
+        return rhs < lhs;
+    }
+
+    friend bool operator<=(const Number& lhs, const Number& rhs)
+    {
+        return !(rhs < lhs);
+    }
+
+    friend bool operator>=(const Number& lhs, const Number& rhs)
+    {
+        return !(lhs < rhs);
+    }
+};
+
+void Run()
+{
+    Number num1{ 10 };
+    Number num2{ 20 };
+
+    std::cout << "num1 < num2  : " << (num1 < num2) << '\n';
+    std::cout << "num1 > num2  : " << (num1 > num2) << '\n';
+    std::cout << "num1 <= num2 : " << (num1 <= num2) << '\n';
+    std::cout << "num1 >= num2 : " << (num1 >= num2) << '\n';
+    std::cout << "num1 == num2 : " << (num1 == num2) << '\n';
+    std::cout << "num1 != num2 : " << (num1 != num2) << '\n';
+
+    std::cout << "-------------------------\n";
+
+    // num1과 정수 5를 비교하면 비교 연산자를 num1.operator@(5)로 받는다.
+    // 이 과정에서 operator@가 받는 Number의 생성자가 5를 받을 수 있기 때문에 암묵적으로 5를 Number로 변환해서 받을 수 있다.
+    std::cout << "num1 < 5  : " << (num1 < 5) << '\n';
+    std::cout << "num1 > 5  : " << (num1 > 5) << '\n';
+    std::cout << "num1 <= 5 : " << (num1 <= 5) << '\n';
+    std::cout << "num1 >= 5 : " << (num1 >= 5) << '\n';
+    std::cout << "num1 == 5 : " << (num1 == 5) << '\n';
+    std::cout << "num1 != 5 : " << (num1 != 5) << '\n';
+
+    std::cout << "-------------------------\n";
+
+    // 비교 연산자를 전역으로 정의하고 암묵적으로 형변환을 통해 대응 관계를 사용할 수 있다면 컴파일러는 이를 허용한다.
+    // 15.operator@(num2) <----- 이런 식의 코드는 찾을 수 없지만
+    // operator@(15, num2) <----- 이런 식으로 대응하는 함수는 찾을 수 있음.
+    std::cout << "15 < num2  : " << (15 < num2) << '\n';
+    std::cout << "15 > num2  : " << (15 > num2) << '\n';
+    std::cout << "15 <= num2 : " << (15 <= num2) << '\n';
+    std::cout << "15 >= num2 : " << (15 >= num2) << '\n';
+    std::cout << "15 == num2 : " << (15 == num2) << '\n';
+    std::cout << "15 != num2 : " << (15 != num2) << '\n';
+}
+--------------------------------------------------
+
+
+생성자가 explicit으로 되어 있으면 암묵적인 형변환을 허용하지 않으니 주의해야 한다.
+
+code)---------------------------------------------
+struct Number
+{
+    int num = 0;
+
+    explicit Number() = default;
+    explicit Number(int num)
+        : num{ num }
+    { }
+
+    ...
+};
+
+void Run()
+{
+    Number num1{ 10 };
+    Number num2{ 20 };
+
+    std::cout << "num1 < num2  : " << (num1 < num2) << '\n';
+    std::cout << "num1 > num2  : " << (num1 > num2) << '\n';
+    std::cout << "num1 <= num2 : " << (num1 <= num2) << '\n';
+    std::cout << "num1 >= num2 : " << (num1 >= num2) << '\n';
+    std::cout << "num1 == num2 : " << (num1 == num2) << '\n';
+    std::cout << "num1 != num2 : " << (num1 != num2) << '\n';
+
+    std::cout << "-------------------------\n";
+
+    // explicit으로 인한 암묵적인 형변환 적용 불가
+
+    // std::cout << "num1 < 5  : " << (num1 < 5) << '\n';
+    // std::cout << "num1 > 5  : " << (num1 > 5) << '\n';
+    // std::cout << "num1 <= 5 : " << (num1 <= 5) << '\n';
+    // std::cout << "num1 >= 5 : " << (num1 >= 5) << '\n';
+    // std::cout << "num1 == 5 : " << (num1 == 5) << '\n';
+    // std::cout << "num1 != 5 : " << (num1 != 5) << '\n';
+
+    std::cout << "-------------------------\n";
+
+    // std::cout << "15 < num2  : " << (15 < num2) << '\n';
+    // std::cout << "15 > num2  : " << (15 > num2) << '\n';
+    // std::cout << "15 <= num2 : " << (15 <= num2) << '\n';
+    // std::cout << "15 >= num2 : " << (15 >= num2) << '\n';
+    // std::cout << "15 == num2 : " << (15 == num2) << '\n';
+    // std::cout << "15 != num2 : " << (15 != num2) << '\n';
+}
+--------------------------------------------------
+
+생성자는 explicit으로 하고 싶지만 다른 타입을 비교 연산자로 받고 싶으면
+
+대응되는 사용자 정의 비교 연산자를 전부 정의해야 한다.
+
+code)---------------------------------------------
+struct Number
+{
+    int num = 0;
+
+    explicit Number() = default;
+    explicit Number(int num)
+        : num{ num }
+    { }
+
+    // C++ 내부에서 자주 사용하는 비교 연산자
+    friend bool operator<(const Number& lhs, const Number& rhs) { return lhs.num < rhs.num; }
+    friend bool operator<(int lhs, const Number& rhs) { return lhs < rhs.num; }
+    friend bool operator<(const Number& lhs, int rhs) { return lhs.num < rhs; }
+
+    friend bool operator==(const Number& lhs, const Number& rhs) { return lhs.num == rhs.num; }
+    friend bool operator==(int lhs, const Number& rhs) { return lhs == rhs.num; }
+    friend bool operator==(const Number& lhs, int rhs) { return lhs.num == rhs; }
+
+    // 나머지 비교 연산자는 위에서 정의한 두 유형의 비교 연산자로부터 유도할 수 있다.
+    friend bool operator!=(const Number& lhs, const Number& rhs) { return !(lhs == rhs); }
+    friend bool operator!=(int lhs, const Number& rhs) { return !(lhs == rhs); }
+    friend bool operator!=(const Number& lhs, int rhs) { return !(lhs == rhs); }
+
+    friend bool operator>(const Number& lhs, const Number& rhs) { return rhs < lhs; }
+    friend bool operator>(int lhs, const Number& rhs) { return rhs < lhs; }
+    friend bool operator>(const Number& lhs, int rhs) { return rhs < lhs; }
+
+    friend bool operator<=(const Number& lhs, const Number& rhs) { return !(rhs < lhs); }
+    friend bool operator<=(int lhs, const Number& rhs) { return !(rhs < lhs); }
+    friend bool operator<=(const Number& lhs, int rhs) { return !(rhs < lhs); }
+
+    friend bool operator>=(const Number& lhs, const Number& rhs) { return !(lhs < rhs); }
+    friend bool operator>=(int lhs, const Number& rhs) { return !(lhs < rhs); }
+    friend bool operator>=(const Number& lhs, int rhs) { return !(lhs < rhs); }
+};
+
+void Run()
+{
+    Number num1{ 10 };
+    Number num2{ 20 };
+
+    std::cout << "num1 < num2  : " << (num1 < num2) << '\n';
+    std::cout << "num1 > num2  : " << (num1 > num2) << '\n';
+    std::cout << "num1 <= num2 : " << (num1 <= num2) << '\n';
+    std::cout << "num1 >= num2 : " << (num1 >= num2) << '\n';
+    std::cout << "num1 == num2 : " << (num1 == num2) << '\n';
+    std::cout << "num1 != num2 : " << (num1 != num2) << '\n';
+
+    std::cout << "-------------------------\n";
+
+    // explicit 생성자로 인해 암묵적인 형변환을 받을 수 없다면 모든 유형의 비교 연산자를 직접 정의해야 한다.
+
+    std::cout << "num1 < 5  : " << (num1 < 5) << '\n';
+    std::cout << "num1 > 5  : " << (num1 > 5) << '\n';
+    std::cout << "num1 <= 5 : " << (num1 <= 5) << '\n';
+    std::cout << "num1 >= 5 : " << (num1 >= 5) << '\n';
+    std::cout << "num1 == 5 : " << (num1 == 5) << '\n';
+    std::cout << "num1 != 5 : " << (num1 != 5) << '\n';
+
+    std::cout << "-------------------------\n";
+
+    std::cout << "15 < num2  : " << (15 < num2) << '\n';
+    std::cout << "15 > num2  : " << (15 > num2) << '\n';
+    std::cout << "15 <= num2 : " << (15 <= num2) << '\n';
+    std::cout << "15 >= num2 : " << (15 >= num2) << '\n';
+    std::cout << "15 == num2 : " << (15 == num2) << '\n';
+    std::cout << "15 != num2 : " << (15 != num2) << '\n';
+}
+--------------------------------------------------
+
+
+https://en.cppreference.com/w/cpp/utility/rel_ops/operator_cmp
+
+operator<와 operator==만 정의하면 나머지 비교 연산자는 유도하는 것이 가능하다고 했다.
+
+C++은 이러한 근거를 바탕으로 하여 두 연산자를 정의하였을 때 나머지 연산자를 사용할 수 있게 해주는
+
+유틸리티인 rel_ops 네임스페이스를 제공한다(찾아보면 C++98부터 제공한 기능이라고 함).
+
+(주의) C++20부터 Three-way 비교 연산자가 도입됨에 따라 rel_ops는 deprecated된 상태이다.
+원문 : As of C++20, std::rel_ops are deprecated in favor of operator<=>.
+
+// <utility>
+namespace rel_ops
+{
+    template<class T>
+    bool operator!=(const T& lhs, const T& rhs)
+    {
+        return !(lhs == rhs);
+    }
+
+    template<class T>
+    bool operator>(const T& lhs, const T& rhs)
+    {
+        return rhs < lhs;
+    }
+
+    template<class T>
+    bool operator<=(const T& lhs, const T& rhs)
+    {
+        return !(rhs < lhs);
+    }
+
+    template<class T>
+    bool operator>=(const T& lhs, const T& rhs)
+    {
+        return !(lhs < rhs);
+    }
+}
+
+C++20으로 해당 네임스페이스를 사용하려고 하면 에러가 뜨기 때문에 다음 매크로를 추가해야 한다.
+
+#define _SILENCE_CXX20_REL_OPS_DEPRECATION_WARNING
+#define _SILENCE_ALL_CXX20_DEPRECATION_WARNINGS
+
+code)---------------------------------------------
+struct Number
+{
+    int num = 0;
+
+    Number() = default;
+    Number(int num)
+        : num{ num }
+    { }
+
+    // rel_ops 네임스페이스를 사용하기 위해선 최소한 다음 2가지 비교 연산자를 직접 정의해야 한다.
+    friend bool operator<(const Number& lhs, const Number& rhs)
+    {
+        return lhs.num < rhs.num;
+    }
+
+    friend bool operator==(const Number& lhs, const Number& rhs)
+    {
+        return lhs.num == rhs.num;
+    }
+};
+
+void Run()
+{
+    // 이렇게 가져다 쓰면 된다.
+    using namespace std::rel_ops;
+
+    Number num1{ 10 };
+    Number num2{ 20 };
+
+    // Number에 나머지 비교 연산자가 적용된 것을 볼 수 있다.
+    std::cout << "num1 < num2  : " << (num1 < num2) << '\n';
+    std::cout << "num1 > num2  : " << (num1 > num2) << '\n';
+    std::cout << "num1 <= num2 : " << (num1 <= num2) << '\n';
+    std::cout << "num1 >= num2 : " << (num1 >= num2) << '\n';
+    std::cout << "num1 == num2 : " << (num1 == num2) << '\n';
+    std::cout << "num1 != num2 : " << (num1 != num2) << '\n';
+
+    std::cout << "-------------------------\n";
+
+    // (주의) rel_ops는 템플릿 추론을 기반으로 동작하기 추론 인자에 대응되는 비교 연산자를 찾지 못 한다.
+    // bool operator!=(const Number& lhs, const int& rhs) <----- 코드가 이런 식으로 컴파일됨.
+
+    std::cout << "num1 < 5  : " << (num1 < 5) << '\n';
+    // std::cout << "num1 > 5  : " << (num1 > 5) << '\n';
+    // std::cout << "num1 <= 5 : " << (num1 <= 5) << '\n';
+    // std::cout << "num1 >= 5 : " << (num1 >= 5) << '\n';
+    std::cout << "num1 == 5 : " << (num1 == 5) << '\n';
+    // std::cout << "num1 != 5 : " << (num1 != 5) << '\n';
+
+    std::cout << "-------------------------\n";
+
+    std::cout << "15 < num2  : " << (15 < num2) << '\n';
+    // std::cout << "15 > num2  : " << (15 > num2) << '\n';
+    // std::cout << "15 <= num2 : " << (15 <= num2) << '\n';
+    // std::cout << "15 >= num2 : " << (15 >= num2) << '\n';
+    std::cout << "15 == num2 : " << (15 == num2) << '\n';
+    // std::cout << "15 != num2 : " << (15 != num2) << '\n';
+}
+--------------------------------------------------
+
+rel_ops는 템플릿 추론 인자에 대응되는 비교 연산자를 찾지 못 한다는 단점이 있다.
+
+무엇보다 rel_ops 자체는 C++98에 정의된 오래된 표준이기 때문에
+
+모던 C++이 지원하는 최신 기능을 적용하지 못 한다는 치명적인 단점이 있다.
+
+rel_ops에 정의된 템플릿 함수를 보면 constexpr도 없고, noexcept도 없다.
+
+따라서 컴파일 타임에 평가하는 최적화도 불가능하고 예뢰를 던지지 않는 유형에선 사용할 수 없다.
+
+이는 최적화 및 기능 세분화를 해야 하는 입장에서 보면 굉장히 좋지 못한 측면이다.
+
+##################################################
+
+https://en.wikipedia.org/wiki/Three-way_comparison
+https://en.cppreference.com/w/cpp/language/operator_comparison#Three-way_comparison
+https://en.cppreference.com/w/cpp/utility#Three-way_comparison
+
+# Three-way Comparison Operator(C++20 이후)
+
+C++20부터는 관계 연산자를 대체하기 위한 특별한 비교 연산자를 제공하고 있다.
+
+- 세 방향 비교 연산자(Three-way comparison) : <=> (우주선(spaceship) 연산자라고도 함)
+
+Three-way comparison operator를 사용하면 손쉽게 관계 연산과 동등 연산을 사용하는 것이 가능하다.
+
+
+(주의) Three-way comparison operator는 컴파일 단계에서 다른 비교 연산자들을 정의하는 기능이 아니다.
+
+Three-way comparison operator를 사용할 수 있을 경우 컴파일러는 비교 연산자를 <=> 형식에 맞게 코드를 재배치할 뿐이다.
+
+해당 연산자는 사용자가 손쉽게 관계 연산을 통합해서 비교하게 해주는 연산자일 뿐이니 혼동하면 안 된다.
+
+
+(중요) operator<=>는 리터럴 0과 비교할 수 있는 값을 반환한다(정수형이나 bool 값 아님).
+
+이를 통해서 operator<=> 연산에 사용한 피연산자 간의 대소 관계를 파악할 수 있다.
+
+
+@ 표준 타입에 적용하는 Three-way 비교 연산자
+
+C++에서 제공하는 표준 타입은 특별한 이유가 없다면 Three-way 비교 연산자로 비교할 수 있다.
+
+code)---------------------------------------------
+int x = 10;
+int y = 20;
+
+std::cout << "x > y  : " << ((x <=> y) > 0) << '\n';  // 0
+std::cout << "x >= y : " << ((x <=> y) >= 0) << '\n'; // 0
+std::cout << "x < y  : " << ((x <=> y) < 0) << '\n';  // 1
+std::cout << "x <= y : " << ((x <=> y) <= 0) << '\n'; // 1
+std::cout << "x == y : " << ((x <=> y) == 0) << '\n'; // 0
+std::cout << "x != y : " << ((x <=> y) != 0) << '\n'; // 1
+--------------------------------------------------
+
+operator<=>가 반환하는 값은 리터럴 0(혹은 상수 0)으로만 비교할 수 있다.
+
+다음과 같이 0 값을 가진 변수를 대상으로 비교 연산을 진행하려고 하면 에러가 발생한다.
+
+code)---------------------------------------------
+int  zeroVal = 0;
+auto threeWayRet = x <=> y;
+
+// error C7595: 'std::_Literal_zero::_Literal_zero': 직접 함수에 대한 호출이 상수 식이 아닙니다.
+// std::cout << "x > y : " << ((x <=> y) > zeroVal);
+--------------------------------------------------
+
+
+표준 컨테이너의 경우 operator<=>가 정의되어 있기 때문에 <=> 연산자를 사용할 수 있다.
+
+이 경우에는 사전 순서(lexicographical)에 따라서 데이터를 비교한다.
+
+사전 순으로 보았을 때 앞서는 값이 작은 거고, 나중에 오는 값이 큰 것이다.
+
+C++20 이후 표준 컨테이너를 대상으로 관계 연산자(Relational operators)를 사용하면 
+
+컴파일러는 <=> 형식에 맞게 표현식을 재구성한다(정해진 표현식 재작성 규칙이 존재함).
+
+아래 코드를 디스어셈블러로 조회하면 관계 연산자 대신 <=> 연산자가 적용된 것을 볼 수 있다.
+
+(주의) 관계 연산자(<, >, <=, >=)는 operator<=> 기반으로 코드를 컴파일하지만 아닌 동등 연산자(==, !=)의 경우에는 operator==를 따르니 주의해야 한다.
+
+code)---------------------------------------------
+std::string str1 = "Hello";
+std::string str2 = "World";
+
+std::vector<int> vec1{ 1, 2, 3, 4, 5 };
+std::vector<int> vec2{ 1, 2, 0 };
+std::vector<int> vec3{ 1, 2, 9 };
+
+std::set<int> set1{ 6, 5, 4 }; // 정렬되어 4, 5, 6 순으로 값이 들어감.
+std::set<int> set2{ 0 };
+std::set<int> set3{ 9 };
+
+// 사전 순서로 보면 H가 W보다 사전 순서로 보았을 때 앞선다.
+// 따라서 Hello보다 World가 더 크다.
+// 
+// 디스어셈블러로 관계 연산자가 적용된 것을 조회하면 operator<=>가 적용된 것을 확인할 수 있다.
+// 각 줄에 표현된 2개의 관계 구문은 컴파일되면 같은 방식으로 동작한다.
+std::cout << "str1 > str2  : " << (str1 > str2)  << ", " << ((str1 <=> str2) > 0) << '\n';  // 0  
+std::cout << "str1 >= str2 : " << (str1 >= str2) << ", " << ((str1 <=> str2) >= 0) << '\n'; // 0
+std::cout << "str1 < str2  : " << (str1 < str2)  << ", " << ((str1 <=> str2) < 0) << '\n';  // 1
+std::cout << "str1 <= str2 : " << (str1 <= str2) << ", " << ((str1 <=> str2) <= 0) << '\n'; // 1
+
+// 동등 작업의 경우에는 operator==을 기반으로 동작하며, 수동으로 operator<=>를 사용하는 것도 가능하다.
+// 각 줄에 표현된 2개의 관계 구문은 다른 방식으로 동작한다.
+std::cout << "str1 == str2 : " << (str1 == str2) << ", " << ((str1 <=> str2) == 0) << '\n'; // 0
+std::cout << "str1 != str2 : " << (str1 != str2) << ", " << ((str1 <=> str2) != 0) << '\n'; // 1
+
+std::cout << "-------------------------\n";
+
+// 3번째 인덱스를 보면 0은 3보다 앞선다(사전 순으로 보았을 때 앞선 게 작은 값).
+std::cout << "vec1 > vec2  : " << (vec1 > vec2)  << ", " << ((vec1 <=> vec2) > 0) << '\n';  // 1
+std::cout << "vec1 >= vec2 : " << (vec1 >= vec2) << ", " << ((vec1 <=> vec2) >= 0) << '\n'; // 1
+std::cout << "vec1 < vec2  : " << (vec1 < vec2)  << ", " << ((vec1 <=> vec2) < 0) << '\n';  // 0
+std::cout << "vec1 <= vec2 : " << (vec1 <= vec2) << ", " << ((vec1 <=> vec2) <= 0) << '\n'; // 0
+
+std::cout << "vec1 == vec2 : " << (vec1 == vec2) << ", " << ((vec1 <=> vec2) == 0) << '\n'; // 0
+std::cout << "vec1 != vec2 : " << (vec1 != vec2) << ", " << ((vec1 <=> vec2) != 0) << '\n'; // 1
+
+std::cout << '\n';
+
+// 3번째 인덱스를 보면 3은 9보다 앞선다(사전 순으로 보았을 때 앞선 게 작은 값).
+std::cout << "vec1 > vec3  : " << (vec1 > vec3)  << ", " << ((vec1 <=> vec3) > 0) << '\n';  // 0
+std::cout << "vec1 >= vec3 : " << (vec1 >= vec3) << ", " << ((vec1 <=> vec3) >= 0) << '\n'; // 0
+std::cout << "vec1 < vec3  : " << (vec1 < vec3)  << ", " << ((vec1 <=> vec3) < 0) << '\n';  // 1
+std::cout << "vec1 <= vec3 : " << (vec1 <= vec3) << ", " << ((vec1 <=> vec3) <= 0) << '\n'; // 1
+
+std::cout << "vec1 == vec3 : " << (vec1 == vec3) << ", " << ((vec1 <=> vec3) == 0) << '\n'; // 0
+std::cout << "vec1 != vec3 : " << (vec1 != vec3) << ", " << ((vec1 <=> vec3) != 0) << '\n'; // 1
+
+std::cout << "-------------------------\n";
+
+// set은 데이터를 정렬하여 저장하기에 첫 요소부터 비교를 진행해야 한다.
+// 첫 요소인 4와 0을 비교하면 4가 더 크며, 이는 0이 4보다 사전 순으로 봤을 때 앞선다는 걸 의미한다(사전 순으로 앞선 게 작은 값).
+std::cout << "set1 > set2  : " << (set1 > set2)  << ", " << ((set1 <=> set2) > 0) << '\n';  // 1
+std::cout << "set1 >= set2 : " << (set1 >= set2) << ", " << ((set1 <=> set2) >= 0) << '\n'; // 1
+std::cout << "set1 < set2  : " << (set1 < set2)  << ", " << ((set1 <=> set2) < 0) << '\n';  // 0
+std::cout << "set1 <= set2 : " << (set1 <= set2) << ", " << ((set1 <=> set2) <= 0) << '\n'; // 0
+
+std::cout << "set1 == set2 : " << (set1 == set2) << ", " << ((set1 <=> set2) == 0) << '\n'; // 0
+std::cout << "set1 != set2 : " << (set1 != set2) << ", " << ((set1 <=> set2) != 0) << '\n'; // 1
+
+std::cout << '\n';
+
+// set은 데이터를 정렬하여 저장하기에 첫 요소부터 비교를 진행해야 한다.
+// 첫 요소인 4와 9를 비교하면 9가 더 크며, 이는 4가 9보다 사준 선으로 봤을 때 앞선다는 걸 의미한다(사전 순으로 앞선 게 작은 값).
+std::cout << "set1 > set3  : " << (set1 > set3)  << ", " << ((set1 <=> set3) > 0) << '\n';  // 0
+std::cout << "set1 >= set3 : " << (set1 >= set3) << ", " << ((set1 <=> set3) >= 0) << '\n'; // 0
+std::cout << "set1 < set3  : " << (set1 < set3)  << ", " << ((set1 <=> set3) < 0) << '\n';  // 1
+std::cout << "set1 <= set3 : " << (set1 <= set3) << ", " << ((set1 <=> set3) <= 0) << '\n'; // 1
+
+std::cout << "set1 == set3 : " << (set1 == set3) << ", " << ((set1 <=> set3) == 0) << '\n'; // 0
+std::cout << "set1 != set3 : " << (set1 != set3) << ", " << ((set1 <=> set3) != 0) << '\n'; // 1
+
+// 반드시 디스어셈블러로 관계 연산자와 동등 연산자의 동작 방식을 확인할 것!
+--------------------------------------------------
+
+
+일반 배열에 직접적으로 <=>를 적용하는 건 불가능하다.
+
+(주의) 객체에 적용하는 default operator<=>의 경우 member-wise 비교를 진행하는데 이 경우에는 일반 배열의 비교를 허용하니 혼동하면 안 된다.
+
+code)---------------------------------------------
+int arr1[]{ 1, 2, 3, 4, 5 };
+int arr2[]{ 1, 2, 3, 4, 9 };
+
+// 컴파일러 에러 발생
+// std::cout << "arr1 > arr2  : " << ((arr1 <=> arr2) > 0) << '\n';
+--------------------------------------------------
+
+
+https://en.wikipedia.org/wiki/Rewriting
+
+@ 표현식 재작성 규칙
+
+C++20부터는 operator<=>와 operator==가 정의되어 있을 경우 특정 상황이 발생했을 때 표현식을 재구성하여 코드를 컴파일한다.
+
+관계 연산자의 경우에는 operator<=>를 기반으로, 동등 연산자의 경우에는 operator==를 기반으로 코드를 재구성한다.
+
+관계 연산 "x @ y"를 operator<=>로 재구성했을 경우 해당 작업은 ordering 타입을 반환하는데
+
+컴파일러는 이 값을 리터럴 0과 비교할 수 있게 "x <=> y @ 0"과 같은 형태로 코드를 컴파일한다.
+
+
+표현식 재작성 규칙은 다음 규칙을 따른다.
+
+재작성 규칙에 따라 코드를 재구성했는데 모든 케이스에 대해 실패할 경우 컴파일 에러가 발생한다.
+
+1. x == y : y == x
+
+2. x != y : !(x == y), !(y == x)
+
+3. x < y : ((x <=> y) < 0), ((y <=> x) > 0)
+
+4. x > y : ((x <=> y) > 0), ((y <=> x) < 0)
+
+5. x <= y : ((x <=> y) <= 0), ((y <=> x) >= 0)
+
+6. x >= y : ((x <=> y) >= 0), ((y <=> x) <= 0)
+
+규칙은 이러하지만 실제로 연산자 함수를 호출할 때는 "x.operator<=>(y) @ 0"이나 "operator<=>(x, y) @ 0" 방식을 사용한다.
+
+
+어떠한 클래스를 기반으로 하는 obj 변수가 있고 해당 클래스의 생성자가 받을 수 있는 값 x가 있다고 해보자.
+
+그리고 operator<=>와 operator==가 멤버 함수로 작성되어 있다고 해보자.
+
+이 경우 코드는 다음과 같이 컴파일된다.
+
+1. x == obj : obj == x
+
+2. x != obj : !(obj == x)
+
+3. x < obj : ((obj <=> x) > 0)
+
+4. x > obj : ((obj <=> x) < 0)
+
+5. x <= obj : ((obj <=> x) >= 0)
+
+6. x >= obj : ((obj <=> x) <= 0)
+
+C++20 이전에는 이러한 변환이 불가능했지만 C++20부터는 이러한 변환을 허용한다.
+
+##################################################
+
+https://en.cppreference.com/w/cpp/language/operators
+
+# 사용자 정의 타입에 적용하는 Three-way 비교 연산자
+
+Three-way 비교 연산자도 다른 연산자들과 마찬가지로 사용자 수준에서 오버로딩할 수 있다.
+
+ordering_type T::operator<=>(const U& rhs) const; // 클래스 내부에 정의
+
+ordering_type operator<=>(const T& lhs, const U& rhs); // 클래스 외부에 정의
+
+
+operator<=>를 정의하는 영역이 클래스나 구조체 영역 안에 있다면 default를 적용할 수 있다.
+
+code)---------------------------------------------
+class SomeObject
+{
+public:
+    // 멤버 함수
+    auto operator<=>(const SomeObject& rhs) const = default;
+
+    // 클래스 내부 전역 함수
+    friend auto operator<=>(const SomeObject& lhs, const SomeObject& rhs) = default;
+};
+
+// 클래스 외부 전역 함수
+auto operator<=>(const SomeObject& lhs, const SomeObject& rhs) // = default;
+{
+    // 클래스 외부로 나오면 default 적용 불가
+}
+--------------------------------------------------
+
+operator<=>는 본래 관계 연산자를 통합하기 위한 연산자이지만 이걸 default로 정의하면
+
+operator==를 함께 정의해주기 때문에 6종류의 비교 연산자를 모두 사용할 수 있다.
+
+(주의) operator<=>를 default가 아닌 수동으로 정의하면 operator==는 사용자가 직접 정의해야 한다.
+
+(중요) 표현식 재작성 규칙에 따라 operator<=>와 operator==만 정의되어 있으면 모든 비교 연산을 수행할 수 있다.
+
+
+https://en.cppreference.com/w/cpp/language/default_comparisons#Three-way_comparison
+
+@ Three-way 비교 연산자를 default로 정의하기
+
+Three-way 비교 연산자를 default로 정의하면 관계 연산자와 비교 연산자를 모두 사용할 수 있다.
+
+디스어셈블러를 통해 관계 연산자를 조회하면 operator<=>를 사용하는 것을 볼 수 있다.
+
+operator<=> 이후 사용한 관계 심볼에 해당하는 std::operator@를 호출하는데 이건 operator<=>가 반환한 값과 비교하기 위한 함수 호출이다.
+
+code)---------------------------------------------
+struct Number
+{
+    int num = 0;
+
+    constexpr Number() = default;
+    constexpr Number(int num)
+        : num{ num }
+    { }
+
+    // 두 코드 다 테스트해보는 것을 추천한다.
+    // friend auto operator<=>(const Number& lhs, const Number& rhs) = default;
+    auto operator<=>(const Number& rhs) const = default;
+
+    // operator<=>를 default로 정의하면 constexpr과 noexcept를 구성하지 않아도 해당 두 옵션이 알아서 적용된다.
+};
+
+void Run()
+{
+    Number x{ 10 };
+    Number y{ 20 };
+
+    // (중요) 최적화 옵션을 끄고 디스어셈블러를 통해 조회할 것!
+
+    // 아래 관계 연산자를 디스어셈블러를 통해 조회해보면 opeator<=>를 쓰는 것을 볼 수 있다.
+
+    // 관계 연산자(Relational Operators) : 디스어셈블러를 통해 조회하면 operator<=> 이후 사용한 관계 심볼에 따른 std::operator@를 호출한다.
+    // operator<=>는 리터럴 0과 비교 가능한 값을 반환하고 이걸 std::operator@로 비교하는 것이다.
+    auto relComp1 = (x < y);  // call Number::operator<=> -> call std::operator<
+    auto relComp2 = (x > y);  // call Number::operator<=> -> call std::operator>
+    auto relComp3 = (x <= y); // call Number::operator<=> -> call std::operator<=
+    auto relComp4 = (x >= y); // call Number::operator<=> -> call std::operator>=
+
+    // 동등 연산자(Equality Operators) : 디스어셈블러를 통해 조회해보면 operator==를 기반으로 하는 것을 볼 수 있다.
+    // operator<=>를 default로 정의하면 컴파일러 차원에서 operator==도 함께 정의해준다.
+    // 사용자가 정의하지 않은 operator를 정의해주기 때문에 이를 Synthesized expressions이라 한다.
+    auto eqComp1 = (x == y); // call Number::operator==
+    auto eqComp2 = (x != y); // call Number::operator==
+
+    // auto eqComp1 = (x == y); : call Number::operator== -> 결과를 0 혹은 1로 저장한 다음...
+    // call        Case01::Number::operator==
+    // mov         byte ptr [eqComp1],al <----- 계산한 결과를 그대로 반영
+
+    // auto eqComp2 = (x != y); : call Number::operator== -> 결과를 0 혹은 1로 저장한 다음...
+    // call        Case01::Number::operator==
+    // movzx       eax,al  
+    // test        eax,eax  
+    // jne         __$EncStackInitStart+1D2h
+    // mov         dword ptr [rbp+514h],1  
+    // jmp         __$EncStackInitStart+1DCh
+    // mov         dword ptr [rbp+514h],0  
+    // movzx       eax,byte ptr [rbp+514h]  
+    // mov         byte ptr [eqComp2],al <----- 계산한 결과를 분기에 따라 가공한 다음 저장
+
+    // operator<=>를 default로 정의하면 constexpr과 noexcept를 구성하지 않아도 해당 두 옵션이 알아서 적용된다.
+    constexpr Number num1{ 10 };
+    constexpr Number num2{ 20 };
+
+    // 아래 비교 연산은 컴파일 에러가 발생하지 않는다(constexpr 연산 가능).
+    constexpr auto ls = num1 < num2;
+    constexpr auto eq = num1 == num2;
+    constexpr auto gt = num1 > num2;
+
+    // operator<=>를 noexcept로 만들지 않았지만 noexcept 방식을 사용하는 것도 가능하다.
+    // static_assert(noexcept(operator<=>(x, y)) == true);
+    // static_assert(noexcept(operator<=>(num1, num2)) == true);
+    static_assert(noexcept(x.operator<=>(y)) == true);
+    static_assert(noexcept(num1.operator<=>(num2)) == true);
+
+    // MSVC와 GCC에서 constexpr과 noexcept가 적용되는지 테스트해봤을 때 둘 다 잘 컴파일된다.
+}
+--------------------------------------------------
+
+디스어셈블러로 조회해보면 관계 연산자는 Number::operator<=>로 평가되며 이건 ordering type을 반환한다.
+
+그 다음 ordering type은 std::operator@의 인자로 전달되어 리터럴 0과 비교하는 작업을 수행한다.
+
+관계 연산은 operator<=>를 통해 반환된 ordering type을 경유하지만 최종적으로는 bool 결과를 반환한다.
+
+- operator<=> 평가 -> ordering type 반환 -> relational operator -> bool 결과 반환
+
+
+특이한 것을 몇 가지 살펴보자면 정의하지 않은 operator==를 사용하고 있고, operator<=>를 constexpr과 noexcept로 구성하지 않았는데 두 옵션이 적용되었단 점이다.
+
+전자의 경우에는 사용자가 정의하지 않은 operator==를 컴파일러가 만들었기 때문에 이를 Synthesized expressions라 한다.
+!! 컴파일러가 정의해준 operator==는 Not equal(!=) 연산을 위한 표현식 재작성 과정에서 사용되기도 함. !!
+
+후자의 경우를 보아 operator<=>를 default로 정의하면 constexpr과 noexcept를 구성하지 않아도 해당 두 옵션이 알아서 적용되는 것을 확인할 수 있다.
+
+이 두 가지 케이스는 다소 특이한 사항으로 operator<=>를 default가 아닌 수동으로 정의할 경우에는 적용되지 않는 사항이다.
+
+
+디스어셈블러를 통해 컴파일된 코드를 확인하면 표현식 재작성 규칙에 따라 명령어가 생성된 것을 볼 수 있다.
+
+이를 토대로 암묵적인 형변환을 받는 경우도 확인해 보자.
+
+code)---------------------------------------------
+void Run()
+{
+    Number x{ 10 };
+    Number y{ 20 };
+
+    // 코드가 컴파일되면 주석에 적힌 내용을 토대로 명령을 수행한다.
+    std::cout << "x < y  : " << (x < y) << '\n';  // (x <=> y) < 0 : 1 
+    std::cout << "x > y  : " << (x > y) << '\n';  // (x <=> y) > 0 : 0
+    std::cout << "x <= y : " << (x <= y) << '\n'; // (x <=> y) <= 0 : 1
+    std::cout << "x >= y : " << (x >= y) << '\n'; // (x <=> y) >= 0 : 0
+    std::cout << "x == y : " << (x == y) << '\n'; // (x == y) : 0
+    std::cout << "x != y : " << (x != y) << '\n'; // !(x == y) : 1
+
+    std::cout << "-------------------------\n";
+
+    // x와 정수 5를 비교하면 비교 연산자를 num1.operator<=>(5)로 받고 반환된 결과를 리터럴 0과 비교한다.
+    // 이 과정에서 operator<=>의 인자에 해당하는 5는 Number로 받을 수 있기 때문에 암묵적으로 5를 Number로 변환한다.
+    std::cout << "x < 5  : " << (x < 5) << '\n';  // (x <=> 5) < 0 : 0
+    std::cout << "x > 5  : " << (x > 5) << '\n';  // (x <=> 5) > 0 : 1
+    std::cout << "x <= 5 : " << (x <= 5) << '\n'; // (x <=> 5) <= 0 : 0
+    std::cout << "x >= 5 : " << (x >= 5) << '\n'; // (x <=> 5) >= 0 : 1
+    std::cout << "x == 5 : " << (x == 5) << '\n'; // (x == 5) : 0
+    std::cout << "x != 5 : " << (x != 5) << '\n'; // !(x == 5) : 1
+
+    std::cout << "-------------------------\n";
+
+    // 15.operator<=>(num2)를 사용하는 것은 불가능하다.
+    // 이 경우 컴파일러는 해당 표현식을 재작성 규칙에 따라 num2.operator<=>(15)로 변경한다.
+    std::cout << "15 < y  : " << (15 < y) << '\n';  // (y <=> 15) > 0 : 1
+    std::cout << "15 > y  : " << (15 > y) << '\n';  // (y <=> 15) < 0 : 0
+    std::cout << "15 <= y : " << (15 <= y) << '\n'; // (y <=> 15) >= 0 : 1
+    std::cout << "15 >= y : " << (15 >= y) << '\n'; // (y <=> 15) <= 0 : 0
+    std::cout << "15 == y : " << (15 == y) << '\n'; // (y == 15) : 0
+    std::cout << "15 != y : " << (15 != y) << '\n'; // !(y == 15) : 1
+    
+    // C++20 이전에는 비교 연산자를 클래스의 멤버 함수로 작성했을 경우 후자의 코드는 컴파일 에러가 발생했다.
+    // 하지만 C++20부터는 연산자 재작성 규칙 덕분에 이런 방식으로 코드를 작성하는 것이 가능하다.ㄴ
+}
+--------------------------------------------------
+
+
+@ Member-wise 비교
+
+Three-way 비교 연산자를 default로 정의하면 첫 번째 멤버부터 마지막 멤버까지 차례차례 비교를 진행하며,
+
+각 비교의 대소 관계는 사전 순서(lexicographical)를 따른다.
+
+- 일반 값 : valueA @ valueB
+
+- 배열 : arrayA[n] @ arrayB[n] (lexicographically)
+
+- 포인터 : ptrA @ ptrB (주소 간 비교, 포인터 대상이 배열로 할당되어도 마찬가지)
+
+- 상속된 멤버 변수의 경우 : baseA @ baseB (위에 나온 항목을 토대로 비교)
+
+- 객체로 된 멤버 변수의 경우 : subA @ subB (위에 나온 항목을 토대로 비교)
+
+code)---------------------------------------------
+struct Type
+{
+    int  value{ };
+    char array[8]{ };
+    int* ptr{ };
+
+    auto operator<=>(const Type& rhs) const = default;
+};
+
+void Run()
+{
+    Type a{ .value = 100, .array{ "C++" },  .ptr = reinterpret_cast<int*>(0x0100) };
+    Type b{ .value = 100, .array{ "C++" },  .ptr = reinterpret_cast<int*>(0x0100) };
+    Type c{ .value = 100, .array{ "Java" }, .ptr = reinterpret_cast<int*>(0x0100) };
+    Type d{ .value = 100, .array{ "C++" },  .ptr = reinterpret_cast<int*>(0x0050) };
+
+    std::cout << "{ 100, \"C++\", 0x0100 } @ { 100, \"C++\", 0x0100 }\n";
+
+    std::cout << "(a < b)  " << (a < b)  << '\n'; // 0
+    std::cout << "(a > b)  " << (a > b)  << '\n'; // 0
+    std::cout << "(a <= b) " << (a <= b) << '\n'; // 1
+    std::cout << "(a >= b) " << (a >= b) << '\n'; // 1
+
+    std::cout << "(a == b) " << (a == b) << '\n'; // 1
+    std::cout << "(a != b) " << (a != b) << '\n'; // 0
+
+    std::cout << '\n';
+    
+    std::cout << "{ 100, \"C++\", 0x0100 } @ { 100, \"Java\", 0x0100 }\n";
+
+    std::cout << "(a < c)  " << (a < c)  << '\n'; // 1
+    std::cout << "(a > c)  " << (a > c)  << '\n'; // 0
+    std::cout << "(a <= c) " << (a <= c) << '\n'; // 1
+    std::cout << "(a >= c) " << (a >= c) << '\n'; // 0
+
+    std::cout << "(a == c) " << (a == c) << '\n'; // 0
+    std::cout << "(a != c) " << (a != c) << '\n'; // 1
+
+    std::cout << '\n';
+
+    std::cout << "{ 100, \"C++\", 0x0100 } @ { 100, \"C++\", 0x0050 }\n";
+
+    std::cout << "(a < d)  " << (a < d)  << '\n'; // 0
+    std::cout << "(a > d)  " << (a > d)  << '\n'; // 1
+    std::cout << "(a <= d) " << (a <= d) << '\n'; // 0
+    std::cout << "(a >= d) " << (a >= d) << '\n'; // 1
+
+    std::cout << "(a == d) " << (a == d) << '\n'; // 0
+    std::cout << "(a != d) " << (a != d) << '\n'; // 1
+}
+--------------------------------------------------
+
+
+상속하여 구현한 객체에도 operator<=>가 정의되어 있고 부모 클래스에도 operator<=>가 정의되어 있으며
+
+두 operator<=>가 모두 default로 적용된 상태라면 비교의 우선권은 부모 쪽에 있다.
+
+code)---------------------------------------------
+struct Base
+{
+    int  value{ };
+    char array[8]{ };
+    int* ptr{ };
+
+    // 부모 쪽에 operator<=>를 default로 정의
+    auto operator<=>(const Base& rhs) const = default;
+};
+
+struct Derived : Base
+{
+    float num{ };
+
+    // 상속한 쪽의 operator<=>도 default로 정의
+    auto operator<=>(const Derived& rhs) const = default;
+};
+
+void Run()
+{
+    Derived a{ 100, "C++",  reinterpret_cast<int*>(0x100), 3.14f };
+    Derived b{ 100, "Java", reinterpret_cast<int*>(0x100), 6.28f };
+    Derived c{ 100, "Java", reinterpret_cast<int*>(0x100), 1.57f };
+    Derived d{ 100, "C++",  reinterpret_cast<int*>(0x100), 6.28f };
+    Derived e{ 100, "C++",  reinterpret_cast<int*>(0x100), 1.57f };
+    
+    std::cout << "{ 100, \"C++\", 0x0100, 3.14f } @ { 100, \"Java\", 0x0100, 6.28f }\n";
+
+    std::cout << "(a < b)  " << (a < b)  << '\n'; // 1
+    std::cout << "(a > b)  " << (a > b)  << '\n'; // 0
+    std::cout << "(a <= b) " << (a <= b) << '\n'; // 1
+    std::cout << "(a >= b) " << (a >= b) << '\n'; // 0
+
+    std::cout << "(a == b) " << (a == b) << '\n'; // 0
+    std::cout << "(a != b) " << (a != b) << '\n'; // 1
+
+    std::cout << '\n';
+    
+    std::cout << "{ 100, \"C++\", 0x0100, 3.14f } @ { 100, \"Java\", 0x0100, 1.57f }\n";
+
+    std::cout << "(a < c)  " << (a < c)  << '\n'; // 1
+    std::cout << "(a > c)  " << (a > c)  << '\n'; // 0
+    std::cout << "(a <= c) " << (a <= c) << '\n'; // 1
+    std::cout << "(a >= c) " << (a >= c) << '\n'; // 0
+
+    std::cout << "(a == c) " << (a == c) << '\n'; // 0
+    std::cout << "(a != c) " << (a != c) << '\n'; // 1
+
+    std::cout << '\n';
+
+    std::cout << "{ 100, \"C++\", 0x0100, 3.14f } @ { 100, \"C++\", 0x0100, 6.28f }\n";
+
+    std::cout << "(a < d)  " << (a < d)  << '\n'; // 1
+    std::cout << "(a > d)  " << (a > d)  << '\n'; // 0
+    std::cout << "(a <= d) " << (a <= d) << '\n'; // 1
+    std::cout << "(a >= d) " << (a >= d) << '\n'; // 0
+
+    std::cout << "(a == d) " << (a == d) << '\n'; // 0
+    std::cout << "(a != d) " << (a != d) << '\n'; // 1
+
+    std::cout << '\n';
+
+    std::cout << "{ 100, \"C++\", 0x0100, 3.14f } @ { 100, \"C++\", 0x0100, 1.57f }\n";
+
+    std::cout << "(a < e)  " << (a < e)  << '\n'; // 0
+    std::cout << "(a > e)  " << (a > e)  << '\n'; // 1
+    std::cout << "(a <= e) " << (a <= e) << '\n'; // 0
+    std::cout << "(a >= e) " << (a >= e) << '\n'; // 1
+
+    std::cout << "(a == e) " << (a == e) << '\n'; // 0
+    std::cout << "(a != e) " << (a != e) << '\n'; // 1
+}
+--------------------------------------------------
+
+
+operator<=>가 default로 정의되어 있고 멤버 중에 객체로 된 것이 있다면 해당 객체에는 operator<=>가 정의되어 있어야 한다.
+
+code)---------------------------------------------
+struct Number
+{
+    float num = 0;
+
+    constexpr Number() = default;
+    constexpr Number(float num)
+        : num{ num }
+    { }
+
+    auto operator<=>(const Number& rhs) const = default;
+};
+
+struct Object
+{
+    int  value{ };
+    char array[8]{ };
+    int* ptr{ };
+
+    Number nestedNum;
+
+    auto operator<=>(const Object& rhs) const = default;
+};
+
+void Run()
+{
+    Object x{ 100, "C++", reinterpret_cast<int*>(0x100), 3.14f };
+    Object y{ 100, "C++", reinterpret_cast<int*>(0x100), 6.28f };
+
+    std::cout << "{ 100, \"C++\", 0x0100, 3.14f } @ { 100, \"C++\", 0x0100, 6.28f }\n";
+
+    std::cout << "(x < y)  " << (x < y)  << '\n'; // 1
+    std::cout << "(x > y)  " << (x > y)  << '\n'; // 0
+    std::cout << "(x <= y) " << (x <= y) << '\n'; // 1
+    std::cout << "(x >= y) " << (x >= y) << '\n'; // 0
+
+    std::cout << "(x == y) " << (x == y) << '\n'; // 0
+    std::cout << "(x != y) " << (x != y) << '\n'; // 1
+}
+--------------------------------------------------
+
+##################################################
+
+https://en.cppreference.com/w/cpp/language/default_comparisons#Equality_comparison
+
+# Equality Operators(C++20 이후)
+
+C++20에서는 비교 연산자의 동작 방식이 개선되었기 때문에 동등 연산자(==, !=)에도 변화가 생겼다.
+
+일단 재작성 규칙이 도입됨에 따라 operator==만 정의하면 != 연산은 덤으로 딸려 온다.
+
+1. x == y : y == x
+
+2. x != y : !(x == y), !(y == x)
+
+
+operator==는 operator<=>과도 연관이 있다.
+
+operator<=>를 default로 정의하면 관계 연산자 뿐만 아니라 "독립적으로" operator==도 함께 정의해서 관계 연산을 진행할 수 있다.
+
+이때 operator==는 Member-wise 비교를 진행한다.
+
+- 일반 값 : valueA == valueB
+
+- 배열 : arrayA[n] == arrayB[n] (lexicographically)
+
+- 포인터 : ptrA == ptrB (주소 간 비교, 포인터 대상이 배열로 할당되어도 마찬가지)
+
+- 상속된 멤버 변수의 경우 : baseA == baseB (위에 나온 항목을 토대로 비교)
+
+- 객체로 된 멤버 변수의 경우 : subA == subB (위에 나온 항목을 토대로 비교)
+
+(주의) operator<=>를 default가 아닌 수동으로 정의했다면 operator==를 생성해주지 않기 때문에 직접 정의해야 한다.
+
+따라서 operator<=>를 직접 구현했다면 operator==도 함께 구현하는 것이 좋다.
+
+
+C++20부터는 operator==도 default로 정의하는 것이 가능하다(C++20 이전에는 불가능했음).
+
+마찬가지로 이 경우에도 사전 순서에 따른 Member-wise 비교를 진행한다.
+
+code)---------------------------------------------
+class SomeObject
+{
+public:
+    // 멤버 함수
+    bool operator==(const SomeObject& rhs) const = default;
+
+    // 클래스 내부 전역 함수
+    friend bool operator==(const SomeObject& lhs, const SomeObject& rhs) = default;
+};
+
+// operator<=>를 직접 구현하고 operator==를 default로 정의하는 것도 가능하다.
+class SomeObject
+{
+public:
+    auto operator<=>(const SomeObject& rhs)
+    {
+        ...
+    }
+
+    bool operator==(const SomeObject& rhs) const = default;
+};
+--------------------------------------------------
+
+(주의) operator==의 경우 반환형을 bool 타입으로 명시하는 것이 좋다.
+
+
+다음과 같은 코드가 있을 때 컴파일러는 코드를 다음과 같이 컴파일한다.
+
+code)---------------------------------------------
+struct Item
+{
+    int x{ 1 };
+    int y{ 2 };
+    int z{ 3 };
+
+    Item() = default;
+    Item(int xyz) : Item(xyz, xyz, xyz)
+    { }
+
+    Item(int x, int y, int z)
+        : x{ x }, y{ y }, z{ z }
+    { }
+
+    // 첫 번째 멤버부터 마지막 멤버까지 비교한다.
+    bool operator==(const Item& rhs) const = default;
+};
+
+// 컴파일러는 이런 식으로 코드를 생성한다.
+bool Item::operator==(const Item& rhs) const
+{
+    if ((x == rhs.x) && (y == rhs.y) && (z == rhs.z))
+        return true;
+
+    return false;
+}
+
+// 표현식 재작성이 적용되기 때문에 아래와 같은 코드는 실제로 생성하지 않지만 이런 방식으로 동작한다.
+bool Item::operator!=(const Item& rhs) const
+{
+    return !(*this == rhs);
+}
+--------------------------------------------------
+
+
+operator==를 default로 정의하면 사전 순서에 따른 Member-wise 비교를 진행한다.
+
+code)---------------------------------------------
+struct Item
+{
+    int x{ 1 };
+    int y{ 2 };
+    int z{ 3 };
+
+    Item() = default;
+    Item(int xyz) : Item(xyz, xyz, xyz)
+    { }
+
+    Item(int x, int y, int z)
+        : x{ x }, y{ y }, z{ z }
+    { }
+
+    // 첫 번째 멤버부터 마지막 멤버까지 비교한다.
+    bool operator==(const Item& rhs) const = default;
+};
+
+void Run()
+{
+    Item item1{ 1, 2, 3 };
+    Item item2{ 1, 2, 3 };
+    Item item3{ 1, 5, 3 };
+    Item item4{ 1, 0, 3 };
+
+    std::cout << "(item1 == item2) " << (item1 == item2) << '\n'; // 1
+    std::cout << "(item1 != item2) " << (item1 != item2) << '\n'; // !(item1 == item2) : 0
+
+    std::cout << '\n';
+    
+    std::cout << "(item1 == item3) " << (item1 == item3) << '\n'; // 0
+    std::cout << "(item1 != item3) " << (item1 != item3) << '\n'; // !(item1 == item3) : 1
+
+    std::cout << '\n';
+
+    std::cout << "(item1 == item4) " << (item1 == item4) << '\n'; // 0
+    std::cout << "(item1 != item4) " << (item1 != item4) << '\n'; // !(item1 == item4) : 0
+
+    std::cout << '\n';
+
+    // 표현식 재작성 규칙에 따라 생성자를 호출할 수 있으면 암묵적인 형변환을 허용한다.
+    std::cout << "(item1 == 10)    " << (item1 == 10)    << '\n'; // (item1 == Number(10)) : 0
+    std::cout << "(10 == item2)    " << (10 == item2)    << '\n'; // (item1 == Number(10)) : 0
+
+    std::cout << '\n';
+    
+    std::cout << "(item1 != 20)    " << (item1 != 20)    << '\n'; // !(item1 == Number(20)) : 1
+    std::cout << "(20 != item2)    " << (20 != item2)    << '\n'; // !(item1 == Number(20)) : 1
+}
+--------------------------------------------------
+
+
+operator<=>를 default로 정의했을 때와 마찬가지로 operator==를 default로 정의하면 constexpr과 noexcept 옵션이 적용된다.
+
+code)---------------------------------------------
+struct Number
+{
+    int num = 0;
+
+    constexpr Number() = default;
+    constexpr Number(int num)
+        : num{ num }
+    { }
+
+    bool operator==(const Number& rhs) const = default;
+};
+
+void Run()
+{
+    constexpr Number x{ 5 };
+    constexpr Number y{ 5 };
+
+    // 아래 비교 연산은 컴파일 에러가 발생하지 않는다(constexpr 연산 가능).
+    constexpr bool eqComp1 = (x == y);
+    constexpr bool eqComp2 = (x != y);
+
+    // operator==를 noexcept로 만들지 않았지만 noexcept 방식을 사용하는 것도 가능하다.
+    static_assert(noexcept(x == y) == true);
+    static_assert(noexcept(x != y) == true);
+}
+--------------------------------------------------
+
+
+(주의) operator==를 수동으로 정의하면 constexpr과 noexcept 옵션은 적용되지 않으니까 주의해야 한다.
+
+code)---------------------------------------------
+struct Number
+{
+    int num = 0;
+
+    constexpr Number() = default;
+    constexpr Number(int num)
+        : num{ num }
+    { }
+
+    // operator==를 default가 아닌 수동으로 정의
+    bool operator==(const Number& rhs) const
+    {
+        return num == rhs.num;
+    }
+};
+
+void Run()
+{
+    constexpr Number x{ 5 };
+    constexpr Number y{ 5 };
+
+    // ERROR
+    // constexpr bool eqComp1 = (x == y);
+    // constexpr bool eqComp2 = (x != y);
+
+    // ERROR
+    // static_assert(noexcept(x == y) == true);
+    // static_assert(noexcept(x != y) == true);
+}
+--------------------------------------------------
+
+
+operator<=>를 수동으로 정의했으면 operator==를 만들어주지 않기 때문에 직접 정의해야 한다(default와 다른 점).
+
+code)---------------------------------------------
+struct Number
+{
+    int num = 0;
+
+    Number() = default;
+    Number(int num)
+        : num{ num }
+    { }
+    
+    // 전역으로 구성하는 것도 가능하다.
+    // friend auto operator<=>(const Number& lhs, const Number& rhs)
+    // {
+    //     std::cout << "operator<=> ";
+    // 
+    //     return lhs.num <=> rhs.num;
+    // }
+    // 
+    // friend bool operator==(const Number& lhs, const Number& rhs)
+    // {
+    //     std::cout << "operator== ";
+    // 
+    //     return lhs.num == rhs.num;
+    // }
+
+    auto operator<=>(const Number& rhs) const
+    {
+        std::cout << "operator<=> ";
+
+        return num <=> rhs.num;
+    }
+
+    // 이렇게 사용해도 된다.
+    // bool operator==(const Number& rhs) const = default;
+
+    bool operator==(const Number& rhs) const
+    {
+        std::cout << "operator== ";
+
+        return num == rhs.num;
+    }
+};
+
+void Run()
+{
+    Number x{ 5 };
+    Number y{ 5 };
+
+    std::cout << "(x < y)  " << (x < y)  << '\n'; // (x <=> y < 0) : 0
+    std::cout << "(x > y)  " << (x > y)  << '\n'; // (x <=> y > 0) : 0
+    std::cout << "(x <= y) " << (x <= y) << '\n'; // (x <=> y <= 0) : 1
+    std::cout << "(x >= y) " << (x >= y) << '\n'; // (x <=> y >= 0) : 1
+
+    std::cout << '\n';
+
+    std::cout << "(x == y) " << (x == y) << '\n'; // (x == y) : 1
+    std::cout << "(x != y) " << (x != y) << '\n'; // !(x == y) : 0
+
+    std::cout << '\n';
+
+    // Rewritten expressions
+    std::cout << "(5 == x) " << (5 == x) << '\n'; // (x == Number(5)) : 1
+    std::cout << "(5 != x) " << (5 != x) << '\n'; // !(x == Number(5)) : 0
+}
+--------------------------------------------------
+
+관계 연산자(Relational operators)는 내부적으로 Three-way 비교 연산자를 사용하지만
+
+동등 연산자(Equality operators)는 operator==를 기반으로 동작한다.
+
+operator<=>를 default로 정의하면 operator==를 알아서 컴파일러가 제공해주지만, 수동으로 정의하면 제공해주지 않는다.
+
+따라서 operator<=>를 직접 구현하는 방식을 택한다면 operator==도 함께 정의해주는 것이 좋다.
+
+
+operator<=>와 operator==를 사용하면 생성자가 explicit으로 되어 있어 암묵적으로 받을 수 없는 경우의 코드도 쉽게 처리할 수 있다.
+
+code)---------------------------------------------
+struct Number
+{
+    int num = 0;
+
+    Number() = default;
+    Number(int num)
+        : num{ num }
+    { }
+
+    // // C++ 내부에서 자주 사용하는 비교 연산자
+    // friend bool operator<(const Number& lhs, const Number& rhs) { return lhs.num < rhs.num; }
+    // friend bool operator<(int lhs, const Number& rhs) { return lhs < rhs.num; }
+    // friend bool operator<(const Number& lhs, int rhs) { return lhs.num < rhs; }
+    // 
+    // friend bool operator==(const Number& lhs, const Number& rhs) { return lhs.num == rhs.num; }
+    // friend bool operator==(int lhs, const Number& rhs) { return lhs == rhs.num; }
+    // friend bool operator==(const Number& lhs, int rhs) { return lhs.num == rhs; }
+    // 
+    // // 나머지 비교 연산자는 위에서 정의한 두 유형의 비교 연산자로부터 유도할 수 있다.
+    // friend bool operator!=(const Number& lhs, const Number& rhs) { return !(lhs == rhs); }
+    // friend bool operator!=(int lhs, const Number& rhs) { return !(lhs == rhs); }
+    // friend bool operator!=(const Number& lhs, int rhs) { return !(lhs == rhs); }
+    // 
+    // friend bool operator>(const Number& lhs, const Number& rhs) { return rhs < lhs; }
+    // friend bool operator>(int lhs, const Number& rhs) { return rhs < lhs; }
+    // friend bool operator>(const Number& lhs, int rhs) { return rhs < lhs; }
+    // 
+    // friend bool operator<=(const Number& lhs, const Number& rhs) { return !(rhs < lhs); }
+    // friend bool operator<=(int lhs, const Number& rhs) { return !(rhs < lhs); }
+    // friend bool operator<=(const Number& lhs, int rhs) { return !(rhs < lhs); }
+    // 
+    // friend bool operator>=(const Number& lhs, const Number& rhs) { return !(lhs < rhs); }
+    // friend bool operator>=(int lhs, const Number& rhs) { return !(lhs < rhs); }
+    // friend bool operator>=(const Number& lhs, int rhs) { return !(lhs < rhs); }
+
+    auto operator<=>(const Number& rhs) const = default;
+
+    // operator==(int num)이 정의되어 있기 컴파일러가 연산자를 독립적으로 인지할 수 있게 operator==(const Number& rhs)를 구성해야 한다.
+    bool operator==(const Number& rhs) const = default;
+
+    // 이렇게 처리하면 끝이다.
+    auto operator<=>(int num) const
+    {
+        return this->num <=> num;
+    }
+
+    bool operator==(int num) const
+    {
+        return this->num == num;
+    }
+};
+
+void Run()
+{
+    Number num1{ 10 };
+    Number num2{ 20 };
+
+    std::cout << "num1 < num2  : " << (num1 < num2) << '\n';  // 1
+    std::cout << "num1 > num2  : " << (num1 > num2) << '\n';  // 0
+    std::cout << "num1 <= num2 : " << (num1 <= num2) << '\n'; // 1
+    std::cout << "num1 >= num2 : " << (num1 >= num2) << '\n'; // 0
+    std::cout << "num1 == num2 : " << (num1 == num2) << '\n'; // 0
+    std::cout << "num1 != num2 : " << (num1 != num2) << '\n'; // 1
+
+    std::cout << "-------------------------\n";
+
+    std::cout << "num1 < 5  : " << (num1 < 5) << '\n';  // 0
+    std::cout << "num1 > 5  : " << (num1 > 5) << '\n';  // 1
+    std::cout << "num1 <= 5 : " << (num1 <= 5) << '\n'; // 0
+    std::cout << "num1 >= 5 : " << (num1 >= 5) << '\n'; // 1
+    std::cout << "num1 == 5 : " << (num1 == 5) << '\n'; // 0
+    std::cout << "num1 != 5 : " << (num1 != 5) << '\n'; // 1
+
+    std::cout << "-------------------------\n";
+
+    std::cout << "15 < num2  : " << (15 < num2) << '\n';  // 1
+    std::cout << "15 > num2  : " << (15 > num2) << '\n';  // 0
+    std::cout << "15 <= num2 : " << (15 <= num2) << '\n'; // 1
+    std::cout << "15 >= num2 : " << (15 >= num2) << '\n'; // 0
+    std::cout << "15 == num2 : " << (15 == num2) << '\n'; // 0
+    std::cout << "15 != num2 : " << (15 != num2) << '\n'; // 1
+}
+--------------------------------------------------
+
+==================================================
+
+@ default로 동작하는 operator==의 배열 처리
+
+operator<=>나 operator==를 default로 정의하면 멤버의 배열이나 컨테이너 요소를 사전 순서대로 처리한다.
+
+이 과정에서 비교 가능한 한도 내에 모든 요소를 비교한다.
+
+- 배열 : arrayA[n] @ arrayB[n] (lexicographically)
+
+code)---------------------------------------------
+struct Type
+{
+    char arr[20]{ };
+
+    auto operator<=>(const Type& rhs) const = default;
+};
+
+void Run()
+{
+    Type a{ "Hello World" };
+    Type b{ "Hello World" };
+
+    // operator<=>를 default로 정의하면 컴파일러 차원에서 사전 순서대로 처리하는 operator==를 제공한다.
+    std::cout << "(a == b) " << (a == b) << '\n'; // 1
+    std::cout << "(a != b) " << (a != b) << '\n'; // 0
+
+    // (a == b) : 최적화 모드를 끄고 디스어셈블러를 통해 확인하면 다음 과정을 거친다.
+    // call        Type::operator==
+    // jmp         Type::operator==
+    //
+    // Type::operator==(const Type &):
+    // mov         eax,1  
+    // imul        rax,rax,0  
+    // mov         rcx,qword ptr [this]  
+    // movsx       eax,byte ptr [rcx+rax]  
+    // mov         ecx,1  
+    // imul        rcx,rcx,0  
+    // mov         rdx,qword ptr [__that]  
+    // movsx       ecx,byte ptr [rdx+rcx]  
+    // cmp         eax,ecx  // 비교
+    // jne         Type::operator==+19Dh
+    // ----- 구분선 -----
+    // mov         eax,1  
+    // imul        rax,rax,1  
+    // mov         rcx,qword ptr [this]  
+    // movsx       eax,byte ptr [rcx+rax]  
+    // mov         ecx,1  
+    // imul        rcx,rcx,1  
+    // mov         rdx,qword ptr [__that]  
+    // movsx       ecx,byte ptr [rdx+rcx]  
+    // cmp         eax,ecx  // 비교
+    // jne         Type::operator==+19Dh
+    // ----- 구분선 -----
+    // mov         eax,1  
+    // imul        rax,rax,2  
+    // mov         rcx,qword ptr [this]  
+    // movsx       eax,byte ptr [rcx+rax]  
+    // mov         ecx,1  
+    // imul        rcx,rcx,2  
+    // mov         rdx,qword ptr [__that]  
+    // movsx       ecx,byte ptr [rdx+rcx]  
+    // cmp         eax,ecx  // 비교
+    // jne         Type::operator==+19Dh
+    // ..... 배열의 길이 만큼 반복 .....
+}
+--------------------------------------------------
+
+배열의 길이가 다르다면 이러한 동작 방식은 굉장히 비효율적일 수 있다.
+
+이 경우에는 모든 요소를 대상으로 비교하는 작업을 거치지 않아도 된다.
+
+따라서 operator== 방식을 직접 정의하여 다음과 같이 개선하는 것이 가능하다.
+
+code)---------------------------------------------
+struct Type
+{
+    char arr[20]{ };
+
+    auto operator<=>(const Type& rhs) const = default;
+    
+    // operator==만 따로 정의하기
+    auto operator==(const Type& rhs) const
+    {
+        auto lhsLen = strlen(arr);
+        auto rhsLen = strlen(rhs.arr);
+
+        // 길이가 같을 경우에만 lexicographical한 비교 진행
+        if (lhsLen == rhsLen && !strcmp(arr, rhs.arr))
+            return true;
+
+        return false;
+    }
+};
+
+void Run()
+{
+    Type a{ "Hello World" };
+    Type b{ "Hello World" };
+    Type c{ "Hello World!!" };
+
+    // operator<=>를 default로 정의하면 컴파일러 차원에서 사전 순서대로 처리하는 operator==를 제공한다.
+    std::cout << "(a == b) " << (a == b) << '\n'; // 1
+    std::cout << "(a != b) " << (a != b) << '\n'; // 0
+
+    std::cout << '\n';
+
+    std::cout << "(a == c) " << (a == c) << '\n'; // 0
+    std::cout << "(a != c) " << (a != c) << '\n'; // 1
+}
+--------------------------------------------------
+
+배열의 길이를 나타내는 변수를 하나 둔다면 operator== 작업을 특수화(?)하여 구현하지 않아도 된다.
+
+이처럼 메모리를 희생해서 성능을 개선하는 것도 가능하다.
+
+code)---------------------------------------------
+struct Type
+{
+    size_t len;
+    char   arr[20]{ };
+
+    auto operator<=>(const Type& rhs) const = default;
+};
+
+void Run()
+{
+    Type a{ 11, "Hello World" };
+    Type b{ 11, "Hello World" };
+    Type c{ 13, "Hello World!!" };
+
+    std::cout << "(a == b) " << (a == b) << '\n'; // 1
+    std::cout << "(a != b) " << (a != b) << '\n'; // 0
+
+    std::cout << '\n';
+
+    std::cout << "(a == c) " << (a == c) << '\n'; // 0
+    std::cout << "(a != c) " << (a != c) << '\n'; // 1
+}
+--------------------------------------------------
+
+##################################################
+
+# Three-way 비교 연산자를 사용할 때 주의해야 하는 점
+
+operator<=>의 반환 타입에 들어가기 앞서 Three-way 비교 연산자를 사용할 때 주의해야 하는 점을 먼저 짚고 넘어가자.
+
+먼저 operator<=>를 default로 정의하는 건 다음과 같은 특징이 있다.
+
+- 컴파일러 차원에서 operator==를 정의함(컴파일러가 정의한 operator==은 operator<=>와는 독립된 함수임).
+  - 관계 연산(<, >, <=, >=)은 operator<=>로 처리하고 동등 연산(==, !=)은 operator==로 처리함.
+  - 따라서 모든 비교 연산을 사용할 수 있음(<, >, <=, >=, ==, !=).
+
+- Member-wise 방식과 더불어 사전 순서 비교(lexicographical comparison)를 진행함.
+
+- (중요) 명시하지 않았어도 operator<=>와 operator==에는 constexpr과 noexcept 옵션이 적용됨.
+
+code)---------------------------------------------
+struct Number
+{
+    int num = 0;
+
+    constexpr Number() = default;
+    constexpr Number(int num)
+        : num{ num }
+    { }
+
+    auto operator<=>(const Number& rhs) const = default;
+};
+
+void Run()
+{
+    constexpr Number x{ 10 };
+    constexpr Number y{ 20 };
+
+    // 비교 연산(<, >, <=, >=) : operator<=>가 처리한다.
+    bool relComp1 = (x < y);
+    bool relComp2 = (x > y);
+    bool relComp3 = (x <= y);
+    bool relComp4 = (x >= y);
+
+    // 동등 연산(==, !=) : operator==가 처리한다(operator==는 operator<=>를 default로 만들면 자동 생성됨).
+    bool eqComp1 = (x == y);
+    bool eqComp2 = (x != y);
+
+    // 아래 비교 연산은 컴파일 에러가 발생하지 않는다(constexpr 연산 가능).
+    constexpr bool relComp5 = (x < y);
+    constexpr bool relComp6 = (x > y);
+    constexpr bool relComp7 = (x <= y);
+    constexpr bool relComp8 = (x >= y);
+
+    // 컴파일러가 정의한 operator== 또한 constexpr 방식을 지원한다.
+    constexpr bool eqComp3 = (x == y);
+    constexpr bool eqComp4 = (x != y);
+
+    // operator<=>를 noexcept로 만들지 않았지만 noexcept 방식을 사용하는 것도 가능하다.
+    // 출력 결과를 보면 전부 1이 나온다.
+    std::cout << "noexcept(x < y)  " << noexcept(x < y) << '\n';
+    std::cout << "noexcept(x > y)  " << noexcept(x > y) << '\n';
+    std::cout << "noexcept(x <= y) " << noexcept(x <= y) << '\n';
+    std::cout << "noexcept(x >= y) " << noexcept(x >= y) << '\n' ;
+
+    // 컴파일러가 정의한 operator== 또한 noexcept 방식을 지원한다.
+    std::cout << "noexcept(x == y)  " << noexcept(x == y) << '\n';
+    std::cout << "noexcept(x != y)  " << noexcept(x != y) << '\n';
+}
+--------------------------------------------------
+
+
+operator<=>를 default가 아닌 수동으로 정의하면 컴파일러 차원에서 해준 작업을 직접 해줘야 한다.
+
+operator<=>를 수동으로 정의하면 다음과 같은 특징이 있다.
+
+- operator==를 정의해주지 않음(직접 정의해야 함).
+  - operator==를 수동으로 정의하지 않을 경우 관계 연산(<, >, <=, >=)만 사용할 수 있음.
+
+- (중요) 명시하지 않았으면 operator<=>에는 constexpr과 noexcept 옵션이 적용되지 않음.
+
+code)---------------------------------------------
+struct Number
+{
+    int num = 0;
+
+    constexpr Number() = default;
+    constexpr Number(int num)
+        : num{ num }
+    { }
+    
+    // operator<=>를 수동으로 정의
+    auto operator<=>(const Number& rhs) const
+    {
+        return num <=> rhs.num;
+    }
+};
+
+void Run()
+{
+    constexpr Number x{ 10 };
+    constexpr Number y{ 20 };
+
+    // 비교 연산(<, >, <=, >=) : operator<=>가 처리한다.
+    bool relComp1 = (x < y);
+    bool relComp2 = (x > y);
+    bool relComp3 = (x <= y);
+    bool relComp4 = (x >= y);
+
+    // 동등 연산(==, !=) : operator<=>를 수동으로 정의했기에 컴파일러 차원에서 operator==를 정의하지 않아 컴파일 에러 발생
+    // bool eqComp1 = (x == y);
+    // bool eqComp2 = (x != y);
+
+    // 아래 비교 연산은 컴파일 에러가 발생한다(constexpr을 적용하지 않았기에 컴파일 에러 발생).
+    // constexpr bool relComp5 = (x < y);
+    // constexpr bool relComp6 = (x > y);
+    // constexpr bool relComp7 = (x <= y);
+    // constexpr bool relComp8 = (x >= y);
+    // 
+    // constexpr bool eqComp3 = (x == y);
+    // constexpr bool eqComp4 = (x != y);
+
+    // operator<=>를 수동으로 정의하였지만 noexcept 옵션을 적용하지 않았기에 컴파일 에러 발생
+    // 출력 결과를 보면 전부 0이 나온다.
+    std::cout << "noexcept(x < y)  " << noexcept(x < y) << '\n';
+    std::cout << "noexcept(x > y)  " << noexcept(x > y) << '\n';
+    std::cout << "noexcept(x <= y) " << noexcept(x <= y) << '\n';
+    std::cout << "noexcept(x >= y) " << noexcept(x >= y) << '\n' ;
+
+    // operator== 자체가 없기 때문에 컴파일 에러 발생
+    // std::cout << "noexcept(x == y)  " << noexcept(x == y) << '\n';
+    // std::cout << "noexcept(x != y)  " << noexcept(x != y) << '\n';
+}
+--------------------------------------------------
+
+
+이런 이유로 operator<=>를 수동으로 정의했으면 operator==도 같이 정의하는 것이 좋다.
+
+또한 constexpr과 noexcept 옵션을 적용하고 싶다면 수동으로 작성할 경우에는 반드시 명시해야 한다.
+
+code)---------------------------------------------
+struct Number
+{
+    int num = 0;
+
+    constexpr Number() = default;
+    constexpr Number(int num)
+        : num{ num }
+    { }
+
+    // operator<=>를 수동으로 정의하고 constexpr과 noexcept 적용
+    constexpr auto operator<=>(const Number& rhs) const noexcept
+    {
+        return num <=> rhs.num;
+    }
+    
+    // operator<=>를 default 방식이 아닌 수동으로 정의하면 컴파일러 차원에서 operator==를 정의해주지 않기 때문에 직접 정의해야 한다.
+    bool operator==(const Number& rhs) const = default;
+};
+
+void Run()
+{
+    constexpr Number x{ 10 };
+    constexpr Number y{ 20 };
+
+    // 비교 연산(<, >, <=, >=) : operator<=>가 처리한다.
+    bool relComp1 = (x < y);
+    bool relComp2 = (x > y);
+    bool relComp3 = (x <= y);
+    bool relComp4 = (x >= y);
+
+    // 동등 연산(==, !=) : operator==가 처리한다.
+    bool eqComp1 = (x == y);
+    bool eqComp2 = (x != y);
+
+    // 아래 비교 연산은 컴파일 에러가 발생하지 않는다(constexpr 연산 가능).
+    constexpr bool relComp5 = (x < y);
+    constexpr bool relComp6 = (x > y);
+    constexpr bool relComp7 = (x <= y);
+    constexpr bool relComp8 = (x >= y);
+
+    // operator==를 default 방식으로 정의하면 constexpr 방식을 지원한다.
+    constexpr bool eqComp3 = (x == y);
+    constexpr bool eqComp4 = (x != y);
+
+    // operator<=>를 noexcept로 만들지 않았지만 noexcept 방식을 사용하는 것도 가능하다.
+    // 출력 결과를 보면 전부 1이 나온다.
+    std::cout << "noexcept(x < y)  " << noexcept(x < y) << '\n';
+    std::cout << "noexcept(x > y)  " << noexcept(x > y) << '\n';
+    std::cout << "noexcept(x <= y) " << noexcept(x <= y) << '\n';
+    std::cout << "noexcept(x >= y) " << noexcept(x >= y) << '\n' ;
+
+    // operator==를 default 방식으로 정의하면 noexcept 방식을 지원한다.
+    std::cout << "noexcept(x == y)  " << noexcept(x == y) << '\n';
+    std::cout << "noexcept(x != y)  " << noexcept(x != y) << '\n';
+}
+--------------------------------------------------
+
+
+!! 중요 !!
+
+operator<=>가 있고(default가 적용되었든 아니든), 사용자 정의 비교 연산자가 둘 다 정의되어 있는 경우
+
+컴파일러는 사용자 정의 비교 연산자를 우선시한다.
+
+code)---------------------------------------------
+struct Number
+{
+    int num = 0;
+
+    constexpr Number() = default;
+    constexpr Number(int num)
+        : num{ num }
+    { }
+
+    auto operator<=>(const Number& rhs) const = default;
+
+    // 사용자 정의 비교 연산자
+    bool operator<(const Number& rhs) const
+    {
+        std::cout << "operator< ";
+
+        return num < rhs.num;
+    }
+
+    bool operator>(const Number& rhs) const
+    {
+        std::cout << "operator> ";
+
+        return num > rhs.num;
+    }
+
+    bool operator==(const Number& rhs) const
+    {
+        std::cout << "operator!= ";
+
+        return num == rhs.num;
+    }
+
+    // operator==의 재작성 규칙으로 Not equal(!=) 연산이 수행되기 때문에 사용 불가(컴파일 에러 발생)
+    // bool operator!=(const Number& rhs) const
+    // {
+    //     std::cout << "operator== ";
+    // 
+    //     return num == rhs.num;
+    // }
+};
+
+void Run()
+{
+    Number x{ 5 };
+    Number y{ 5 };
+
+    std::cout << "(x < y)  " << (x < y)  << '\n'; // (x < 0) : 0
+    std::cout << "(x > y)  " << (x > y)  << '\n'; // (x > 0) : 0
+    std::cout << "(x <= y) " << (x <= y) << '\n'; // (x <=> y <= 0) : 1
+    std::cout << "(x >= y) " << (x >= y) << '\n'; // (x <=> y >= 0) : 1
+
+    std::cout << '\n';
+
+    std::cout << "(x == y) " << (x == y) << '\n'; // (x == y) : 1
+    std::cout << "(x != y) " << (x != y) << '\n'; // !(x == y) : 0
+
+    std::cout << '\n';
+
+    // Rewritten expressions
+    std::cout << "(5 == x) " << (5 == x) << '\n'; // (x == Number(5)) : 1
+    std::cout << "(5 != x) " << (5 != x) << '\n'; // !(x == Number(5)) : 0
+}
+--------------------------------------------------
+
+##################################################
+
+https://en.cppreference.com/w/cpp/header/compare
+https://en.cppreference.com/w/cpp/language/default_comparisons#Comparison_category_types
+https://devblogs.microsoft.com/oldnewthing/20220516-52/?p=106661
+
+# operator<=> 반환 타입
+
+operator<=>는 다음 3가지 타입 중 하나를 반환하며 이러한 타입은 리터럴 0과 비교할 수 있다.
+
+- std::strong_ordering : 완전히 동일한 값을 비교할 때 사용(indistinguishable)
+
+- std::weak_ordering : 논리적으로는 동등하지만 실제 값은 다를 수도 있는 대상을 비교할 때 사용(distinguishable)
+
+- std::partial_ordering : 비교할 수 없는 값이 포함된 부분 집합으로 비교할 때 사용(distinguishable)
+
+(중요) 해당 타입들은 전부 리터럴 0 외 다른 값과는 비교할 수 없다.
+
+해당 타입을 쓰기 위해선 <compare>를 포함해야 한다.
+
+
+이러한 타입의 동작 방식은 strcmp()와 상당히 유사하다.
+
+각 타입으로 표현할 수 있는 값은 조금씩 다르지만 그럼에도 공통되는 값들이 있다.
+
+- 작음(less)를 표현하는 음수 값이 있음.
+
+- 큼(greater)를 표현하는 양수 값이 있음.
+
+- 동일(equal)과 의미론적으로 동등(equivalent)을 표현하는 0 값이 있음.
+
+https://en.wikipedia.org/wiki/Weak_ordering
+
+의미론적으로 동등(equivalent)는 weak_ordering과 관련이 있다.
+
+
+operator<=>가 반환하는 3가지 타입은 암묵적으로 상위 타입에서 하위 타입으로의 전환을 허용한다(implicit conversions).
+
+- std::strong_ordering -> std::weak_ordering -> std::partial_ordering
+
+- strong_ordering은 암묵적으로 weak_ordering와 partial_ordering을 적용할 수 있음.
+
+- weak_ordering은 암묵적으로 partial_ordering을 적용할 수 있음.
+
+==================================================
+
+https://en.cppreference.com/w/cpp/utility/compare/strong_ordering
+https://en.wikipedia.org/wiki/Total_order
+
+@ std::strong_ordering
+
+해당 반환 타입은 완전히 동일한 값을 비교할 때 사용하는 Total Order 유형에 해당한다.
+
+동등한 값(equivalent values)은 의미론적으로 볼 때 구별 불가능(indistinguishable)하기에 서로를 대체할 수 있다.
+
+집합 내 모든 값은 서로 비교 가능하기 때문에 "a < b, a == b, a > b" 중 하나는 true를 반환해야 한다.
+
+이는 비교 불가능한 상황을 허용하지 않는다는 뜻이다.
+
+
+위키피디아에 따르면 Total order는 다음 조건을 만족한다고 되어 있다.
+
+- 반사성(reflexivity) : a ≤ a
+
+- 반대칭성(antisymmetry) : if a ≤ b and b ≤ a then a = b
+
+- 추이성, 이행성(transitivity) : if a ≤ b and b ≤ c then a ≤ c
+
+- 강한 연결, 완전성(strongly connected, called totality) : 반드시 a ≤ b or b ≤ a 둘 중 하나는 성립
+
+Total Order(전체 순서, 전순서)는 집합 내의 모든 요소들이 항상 비교 가능하며 특정한 규칙을 따르는 순서 관계가 정의된 상태를 말한다고 보면 된다.
+
+operator<=>가 std::strong_ordering을 반환하면, 해당 타입은 Total Order를 따르는 값이라고 볼 수 있다.
+
+!! 주의 !!
+
+문서를 보면 Strict Total Order란 개념도 나오는데 이는 Total Order와는 다른 것이니 혼동하면 안 된다.
+
+Strict Total Order는 Total Order에서 반사성(reflexivity)과 반대칭성(antisymmetry)을 제거하고
+
+비반사성(irreflexivity)과 비대칭성(asymmetry)을 추가한 형태이기 때문에 자기 자신과 같은 대상과 비교할 수 없다.
+
+
+std::strong_ordering는 다음 4가지 요소를 지원한다.
+
+- std::strong_ordering::less
+  
+- std::strong_ordering::equivalent
+  
+- std::strong_ordering::equal
+  
+- std::strong_ordering::greater
+  
+std::strong_ordering의 경우 Total Order 방식으로 동작하기 때문에 논리적으로 같은 값이 실제로도 같은 값이다.
+
+따라서 std::strong_ordering에서의 equal과 equivalent는 같은 의미를 가진다.
+
+본래 완전히 같음(equal)과 논리적으로 같음(equivalent)은 성질이 다르니 주의해야 한다(이 부분은 std::weak_ordering에서 다룸).
+
+(중요) std::strong_ordering은 암묵적으로 std::weak_ordering이나 std::partial_ordering으로 전환할 수 있다(convertible).
+
+
+C++의 기본 타입 중 정수형과 string 계열은 std::strong_ordering 방식으로 동작한다.
+
+std::strong_ordering으로 동작하는 또 다른 타입으로는 bool, 포인터, enum이 있다.
+
+code)---------------------------------------------
+std::string_view str1 = "Hello";
+std::string_view str2 = "World";
+
+int num1 = 10;
+int num2 = 10;
+
+std::cout << "ordering : " << typeid(str1 <=> str2).name() << '\n'; // struct std::strong_ordering
+std::cout << "ordering : " << typeid(num1 <=> num2).name() << '\n'; // struct std::strong_ordering
+
+std::cout << '\n';
+
+auto ordering = num1 <=> num2;
+
+// std::strong_ordering은 다음 4가지 타입 중 하나와 비교할 수 있다.
+if (ordering == std::strong_ordering::less)
+{
+    std::cout << "less : num1 < num2\n";
+}
+
+if (ordering == std::strong_ordering::greater)
+{
+    std::cout << "greater : num1 > num2\n";
+}
+
+if (ordering == std::strong_ordering::equal)
+{
+    std::cout << "equal : num1 == num2\n"; // <-----
+}
+
+if (ordering == std::strong_ordering::equivalent)
+{
+    std::cout << "equivalent : num1 == num2\n"; // <-----
+}
+
+std::cout << '\n';
+
+// ordering 타입은 리터럴 0과 비교할 수 있다.
+if (ordering < 0)
+{
+    std::cout << "ordering < 0 : num1 < num2\n";
+}
+
+if (ordering > 0)
+{
+    std::cout << "ordering > 0 : num1 > num2\n";
+}
+
+if (ordering == 0)
+{
+    std::cout << "ordering == 0 : num1 == num2\n"; // <-----
+}
+--------------------------------------------------
+
+
+std::strong_ordering은 본래 리터럴 0 값과 비교하는 것을 원칙으로 한다.
+
+하지만 구현된 코드를 보면 컴파일 타임에 0으로 평가될 수 있는 값이라면 받아서 비교하는 것을 허용한다.
+
+struct strong_ordering 
+{
+    ...
+    friend constexpr bool operator<(const strong_ordering _Val, _Literal_zero) noexcept {
+            return _Val._Value < 0;
+    }
+    ...
+};
+
+struct _Literal_zero 
+{
+    template <class _Ty>
+        requires is_same_v<_Ty, int>
+    consteval _Literal_zero(_Ty _Zero) noexcept
+    {
+        // Can't use _STL_VERIFY because this is a core header
+        if (_Zero != 0) {
+            _Literal_zero_is_expected();
+        }
+    }
+};
+
+code)---------------------------------------------
+int num1 = 10;
+int num2 = 20;
+
+auto ordering = num1 <=> num2;
+
+// int num = 0; // num은 컴파일 타임이 아닌 런타임에 평가됨.
+// 
+// if (ordering < num) // ERROR
+// {
+//     std::cout << "num1 < num2\n";
+// }
+
+// 아래 코드는 대상 변수가 컴파일 타임에 0으로 평가될 수 있기 때문에 비교하는 것을 허용한다.
+const     int zeroVal1 = 0;
+constexpr int zeroVal2 = 0;
+
+if (ordering < zeroVal1)
+{
+    std::cout << "num1 < num2\n";
+}
+
+if (ordering < zeroVal2)
+{
+    std::cout << "num1 < num2\n";
+}
+--------------------------------------------------
+
+
+클래스나 구조체라고 해도 멤버 변수들이 전부 비교했을 때 std::strong_ordering을 만족한다면
+
+default가 적용된 operator<=>는 std::strong_ordering을 반환한다.
+
+(주의) std::strong_ordering으로 비교 불가능한 대상이 멤버 변수로 섞여 있다면 다른 ordering 타입을 반환한다.
+
+code)---------------------------------------------
+struct FooObject
+{
+    int num{ 100 };
+    std::string str{ "Hello" };
+
+    auto operator<=>(const FooObject& rhs) const = default;
+};
+
+void Run()
+{
+    FooObject a;
+    FooObject b;
+
+    auto ordering = a <=> b;
+
+    // std::strong ordering
+    std::cout << typeid(ordering).name() << '\n';
+}
+--------------------------------------------------
+
+
+경우에 따라선 반환 타입을 std::strong_ordering으로 명시해야 하는 경우도 생긴다.
+
+또한 이런 방식을 쓰는 게 가시성이 더 좋다.
+
+code)---------------------------------------------
+struct FooObject
+{
+    int num{ 100 };
+
+    // 지금은 int 값만 비교하지만 객체 구성이 복잡해지는 경우도 생각해야 한다.
+    // default 방식이 아닌 경우 관계 연산(>, >=, <, <=)만 받을 수 있기 때문에 operator==를 직접 정의해야 한다.
+    // std::strong_ordering operator<=>(const FooObject& rhs) const
+    // {
+    //     return num <=> rhs.num;
+    // }
+
+    std::strong_ordering operator<=>(const FooObject& rhs) const = default;
+};
+
+void Run()
+{
+    FooObject a;
+    FooObject b;
+
+    auto ordering = a <=> b;
+
+    // std::strong ordering
+    std::cout << typeid(ordering).name() << '\n';
+}
+--------------------------------------------------
+
+==================================================
+
+https://en.cppreference.com/w/cpp/utility/compare/weak_ordering
+https://en.wikipedia.org/wiki/Weak_ordering
+https://en.wikipedia.org/wiki/Equivalence_relation
+https://en.wikipedia.org/wiki/Equivalence_class
+
+@ std::weak_ordering
+
+해당 반환 타입은 논리적 동등성을 기준으로 값을 비교하는 Weak Order 유형에 해당한다.
+
+동등한 값(equivalent values)은 의미론적으론 같아도 구별 가능(distinguishable)하기에 완전히 같은 건 아니다.
+
+집합 내 모든 값은 서로 비교 가능하기 때문에 "a < b, a == b, a > b" 중 하나는 true를 반환해야 한다.
+
+std::strong_ordering과 마찬가지로 비교 불가능한 상황을 허용하지 않는다는 뜻이다.
+
+
+위키피디아를 보면 Weak Order는 Total Order를 일반화한 형태라고 나와 있다.
+
+Total Order는 속한 집합 내의 모든 개별 요소들이 비교 가능한 상태일 때 성립하지만
+
+Weak Order는 여기에 원소의 동치 관계(equivalent relation, 동순위 관계)를 허용하도록 확장된 방식이다.
+
+따라서 모든 원소 쌍은 서로 비교 가능하지만, 여러 개의 원소가 동일 그룹에 속해 같은 순위를 가질 수 있다.
+
+동치 관계는 다음 성질을 만족한다.
+
+동치 관계
+
+- 반사성(reflexivity) : a ~ a
+
+- 대칭성(symmetry) : a ~ b이면, b ~ a이다.
+
+- 추이성, 이행성(transitivity) : a ~ b이고, b ~ c이면 a ~ c이다.
+
+(주의) Weak Order은 특정 조건을 만족할 경우 동치 관계를 허용하는 것이지 이것이 동치 관계를 의미하는 건 아니다.
+
+Weak Order는 기본적으로 Total Order 방식의 조건을 따르는 것을 전제로 하고 여기에 완전성 대신 동치 관계를 허용할 뿐이다.
+
+- 반사성(reflexivity) : a ≤ a
+
+- 반대칭성(antisymmetry) : if a ≤ b and b ≤ a then a = b
+
+- 추이성, 이행성(transitivity) : if a ≤ b and b ≤ c then a ≤ c
+
+- 완전성(totality) 대신 동치 관계(equivalent relation)를 허용함.
+
+동치 관계를 허용하기 때문에 여러 원소가 같은 순위를 가질 수 있어 동일성(equality)이 제한적이다.
+
+
+Weak Order와 Strict Weak Order는 다르다.
+
+Weak order = Strict Weak Order + 동치 관계
+
+그렇다고 Strict Weak Order가 Total Order를 의미하는 것은 아니니까 주의하자.
+
+이 규칙에 따르면 같은 요소(자기 자신)끼리 비교한다고 해도 동일성(equality)은 허용되지 않는다(수학적 의미는 위키피디아 문서 참고).
+
+(주의) Weak Order에 대한 수학적인 의미는 내가 위키피디아를 보면서 정리한 거라 잘못 파악했을 가능성이 있다(깔끔하게 정리된 문서를 찾지 못 했음).
+
+
+Weak Order 방식으로 집합 내의 요소를 비교한다고 해보자.
+
+컴퓨터 과학에서 +0.0과 -0.0은 부동소수점 연산 방식의 차이로 인해 서로 구별되는 값으로 취급한다.
+
+하지만 이를 같은 그룹으로 묶어서 본다면 충분히 같은 값으로 볼 수 있다.
+
+문자 집합의 경우 'A'와 'a'는 성질이 유사해도 대소문자로 구별 가능하기 때문에 다른 문자로 취급한다.
+
+하지만 대소문자의 성질을 무시한다면 두 문자를 { 'A', 'a' }로 묶어서 동등한 관계로 처리할 수 있다.
+
+이 경우 'A'와 'a'는 동일(equal)한 것은 아니지만 동등(equivalent)하다고 볼 수 있다.
+
+그 외 비어있는 배열을 null과 비교하거나 다른 날짜에서 시간만 따로 비교하는 것도 Weak Order 방식으로 처리할 수 있다.
+
+
+std::weak_ordering는 다음 3가지 요소를 지원한다.
+
+- std::weak_ordering::less
+  
+- std::weak_ordering::equivalent
+  
+- std::weak_ordering::greater
+
+std::weak_ordering 방식은 Weak Order 방식으로 동작하기 때문에 비교 대상이 같다고 해도 완전한 동일성을 보장하지 않는다.
+
+따라서 std::strong_ordering에서 지원한 equal이 없다.
+
+std::weak_ordering 방식에 속하면 대상 집합은 논리적 동등성을 기준으로 비교한다.
+
+(중요) std::weak_ordering은 암묵적으로 std::partial_ordering으로 전환할 수 있다(convertible).
+
+
+C++의 기본 타입 중에는 std::weak_ordering 방식으로 동작하는 것이 없다(C++20 기준).
+
+따라서 이러한 유형의 ordering 타입을 테스트하려면 직접 타입을 정의해야 한다.
+
+대소문자를 무시하는 문자열의 경우 동일성(equality)은 만족하지 않지만 동등성(equivalence)은 만족한다고 볼 수 있다.
+
+code)---------------------------------------------
+class CaseInsensitiveString
+{
+public:
+    CaseInsensitiveString(std::string_view str = "")
+        : _str{ str }
+    { }
+
+public:
+    std::weak_ordering operator<=>(const CaseInsensitiveString& rhs) const
+    {
+        int cmp = this->weakCompare(rhs);
+
+        if (cmp < 0)
+            return std::weak_ordering::less; // result < 0 : 사전 앞에 위치
+
+        if (cmp > 0)
+            return std::weak_ordering::greater; // result > 0 : 사전 뒤에 위치
+
+        // 대소문자를 구분하지 않고 비교하는 방식을 택했기 때문에 equal 방식은 사용할 수 없다.
+        // 무엇보다 std::weak_ordering 방식은 Weak Order 기반으로 동작하기 때문에 완전히 같음을 의미하는 equal을 지원하지 않는다.
+        //
+        // std::strong_ordering::equal이나 std::weak_ordering::equivalent는 둘 다 0 값이라 리터럴 0과 비교하면 true를 반환한다.
+        // 개발할 때 equal과 equivalent는 단순히 사용자 측면에서의 의미론적인 구분일 뿐이다.
+        return std::weak_ordering::equivalent;
+    }
+
+    // operator<=>을 직접 정의했다면 operator==는 자동으로 생성되지 않는다.
+    bool operator==(const CaseInsensitiveString& rhs) const
+    {
+        return this->weakCompare(rhs) == 0;
+    }
+
+private:
+    // 해당 함수는 다양한 방식으로 구현할 수 있는데 이에 대한 건 "implementation_of_case_insensitive_string.cpp"를 참고하도록 한다.
+    int weakCompare(const CaseInsensitiveString& rhs) const
+    {
+        size_t size = std::min(_str.size(), rhs._str.size());
+        
+        for (size_t idx = 0; idx < size; idx++)
+        {
+            auto lhsCh = std::tolower(_str[idx]);
+            auto rhsCh = std::tolower(rhs._str[idx]);
+
+            if (lhsCh != rhsCh)
+                return lhsCh < rhsCh ? -1 : +1;
+        }
+        
+        // "Hello"와 "Hel"을 비교한 경우라면?
+        // 사전순으로 비교하는 것을 통과해도 아직 모든 비교가 끝난 것은 아니다.
+        if (this->_str.size() < rhs._str.size())
+            return -1;
+        
+        if (this->_str.size() > rhs._str.size())
+            return +1;
+        
+        return 0;
+    }
+
+private:
+    std::string _str{ }; // std::string 자체는 std::strong_ordering를 기반으로 동작함.
+};
+
+void Run()
+{
+    CaseInsensitiveString str1{ "Hello" };
+    CaseInsensitiveString str2{ "HELLO" };
+    CaseInsensitiveString str3{ "XELLO" };
+    CaseInsensitiveString str4{ "aello" };
+
+    std::cout << "ordering : " << typeid(str1 <=> str2).name() << '\n'; // std::weak_ordering
+
+    std::cout << '\n';
+
+    std::cout << "str1 < str2  : " << (str1 < str2)  << '\n'; // 0
+    std::cout << "str1 > str2  : " << (str1 > str2)  << '\n'; // 0
+    std::cout << "str1 <= str2 : " << (str1 <= str2) << '\n'; // 1
+    std::cout << "str1 >= str2 : " << (str1 >= str2) << '\n'; // 1
+    std::cout << "str1 == str2 : " << (str1 == str2) << '\n'; // 1
+    std::cout << "str1 != str2 : " << (str1 != str2) << '\n'; // 0
+
+    std::cout << '\n';
+
+    std::cout << "str1 < str3  : " << (str1 < str3)  << '\n'; // 1
+    std::cout << "str1 > str3  : " << (str1 > str3)  << '\n'; // 0
+    std::cout << "str1 <= str3 : " << (str1 <= str3) << '\n'; // 1
+    std::cout << "str1 >= str3 : " << (str1 >= str3) << '\n'; // 0
+    std::cout << "str1 == str3 : " << (str1 == str3) << '\n'; // 0
+    std::cout << "str1 != str3 : " << (str1 != str3) << '\n'; // 1
+
+    std::cout << '\n';
+
+    auto ordering = str1 <=> str4;
+
+    // std::weak_ordering은 다음 3가지 타입 중 하나와 비교할 수 있다.
+    if (ordering == std::weak_ordering::less)
+    {
+        std::cout << "less : str1 < str4\n";
+    }
+
+    if (ordering == std::weak_ordering::greater)
+    {
+        std::cout << "greater : str1 > str4\n"; // <-----
+    }
+
+    if (ordering == std::weak_ordering::equivalent)
+    {
+        std::cout << "equivalent : str1 == str4\n";
+    }
+
+    // ordering 타입은 리터럴 0과 비교할 수 있다.
+    if (ordering < 0)
+    {
+        std::cout << "ordering < 0 : str1 < str4\n";
+    }
+
+    if (ordering > 0)
+    {
+        std::cout << "ordering > 0 : str1 > str4\n"; // <-----
+    }
+
+    if (ordering == 0)
+    {
+        std::cout << "ordering == 0 : str1 == str4\n";
+    }
+}
+--------------------------------------------------
+
+
+대소문자를 무시하고 문자 단위로 비교하는 것도 가능하지만 순수하게 길이로 비교하는 것도 std::weak_ordering으로 표현할 수 있다.
+
+이 경우에는 모든 문자를 같은 그룹으로 묶어서 취급한다고 보면 된다.
+
+code)---------------------------------------------
+class SizeComparableString
+{
+public:
+    SizeComparableString(std::string_view str = "")
+        : _str{ str }
+    { }
+    
+public:
+    std::weak_ordering operator<=>(const SizeComparableString& rhs) const
+    {
+        size_t lhsLen = _str.length();
+        size_t rhsLen = rhs._str.length();
+
+        if (lhsLen < rhsLen)
+        {
+            return std::weak_ordering::less;
+        }
+        else if (lhsLen > rhsLen)
+        {
+            return std::weak_ordering::greater;
+        }
+        else // if (lhsLen == rhsLen)
+        {
+            return std::weak_ordering::equivalent;
+        }
+    }
+
+    // operator<=>을 직접 정의했다면 operator==는 자동으로 생성되지 않는다.
+    bool operator==(const SizeComparableString& rhs) const
+    {
+        return _str.length() == rhs._str.length();
+    }
+
+private:
+    std::string _str{ }; // std::string 자체는 std::strong_ordering를 기반으로 동작함.
+};
+
+void Run()
+{
+    SizeComparableString str1{ "Hello" };
+    SizeComparableString str2{ "HELLO" };
+    SizeComparableString str3{ "XELL" };
+    SizeComparableString str4{ "aellow" };
+
+    std::cout << "ordering : " << typeid(str1 <=> str2).name() << '\n'; // std::weak_ordering
+
+    std::cout << '\n';
+
+    std::cout << "str1 < str2  : " << (str1 < str2)  << '\n'; // 0
+    std::cout << "str1 > str2  : " << (str1 > str2)  << '\n'; // 0
+    std::cout << "str1 <= str2 : " << (str1 <= str2) << '\n'; // 1
+    std::cout << "str1 >= str2 : " << (str1 >= str2) << '\n'; // 1
+    std::cout << "str1 == str2 : " << (str1 == str2) << '\n'; // 1
+    std::cout << "str1 != str2 : " << (str1 != str2) << '\n'; // 0
+
+    std::cout << '\n';
+
+    std::cout << "str1 < str3  : " << (str1 < str3)  << '\n'; // 0
+    std::cout << "str1 > str3  : " << (str1 > str3)  << '\n'; // 1
+    std::cout << "str1 <= str3 : " << (str1 <= str3) << '\n'; // 0
+    std::cout << "str1 >= str3 : " << (str1 >= str3) << '\n'; // 1
+    std::cout << "str1 == str3 : " << (str1 == str3) << '\n'; // 0
+    std::cout << "str1 != str3 : " << (str1 != str3) << '\n'; // 1
+
+    std::cout << '\n';
+
+    auto ordering = str1 <=> str4;
+
+    // std::weak_ordering은 다음 3가지 타입 중 하나와 비교할 수 있다.
+    if (ordering == std::weak_ordering::less)
+    {
+        std::cout << "less : str1 < str4\n"; // <-----
+    }
+
+    if (ordering == std::weak_ordering::greater)
+    {
+        std::cout << "greater : str1 > str4\n";
+    }
+
+    if (ordering == std::weak_ordering::equivalent)
+    {
+        std::cout << "equivalent : str1 == str4\n";
+    }
+
+    // ordering 타입은 리터럴 0과 비교할 수 있다.
+    if (ordering < 0)
+    {
+        std::cout << "ordering < 0 : str1 < str4\n"; // <-----
+    }
+
+    if (ordering > 0)
+    {
+        std::cout << "ordering > 0 : str1 > str4\n";
+    }
+
+    if (ordering == 0)
+    {
+        std::cout << "ordering == 0 : str1 == str4\n";
+    }
+}
+--------------------------------------------------
+
+==================================================
+
+https://en.cppreference.com/w/cpp/utility/compare/partial_ordering
+https://en.wikipedia.org/wiki/Partially_ordered_set
+
+@ std::partial_ordering
+
+해당 반환 타입은 부분 순서를 만족하는 집합으로 비교를 진행하는 Partial Order 유형에 해당한다(집합 내 일부 원소들끼리만 순서 관계가 정해지는 것).
+
+std::weak_ordering과 마찬가지로 동등한 값(equivalent values)은 의미론적으론 같아도 구별 가능(distinguishable)하기에 완전히 같은 건 아니다.
+
+부분 순서를 만족하는 집합은 집합 내 비교할 수 없는 원소들이 따로 존재하는 구조를 가지고 있다.
+
+집합 내 비교 불가능한 값이 있기 때문에 "a < b, a == b, a > b"가 전부 false를 반환할 수도 있다.
+
+모든 값이 false로 뜨면 비교 불가능한 상황이란 뜻이다.
+
+
+위키피디아에 나온 정리를 보면 Partial Order는 Total Order를 일반화한 형태라고 나와 있다.
+
+Partial Order는 Total Order에서 완전성(totality)을 제외한 순서 집합을 말한다.
+
+- 반사성(reflexivity) : a ≤ a
+
+- 반대칭성(antisymmetry) : if a ≤ b and b ≤ a then a = b
+
+- 추이성, 이행성(transitivity) : if a ≤ b and b ≤ c then a ≤ c
+
+완전성이 없다는 것은 순서 관계가 성립하지 않는 원소 쌍이 있다는 뜻이다.
+
+
+std::partial_ordering는 다음 4가지 요소를 지원한다.
+
+- std::partial_ordering::less
+  
+- std::partial_ordering::equivalent
+  
+- std::partial_ordering::greater
+
+- std::partial_ordering::unordered
+  
+std::partial_ordering는 Partial Order 방식으로 동작한다.
+
+따라서 부분 순서(partial order) 내에서는 동일성(equality)을 허용하지만 집합 내 비교 불가능한 원소들이 존재한다.
+
+std::partial_ordering에서는 이러한 비교 불가능한 원소들이 있기 때문에 equal 연산을 지원하지 않는다.
+
+대신 std::strong_ordering과 std::weak_ordering에는 없는 unordered를 지원한다.
+
+(중요) std::partial_ordering은 std::strong_ordering이나 std::weak_ordering으로의 암묵적인 전환을 허용하지 않는다(not convertible).
+
+
+https://en.wikipedia.org/wiki/NaN
+
+C++의 기본 타입 중 실수형은 NaN 값의 존재로 인해 std::partial_ordering 방식으로 동작한다.
+
+- 1.f < NaN : false
+
+- 1.f == NaN : false
+
+- 1.f > NaN : false
+
+code)---------------------------------------------
+constexpr double nan1{ std::numeric_limits<double>::quiet_NaN() };
+constexpr double nan2{ std::numeric_limits<double>::quiet_NaN() };
+
+double x{ 10.0f };
+double y{ 20.0f };
+
+std::cout << "ordering : " << typeid(x <=> y).name() << '\n'; // struct std::partial_ordering
+
+std::cout << "-------------------------\n";
+
+std::cout << "x < y  : " << (x < y)  << '\n'; // 1
+std::cout << "x > y  : " << (x > y)  << '\n'; // 0
+std::cout << "x <= y : " << (x <= y) << '\n'; // 1
+std::cout << "x >= y : " << (x >= y) << '\n'; // 0
+std::cout << "x == y : " << (x == y) << '\n'; // 0
+std::cout << "x != y : " << (x != y) << '\n'; // 1
+
+std::cout << '\n';
+
+auto ordering = x <=> y;
+
+// std::partial_ordering은 다음 4가지 타입 중 하나와 비교할 수 있다.
+if (ordering == std::partial_ordering::less)
+{
+    std::cout << "less : x < y\n"; // <-----
+}
+
+if (ordering == std::partial_ordering::greater)
+{
+    std::cout << "greater : x > y\n";
+}
+
+if (ordering == std::partial_ordering::equivalent)
+{
+    std::cout << "equivalent : x == y\n";
+}
+
+if (ordering == std::partial_ordering::unordered)
+{
+    std::cout << "unordered : x, y\n";
+}
+
+// ordering 타입은 리터럴 0과 비교할 수 있다.
+if (ordering < 0)
+{
+    std::cout << "ordering < 0 : x < y\n"; // <-----
+}
+
+if (ordering > 0)
+{
+    std::cout << "ordering > 0 : x > y\n";
+}
+
+if (ordering == 0)
+{
+    std::cout << "ordering == 0 : x == y\n";
+}
+
+if (ordering != 0)
+{
+    std::cout << "ordering != 0 : x != y\n"; // <-----
+}
+
+std::cout << "-------------------------\n";
+
+std::cout << "x < nan1  : " << (x < nan1)  << '\n'; // 0
+std::cout << "x > nan1  : " << (x > nan1)  << '\n'; // 0
+std::cout << "x <= nan1 : " << (x <= nan1) << '\n'; // 0
+std::cout << "x >= nan1 : " << (x >= nan1) << '\n'; // 0
+std::cout << "x == nan1 : " << (x == nan1) << '\n'; // 0
+std::cout << "x != nan1 : " << (x != nan1) << '\n'; // 1
+
+std::cout << '\n';
+
+ordering = x <=> nan1;
+
+// std::weak_ordering은 다음 3가지 타입 중 하나와 비교할 수 있다.
+if (ordering == std::weak_ordering::less)
+{
+    std::cout << "less : x < nan1\n";
+}
+
+if (ordering == std::weak_ordering::greater)
+{
+    std::cout << "greater : x > nan1\n";
+}
+
+if (ordering == std::weak_ordering::equivalent)
+{
+    std::cout << "equivalent : x == nan1\n";
+}
+
+if (ordering == std::partial_ordering::unordered)
+{
+    std::cout << "unordered : x, nan1\n"; // <-----
+}
+
+// ordering 타입은 리터럴 0과 비교할 수 있다.
+if (ordering < 0)
+{
+    std::cout << "ordering < 0 : x < nan1\n";
+}
+
+if (ordering > 0)
+{
+    std::cout << "ordering > 0 : x > nan1\n";
+}
+
+if (ordering == 0)
+{
+    std::cout << "ordering == 0 : x == nan1\n";
+}
+
+if (ordering != 0)
+{
+    std::cout << "ordering != 0 : x != nan1\n"; // <-----
+}
+
+std::cout << "-------------------------\n";
+
+// IEEE 754에 나온 내용에 따르면 NaN은 자기 자신과의 Not equal(!=) 연산을 제외하고 전부 false를 반환해야 한다.
+// NaN != NaN : true (NaN은 자신과 다르다고 간주)
+// 
+// 그런데 MSVC 컴파일러의 경우 부동소수점 모델에 따라 결과가 다르게 나온다.
+// 이론을 따져봤을 때 부동소수점 연산은 IEEE 754를 따라야 하는 것 같은데 실제로는 완벽히 따르진 않는 듯 하다.
+std::cout << "nan1 < nan2  : " << (nan1 < nan2)  << '\n'; // gcc : 0, fp:precise : 1, fp:strict : 0, fp:fast : 1
+std::cout << "nan1 > nan2  : " << (nan1 > nan2)  << '\n'; // gcc : 0, fp:precise : 0, fp:strict : 0, fp:fast : 0
+std::cout << "nan1 <= nan2 : " << (nan1 <= nan2) << '\n'; // gcc : 0, fp:precise : 1, fp:strict : 0, fp:fast : 1
+std::cout << "nan1 >= nan2 : " << (nan1 >= nan2) << '\n'; // gcc : 0, fp:precise : 0, fp:strict : 0, fp:fast : 0
+std::cout << "nan1 == nan2 : " << (nan1 == nan2) << '\n'; // gcc : 0, fp:precise : 0, fp:strict : 0, fp:fast : 0
+std::cout << "nan1 != nan2 : " << (nan1 != nan2) << '\n'; // gcc : 1, fp:precise : 1, fp:strict : 1, fp:fast : 1
+
+std::cout << '\n';
+
+ordering = nan1 <=> nan2;
+
+// std::weak_ordering은 다음 3가지 타입 중 하나와 비교할 수 있다.
+if (ordering == std::weak_ordering::less)
+{
+    std::cout << "less : nan1 < nan2\n";
+}
+
+if (ordering == std::weak_ordering::greater)
+{
+    std::cout << "greater : nan1 > nan2\n";
+}
+
+if (ordering == std::weak_ordering::equivalent)
+{
+    std::cout << "equivalent : nan1 == nan2\n";
+}
+
+if (ordering == std::partial_ordering::unordered)
+{
+    std::cout << "unordered : nan1, nan2\n"; // <-----
+}
+
+// ordering 타입은 리터럴 0과 비교할 수 있다.
+if (ordering < 0)
+{
+    std::cout << "ordering < 0 : nan1 < nan2\n";
+}
+
+if (ordering > 0)
+{
+    std::cout << "ordering > 0 : nan1 > nan2\n";
+}
+
+if (ordering == 0)
+{
+    std::cout << "ordering == 0 : nan1 == nan2\n";
+}
+
+if (ordering != 0)
+{
+    std::cout << "ordering != 0 : nan1 != nan2\n"; // <----- NaN이 섞인 비교는 전부 false를 반환함.
+}
+--------------------------------------------------
+
+
+operator<=>를 default로 하고 반환 타입을 auto로 정의했을 때
+
+객체의 멤버 변수에 실수형이 섞여 있다면 반환 타입은 std::partial_ordering으로 추론된다.
+
+code)---------------------------------------------
+struct FooObject
+{
+    int num{ 100 };
+    std::string str{ "Hello" };
+    float fp{ 3.14f };
+
+    auto operator<=>(const FooObject& rhs) const = default;
+};
+
+void Run()
+{
+    FooObject a;
+    FooObject b;
+
+    auto ordering = a <=> b;
+
+    // std::partial_ordering
+    std::cout << typeid(ordering).name() << '\n';
+}
+--------------------------------------------------
+
+
+두 변수를 가지는 Pair 객체가 있다고 해보자.
+
+struct Pair
+{
+    int first;
+    int second;
+
+    // Member-wise comparison(lexicographically)
+    auto operator<=>(const Pair& rhs) const = default;
+};
+
+Pair p1{ 1, 10 }; // p1의 first는 p2의 first보다 작고, p1의 second는 p2의 second보다 큼.
+Pair p2{ 3, 4 };
+
+이 상황에서 p1과 p2를 비교하면 멤버 순으로 비교하기 때문에 less가 나온다.
+
+first와 second 둘 다 같은 대소 관계를 만족할 경우에만 less, greater, equal(equivalent) 값을 반환하고
+
+둘의 대소 관계가 같지 않을 경우 비교할 수 없다는 힌트를 주면 좋을 것이다.
+
+이럴 때 사용할 수 있는 것이 unordered이다.
+
+code)---------------------------------------------
+struct Pair
+{
+    int first;
+    int second;
+
+    // Member-wise comparison(lexicographically)
+    // auto operator<=>(const Pair& rhs) const = default;
+
+    std::partial_ordering operator<=>(const Pair& rhs) const
+    {
+        if (first < rhs.first && second < rhs.second)
+            return std::partial_ordering::less;
+
+        if (first > rhs.first && second > rhs.second)
+            return std::partial_ordering::greater;
+
+        if (first == rhs.first && second == rhs.second)
+            return std::partial_ordering::equivalent;
+
+        return std::partial_ordering::unordered;
+    }
+
+    // (중요) operator<=>을 수동으로 만들면 operator==를 직접 정의해야 한다.
+    bool operator==(const Pair& rhs) const = default;
+};
+
+void Run()
+{
+    // Pair p1{ 1, 2 }; // less(p1.first < p2.first && p1.second < p2.second)
+    // Pair p1{ 10, 6 }; // greater(p1.first > p2.first && p1.second > p2.second)
+    // Pair p1{ 3, 4 }; // equal(p1.first == p2.first && p1.second == p2.second)
+    Pair p1{ 1, 10 }; // unordered(p1의 first는 p2의 first보다 작고, p1의 second는 p2의 second보다 큼)
+    Pair p2{ 3, 4 };
+
+    if (p1 < p2)
+    {
+        std::cout << "less\n";
+    }
+    else if (p1 > p2)
+    {
+        std::cout << "greater\n";
+    }
+    else if (p1 == p2)
+    {
+        std::cout << "equal\n";
+    }
+    else
+    {
+        std::cout << "unordered\n";
+    }
+}
+--------------------------------------------------
+
+
+두 정점을 원점으로부터의 거리로 비교한다고 해보자.
+
+이때 정점의 좌표를 (-100, -100)에서 (+100, +100)까지의 영역으로 한정한다고 가정하면
+
+해당 영역을 벗어나는 경우 순서를 정의할 수 없다는 의미인 unordered를 반환해야 한다.
+
+code)---------------------------------------------
+class BoundedPoint
+{
+public:
+    BoundedPoint() = default;
+
+    BoundedPoint(int xy)
+        : _x{ xy }, _y{ xy }
+    { }
+
+    BoundedPoint(int x, int y)
+        : _x{ x }, _y{ x }
+    { }
+
+public:
+    std::partial_ordering operator<=>(const BoundedPoint& rhs) const
+    {
+        if (this->isBounded() == false || rhs.isBounded() == false)
+            return std::partial_ordering::unordered; // 범위를 벗어나는 경우
+        
+        auto lhsLen = this->length();
+        auto rhsLen = rhs.length();
+
+        if (lhsLen < rhsLen)
+        {
+            return std::partial_ordering::less;
+        }
+        else if (lhsLen > rhsLen)
+        {
+            return std::partial_ordering::greater;
+        }
+        else // if (lhsLen == rhsLen)
+        {
+            return std::partial_ordering::equivalent;
+        }
+    }
+
+    bool operator==(const BoundedPoint& rhs) const
+    {
+        return length() == rhs.length();
+    }
+
+private:
+    bool isBounded() const
+    {
+        return (abs(_x) < 100) && (abs(_y) < 100);
+    }
+
+    double length() const
+    {
+        return sqrt((_x * _x) + (_y * _y));
+    }
+
+private:
+    int _x{ };
+    int _y{ };
+};
+
+void Run()
+{
+    BoundedPoint p1(110, 110);
+    BoundedPoint p2(20, 20);
+    
+    std::cout << "p1 < p2  : " << (p1 < p2)  << '\n'; // 0
+    std::cout << "p1 > p2  : " << (p1 > p2)  << '\n'; // 0
+    std::cout << "p1 <= p2 : " << (p1 <= p2) << '\n'; // 0
+    std::cout << "p1 >= p2 : " << (p1 >= p2) << '\n'; // 0
+    std::cout << "p1 == p2 : " << (p1 == p2) << '\n'; // 0
+    std::cout << "p1 != p2 : " << (p1 != p2) << '\n'; // 1
+}
+--------------------------------------------------
+
+==================================================
+
+https://en.cppreference.com/w/cpp/utility/compare/strong_order
+https://en.cppreference.com/w/cpp/utility/compare/weak_order
+https://en.cppreference.com/w/cpp/utility/compare/partial_ordering
+
+@ Ordering 카테고리 변환
+
+operator<=>가 반환하는 3가지 타입을 암묵적으로 사용할 때 하위 타입에서 상위 타입으로 거슬러 올라가는 건 불가능하다.
+
+- std::strong_ordering -> std::weak_ordering -> std::partial_ordering (역방향으로의 암묵적인 형변환은 허용하지 않음)
+
+하지만 경우에 따라선 알고리즘이나 컨테이너가 요구하는 사항에 맞춰 특정 ordering 타입을 반환해야 할 때가 있다.
+
+이러한 상황은 자주 등장하기 때문에 C++20은 카테고리 변환을 위한 함수 객체를 제공한다(함수 아님).
+
+- std::strong_order
+
+- std::weak_order
+
+- std::partial_order
+
+code)---------------------------------------------
+struct Item
+{
+    int   integral{ };
+    float floatingPoint{ };
+
+    // 다음 함수는 타입을 제대로 추론할 수 없어 에러가 발생한다.
+    // E2546 : 추론된 반환 형식 "std::partial_ordering"이(가) 이전에 추론된 형식 "std::strong_ordering"과(와) 충돌합니다.
+    // auto operator<=>(const Item& rhs) const
+    // {
+    //     auto intOrder = integral <=> rhs.integral;
+    //     if (intOrder != 0)
+    //         return intOrder;
+    // 
+    //     return floatingPoint <=> rhs.floatingPoint;
+    // }
+
+    // 반환형을 auto 대신 전환 가능한 하위 타입인 std::partial_ordering으로 명시하면 통과하긴 한다.
+    // std::partial_ordering operator<=>(const Item& rhs) const
+    // {
+    //     auto intOrder = integral <=> rhs.integral;
+    //     if (intOrder != 0)
+    //         return intOrder;
+    // 
+    //     return floatingPoint <=> rhs.floatingPoint;
+    // }
+
+    // 하지만 역으로 거슬러 올라가려면 적절한 변환 함수 객체를 사용하는 것이 좋다.
+    std::strong_ordering operator<=>(const Item& rhs) const
+    {
+        auto intOrder = integral <=> rhs.integral;
+        if (intOrder != 0)
+            return intOrder;
+    
+        // 이렇게 수동으로 대응되는 ordering의 값에 따라 반환하는 것도 가능하다.
+        // 하지만 이 방식은 unordered에 대한 깔끔한 처리를 할 수 없다.
+        // auto floatOrder = floatingPoint <=> rhs.floatingPoint;
+        // 
+        // if (floatOrder < 0)
+        //     return std::strong_ordering::less;
+        // 
+        // if (floatOrder > 0)
+        //     return std::strong_ordering::greater;
+        // 
+        // return std::strong_ordering::equal; // floatOrder == equal
+    
+        // 하지만 다음과 같이 사용하는 것이 가독성도 좋고 깔끔하다.
+        return std::strong_order(floatingPoint, rhs.floatingPoint);
+    }
+};
+
+int main()
+{
+    std::set<Item> items{ };
+
+    items.insert({ 50,  3.14f });
+    items.insert({ 100, 3.14f });
+    items.insert({ 200, 3.14f });
+    items.insert({ 50,  1.57f });
+    items.insert({ 200, 1.57f });
+    items.insert({ 100, 1.57f });
+    items.insert({ 200, 6.28f });
+    items.insert({ 100, 6.28f });
+    items.insert({ 50,  6.28f });
+
+    for (auto& [x, y] : items)
+    {
+        std::cout << std::format("{:<5} {}\n", x, y);
+    }
+
+    return 0;
+}
+--------------------------------------------------
+
+##################################################
+
+# default로 정의한 Three-way 비교 연산자를 기반으로 동작하는 객체의 부모 클래스와 멤버 객체 간 관계 연산
+
+어떠한 객체에 operator<=>를 default로 정의한 상태라고 해보자.
+
+이때 해당 연산자 함수가 컴파일되기 위해선 다음 조건을 충족해야 한다.
+
+- 어떠한 객체가 상속을 통해 구현된 것이라면?
+  1. 부모 클래스는 operator<=>를 지원해야 함(수동으로 정의한 경우 operator==도 정의해주는 것이 좋음).
+  2. 부모 클래스는 사용자 정의 operator<와 operator==를 지원해야 함(operator==는 default로 정의해도 됨).
+
+- 어떠한 객체에 멤버 변수가 객체라면?
+  1. 멤버 객체는 operator<=>를 지원해야 함(수동으로 정의한 경우 operator==도 정의해주는 것이 좋음).
+  2. 멤버 객체는 사용자 정의 operator<와 operator==를 지원해야 함(operator==는 default로 정의해도 됨).
+
+!! 주의 !!
+
+부모가 되었든 멤버 객체가 되었든 비교하는 과정에서 사용자 정의 operator<=>나 사용자 정의 operator<를 사용한다면
+
+어떠한 객체는 "반드시" operator<=>에 적절한 반환 타입을 명시해야 한다(이유는 모르겠음).
+
+어떠한 객체의 default가 적용된 operator<=>의 반환형을 auto로 사용하기 위해선
+
+부모나 멤버 객체 또한 operator<=>가 적용된 상태에서 반환형이 auto로 되어 있어야 한다.
+
+
+operator<와 operator==만 정의되어 있으면 두 함수를 적절하게 합성하여 operator<=>와 동일한 기능을 구현할 수 있다.
+
+관계 연산은 다음 순서에 따라 진행된다.
+
+1. 부모의 멤버 변수와 자식의 멤버 변수 중 우선적으로 부모의 멤버 변수부터 검증한다.
+
+2. 부모의 멤버 변수에 대한 검증이 끝나면 그 다음 자식의 멤버 변수를 Member-wise 방향으로 확인한다.
+
+3. 이때 자식의 멤버 변수가 객체로 되어 있으면 해당 멤버 객체의 멤버 변수를 검증한다.
+
+비교를 시작하면 두 값이 동등한 값(equivalent values)인지 확인하는 것이 먼저이다.
+
+두 값이 동등하다면 다음 값을 비교하고, 동등하지 않은 값일 경우 관계 연산을 진행하여 대소 관계를 파악한다.
+
+!! 디스어셈블러를 통해 분석하면 실제로 저런 방식으로 동작하며 분석 난이도 또한 어려운 편은 아니니 직접 확인해보도록 함. !!
+
+
+부모 클래스나 멤버 객체가 섞인 관계 연산을 유형별로 분류하자면 이런 느낌이다.
+
+1. default operator<=> 기반이면 각 멤버 변수를 다음 순서대로 비교한다.
+
+- 첫 번째 멤버 변수를 선택
+
+- equal(혹은 equivalent) 검증 -> less 검증 -> greater 검증 -> unordered 검증(실수형일 경우)
+
+- 한 멤버 변수에 대한 검증이 끝나면 다음 멤버 변수를 똑같이 검증
+
+2. 사용자 정의 operator<=> 기반이면 사용자가 정의한 방식에 따른다.
+
+3. operator<와 operator== 기반이면 객체 자체를 검증한다.
+
+- operator== 검증 -> operator< 검증(less) -> operator< 검증(greater)
+
+- 이 검증은 개별 멤버 변수를 대상으로 이루어지는 것이 아닌 객체 자체를 대상으로 이루어짐.
+
+(주의) 관계 연산이 아닌 동등 연산(==, !=)은 operator== 하나만을 사용하여 검증하니 구분해서 봐야 한다.
+
+
+부모 클래스와 멤버 객체 간 관계 연산을 operator<=>로 진행할 때 최종적으로 반환되는 ordering 타입은
+
+각 멤버 변수를 operator<=>로 연산했을 때 반환되는 타입의 상위 전환 여부에 달려 있다.
+
+- std::strong_ordering -> std::weak_ordering -> std::partial_ordering
+
+쉽게 생각해서 멤버 변수가 { int, int }로 구성되었을 때 최종적으로 반환되는 타입은 std::strong_ordering이고,
+
+멤버 변수에 실수가 섞여 { int, int, float }와 같이 구성되었을 때 최종적으로 반환되는 타입은 std::partial_ordering이다.
+
+
+상속 관계에서 부모와 자식 모두 operator<=>를 default로 사용하는 건 기본 예시이다.
+
+code)---------------------------------------------
+struct Base
+{
+    int iValue{ };
+
+    auto operator<=>(const Base& rhs) const = default;
+};
+
+struct Derived : Base
+{
+    float fValue{ };
+
+    auto operator<=>(const Derived& rhs) const = default;
+};
+
+void Run()
+{
+    Derived a{ 100, 3.14f };
+    Derived b{ 100, 3.14f };
+    Derived c{ 150, 1.57f };
+    Derived d{ 50,  6.28f };
+    Derived e{ 100, 6.28f };
+    Derived f{ 100, std::numeric_limits<float>::quiet_NaN() };
+
+    std::cout << "ordering : " << typeid(a <=> b).name() << '\n'; // struct std::partial_ordering
+    std::cout << "ordering : " << typeid(a <=> c).name() << '\n'; // struct std::partial_ordering
+
+    std::cout << "-------------------------\n";
+
+    std::cout << "{ 100, 3.14f } @ { 100, 3.14f }\n";
+    
+    // 비교는 operator<=>를 기반으로 한다.
+    std::cout << "(a < b)  " << (a < b)  << '\n'; // 0
+    std::cout << "(a > b)  " << (a > b)  << '\n'; // 0
+    std::cout << "(a <= b) " << (a <= b) << '\n'; // 1
+    std::cout << "(a >= b) " << (a >= b) << '\n'; // 1
+
+    // 비교는 operator==를 기반으로 한다.
+    std::cout << "(a == b) " << (a == b) << '\n'; // 1
+    std::cout << "(a != b) " << (a != b) << '\n'; // 0
+
+    std::cout << "-------------------------\n";
+    
+    std::cout << "{ 100, 3.14f } @ { 150, 1.57f }\n";
+    
+    // 비교는 operator<=>를 기반으로 한다.
+    std::cout << "(a < c)  " << (a < c)  << '\n'; // 1
+    std::cout << "(a > c)  " << (a > c)  << '\n'; // 0
+    std::cout << "(a <= c) " << (a <= c) << '\n'; // 1
+    std::cout << "(a >= c) " << (a >= c) << '\n'; // 0
+
+    // 비교는 operator==를 기반으로 한다.
+    std::cout << "(a == c) " << (a == c) << '\n'; // 0
+    std::cout << "(a != c) " << (a != c) << '\n'; // 1
+
+    std::cout << "-------------------------\n";
+    
+    std::cout << "{ 100, 3.14f } @ { 50, 6.28f }\n";
+    
+    // 비교는 operator<=>를 기반으로 한다.
+    std::cout << "(a < d)  " << (a < d)  << '\n'; // 0
+    std::cout << "(a > d)  " << (a > d)  << '\n'; // 1
+    std::cout << "(a <= d) " << (a <= d) << '\n'; // 0
+    std::cout << "(a >= d) " << (a >= d) << '\n'; // 1
+
+    // 비교는 operator==를 기반으로 한다.
+    std::cout << "(a == d) " << (a == d) << '\n'; // 0
+    std::cout << "(a != d) " << (a != d) << '\n'; // 1
+
+    std::cout << "-------------------------\n";
+    
+    std::cout << "{ 100, 3.14f } @ { 100, 6.28f }\n";
+    
+    // 비교는 operator<=>를 기반으로 한다.
+    std::cout << "(a < e)  " << (a < e)  << '\n'; // 1
+    std::cout << "(a > e)  " << (a > e)  << '\n'; // 0
+    std::cout << "(a <= e) " << (a <= e) << '\n'; // 1
+    std::cout << "(a >= e) " << (a >= e) << '\n'; // 0
+
+    // 비교는 operator==를 기반으로 한다.
+    std::cout << "(a == e) " << (a == e) << '\n'; // 0
+    std::cout << "(a != e) " << (a != e) << '\n'; // 1
+
+    std::cout << "-------------------------\n";
+    
+    std::cout << "{ 100, 3.14f } @ { 100, NaN }\n";
+    
+    // 비교는 operator<=>를 기반으로 한다.
+    std::cout << "(a < f)  " << (a < f)  << '\n'; // 0
+    std::cout << "(a > f)  " << (a > f)  << '\n'; // 0
+    std::cout << "(a <= f) " << (a <= f) << '\n'; // 0
+    std::cout << "(a >= f) " << (a >= f) << '\n'; // 0
+
+    // 비교는 operator==를 기반으로 한다.
+    std::cout << "(a == f) " << (a == f) << '\n'; // 0
+    std::cout << "(a != f) " << (a != f) << '\n'; // 1
+
+    std::cout << "-------------------------\n";
+}
+--------------------------------------------------
+
+자식 쪽에서 사용자 정의 operator<=>를 구현해도 된다.
+
+이 경우 완전한 비교 연산(<, >, <=, >=, ==, !=)을 지원하기 위해 operator==도 정의하는 것이 좋다.
+
+code)---------------------------------------------
+struct Base
+{
+    int iValue{ };
+
+    auto operator<=>(const Base& rhs) const
+    {
+        std::cout << "operator<=> ";
+
+        return iValue <=> rhs.iValue;
+    }
+
+    bool operator==(const Base& rhs) const
+    {
+        std::cout << "operator== ";
+
+        return iValue == rhs.iValue;
+    }
+};
+
+struct Derived : Base
+{
+    float fValue{ };
+
+    // 비교 도중 사용자 정의 연산자를 사용한다면 이쪽의 operator<=>는 반드시 적절한 반환 타입을 명시해야 한다.
+    std::partial_ordering operator<=>(const Derived& rhs) const = default;
+};
+--------------------------------------------------
+
+자식 쪽의 operator<=>가 default로 정의되어 있는 경우 부모 쪽은 operator<와 operator==만 정의해도 된다.
+
+code)---------------------------------------------
+struct Base
+{
+    int iValue{ };
+
+    // less와 greater 체크를 진행하는 과정에서 2번 호출될 수 있다.
+    bool operator<(const Base& rhs) const
+    {
+        std::cout << "operator< ";
+
+        return iValue < rhs.iValue;
+    }
+
+    bool operator==(const Base& rhs) const
+    {
+        std::cout << "operator== ";
+
+        return iValue == rhs.iValue;
+    }
+
+    // 사용자 정의 operator== 대신 이 방법을 써도 된다.
+    // bool operator==(const Base& rhs) const = default;
+};
+
+struct Derived : Base
+{
+    float fValue{ };
+
+    // 비교 도중 사용자 정의 연산자를 사용한다면 이쪽의 operator<=>는 반드시 적절한 반환 타입을 명시해야 한다.
+    std::partial_ordering operator<=>(const Derived& rhs) const = default;
+};
+--------------------------------------------------
+
+
+객체를 멤버 변수로 사용하는 형태도 자주 볼 수 있다.
+
+이때 객체를 멤버 변수로 사용하는 쪽에서 operator<=>를 default로 정의했다면 멤버가 되는 객체도 적절한 연산자를 지원해야 한다.
+
+code)---------------------------------------------
+struct Item
+{
+    int itemVal{ };
+
+    auto operator<=>(const Item& rhs) const = default;
+};
+
+struct Object
+{
+    Item item;
+    int  objVal{ };
+
+    auto operator<=>(const Object& rhs) const = default;
+};
+
+void Run()
+{
+    Object a{ 100, 1000 };
+    Object b{ 100, 1000 };
+    Object c{ 150, 500 };
+    Object d{ 50,  2000 };
+    Object e{ 100, 2000 };
+
+    std::cout << "ordering : " << typeid(a <=> b).name() << '\n'; // struct std::strong_ordering
+    std::cout << "ordering : " << typeid(a <=> c).name() << '\n'; // struct std::strong_ordering
+    
+    std::cout << "-------------------------\n";
+
+    std::cout << "{ 100, 1000 } @ { 100, 1000 }\n";
+    
+    // 비교는 operator<=>를 기반으로 한다.
+    std::cout << "(a < b)  " << (a < b)  << '\n'; // 0
+    std::cout << "(a > b)  " << (a > b)  << '\n'; // 0
+    std::cout << "(a <= b) " << (a <= b) << '\n'; // 1
+    std::cout << "(a >= b) " << (a >= b) << '\n'; // 1
+
+    // 비교는 operator==를 기반으로 한다.
+    std::cout << "(a == b) " << (a == b) << '\n'; // 1
+    std::cout << "(a != b) " << (a != b) << '\n'; // 0
+    
+    std::cout << "-------------------------\n";
+    
+    std::cout << "{ 100, 1000 } @ { 150, 500 }\n";
+    
+    // 비교는 operator<=>를 기반으로 한다.
+    std::cout << "(a < c)  " << (a < c)  << '\n'; // 1
+    std::cout << "(a > c)  " << (a > c)  << '\n'; // 0
+    std::cout << "(a <= c) " << (a <= c) << '\n'; // 1
+    std::cout << "(a >= c) " << (a >= c) << '\n'; // 0
+
+    // 비교는 operator==를 기반으로 한다.
+    std::cout << "(a == c) " << (a == c) << '\n'; // 0
+    std::cout << "(a != c) " << (a != c) << '\n'; // 1
+    
+    std::cout << "-------------------------\n";
+    
+    std::cout << "{ 100, 1000 } @ { 50, 2000 }\n";
+    
+    // 비교는 operator<=>를 기반으로 한다.
+    std::cout << "(a < d)  " << (a < d)  << '\n'; // 0
+    std::cout << "(a > d)  " << (a > d)  << '\n'; // 1
+    std::cout << "(a <= d) " << (a <= d) << '\n'; // 0
+    std::cout << "(a >= d) " << (a >= d) << '\n'; // 1
+
+    // 비교는 operator==를 기반으로 한다.
+    std::cout << "(a == d) " << (a == d) << '\n'; // 0
+    std::cout << "(a != d) " << (a != d) << '\n'; // 1
+    
+    std::cout << "-------------------------\n";
+    
+    std::cout << "{ 100, 1000 } @ { 100, 2000 }\n";
+    
+    // 비교는 operator<=>를 기반으로 한다.
+    std::cout << "(a < e)  " << (a < e)  << '\n'; // 1
+    std::cout << "(a > e)  " << (a > e)  << '\n'; // 0
+    std::cout << "(a <= e) " << (a <= e) << '\n'; // 1
+    std::cout << "(a >= e) " << (a >= e) << '\n'; // 0
+
+    // 비교는 operator==를 기반으로 한다.
+    std::cout << "(a == e) " << (a == e) << '\n'; // 0
+    std::cout << "(a != e) " << (a != e) << '\n'; // 1
+
+    std::cout << "-------------------------\n";
+}
+--------------------------------------------------
+
+멤버 객체 차원에서 사용자 정의 operator<=>를 구현해도 된다.
+
+마찬가지로 완전한 비교 연산(<, >, <=, >=, ==, !=)을 지원하기 위해 operator==도 정의하는 것이 좋다.
+
+code)---------------------------------------------
+struct Item
+{
+    int itemVal{ };
+    
+    auto operator<=>(const Item& rhs) const
+    {
+        std::cout << "operator<=> ";
+
+        return itemVal <=> rhs.itemVal;
+    }
+
+    bool operator==(const Item& rhs) const
+    {
+        std::cout << "operator== ";
+
+        return itemVal == rhs.itemVal;
+    }
+};
+--------------------------------------------------
+
+멤버 객체를 사용하는 쪽의 operator<=>가 default로 정의되어 있다면 멤버 객체는 operator<와 operator==만 정의해도 된다.
+
+code)---------------------------------------------
+struct Item
+{
+    int itemVal{ };
+    
+    // less와 greater 체크를 진행하는 과정에서 2번 호출될 수 있다.
+    bool operator<(const Item& rhs) const
+    {
+        std::cout << "operator< ";
+
+        return itemVal < rhs.itemVal;
+    }
+
+    bool operator==(const Item& rhs) const
+    {
+        std::cout << "operator== ";
+
+        return itemVal == rhs.itemVal;
+    }
+
+    // 사용자 정의 operator== 대신 이 방법을 써도 된다.
+    // bool operator==(const Item& rhs) const = default;
+};
+
+struct Object
+{
+    Item item;
+    int  objVal{ };
+
+    // 비교 도중 사용자 정의 연산자를 사용한다면 이쪽의 operator<=>는 반드시 적절한 반환 타입을 명시해야 한다.
+    std::strong_ordering operator<=>(const Object& rhs) const = default;
+};
+--------------------------------------------------
+
+
+부모 클래스를 먼저 비교한 다음 멤버 변수를 Member-wise 방향으로 비교한다.
+
+멤버 변수를 비교하는 단계에서 멤버 객체를 발견하면 객체 간 동등성 및 대소 관계를 파악하기 위한 검증을 진행한다.
+
+code)---------------------------------------------
+struct Item
+{
+    int itemVal{ };
+    
+    // less와 greater 체크를 진행하는 과정에서 2번 호출될 수 있다.
+    bool operator<(const Item& rhs) const
+    {
+        std::cout << "Item::operator< ";
+
+        return itemVal < rhs.itemVal;
+    }
+
+    bool operator==(const Item& rhs) const
+    {
+        std::cout << "Item::operator== ";
+
+        return itemVal == rhs.itemVal;
+    }
+
+    // 사용자 정의 operator== 대신 이 방법을 써도 된다.
+    // bool operator==(const Item& rhs) const = default;
+};
+
+struct Base
+{
+    int iValue{ };
+
+    // less와 greater 체크를 진행하는 과정에서 2번 호출될 수 있다.
+    bool operator<(const Base& rhs) const
+    {
+        std::cout << "Base::operator< ";
+
+        return iValue < rhs.iValue;
+    }
+
+    bool operator==(const Base& rhs) const
+    {
+        std::cout << "Base::operator== ";
+
+        return iValue == rhs.iValue;
+    }
+
+    // 사용자 정의 operator== 대신 이 방법을 써도 된다.
+    // bool operator==(const Base& rhs) const = default;
+};
+
+struct Derived : Base
+{
+    // Base -> Item -> fValue 순으로 비교한다.
+    Item  item;
+    float fValue{ };
+
+    // 비교 도중 사용자 정의 연산자를 사용한다면 이쪽의 operator<=>는 반드시 적절한 반환 타입을 명시해야 한다.
+    std::partial_ordering operator<=>(const Derived& rhs) const = default;
+};
+
+void Run()
+{
+    Derived a{ 100, 1000, 3.14f };
+    Derived b{ 100, 1000, 3.14f };
+
+    Derived c{ 100, 1000, 6.28f };
+    Derived d{ 100, 1000, 1.57f };
+
+    Derived e{ 100, 500,  std::numeric_limits<float>::quiet_NaN() };
+    Derived f{ 100, 2000, std::numeric_limits<float>::quiet_NaN() };
+
+    Derived g{ 150, 500,  std::numeric_limits<float>::quiet_NaN() };
+    Derived h{ 50,  1500, std::numeric_limits<float>::quiet_NaN() };
+
+    std::cout << "ordering : " << typeid(a <=> b).name() << '\n'; // struct std::partial_ordering
+
+    std::cout << "-------------------------\n";
+
+    std::cout << "{ 100, 1000, 3.14f } @ { 100, 1000, 3.14f }\n";
+    
+    // 비교는 operator<=>를 기반으로 한다.
+    std::cout << "(a < b)  " << (a < b)  << '\n'; // 0
+    std::cout << "(a > b)  " << (a > b)  << '\n'; // 0
+    std::cout << "(a <= b) " << (a <= b) << '\n'; // 1
+    std::cout << "(a >= b) " << (a >= b) << '\n'; // 1
+
+    // 비교는 operator==를 기반으로 한다.
+    std::cout << "(a == b) " << (a == b) << '\n'; // 1
+    std::cout << "(a != b) " << (a != b) << '\n'; // 0
+
+    std::cout << "-------------------------\n";
+
+    std::cout << "{ 100, 1000, 3.14f } @ { 100, 1000, 6.28f }\n";
+    
+    // 비교는 operator<=>를 기반으로 한다.
+    std::cout << "(a < c)  " << (a < c)  << '\n'; // 1
+    std::cout << "(a > c)  " << (a > c)  << '\n'; // 0
+    std::cout << "(a <= c) " << (a <= c) << '\n'; // 1
+    std::cout << "(a >= c) " << (a >= c) << '\n'; // 0
+
+    // 비교는 operator==를 기반으로 한다.
+    std::cout << "(a == c) " << (a == c) << '\n'; // 0
+    std::cout << "(a != c) " << (a != c) << '\n'; // 1
+
+    std::cout << "-------------------------\n";
+
+    std::cout << "{ 100, 1000, 3.14f } @ { 100, 1000, 1.57f }\n";
+    
+    // 비교는 operator<=>를 기반으로 한다.
+    std::cout << "(a < d)  " << (a < d)  << '\n'; // 0
+    std::cout << "(a > d)  " << (a > d)  << '\n'; // 1
+    std::cout << "(a <= d) " << (a <= d) << '\n'; // 0
+    std::cout << "(a >= d) " << (a >= d) << '\n'; // 1
+
+    // 비교는 operator==를 기반으로 한다.
+    std::cout << "(a == d) " << (a == d) << '\n'; // 0
+    std::cout << "(a != d) " << (a != d) << '\n'; // 1
+
+    std::cout << "-------------------------\n";
+    
+    std::cout << "{ 100, 1000, 3.14f } @ { 100, 500, NaN }\n";
+    
+    // 비교는 operator<=>를 기반으로 한다.
+    std::cout << "(a < e)  " << (a < e)  << '\n'; // 0
+    std::cout << "(a > e)  " << (a > e)  << '\n'; // 1
+    std::cout << "(a <= e) " << (a <= e) << '\n'; // 0
+    std::cout << "(a >= e) " << (a >= e) << '\n'; // 1
+
+    // 비교는 operator==를 기반으로 한다.
+    std::cout << "(a == e) " << (a == e) << '\n'; // 0
+    std::cout << "(a != e) " << (a != e) << '\n'; // 1
+
+    std::cout << "-------------------------\n";
+    
+    std::cout << "{ 100, 1000, 3.14f } @ { 100, 2000, NaN }\n";
+    
+    // 비교는 operator<=>를 기반으로 한다.
+    std::cout << "(a < f)  " << (a < f)  << '\n'; // 1
+    std::cout << "(a > f)  " << (a > f)  << '\n'; // 0
+    std::cout << "(a <= f) " << (a <= f) << '\n'; // 1
+    std::cout << "(a >= f) " << (a >= f) << '\n'; // 0
+
+    // 비교는 operator==를 기반으로 한다.
+    std::cout << "(a == f) " << (a == f) << '\n'; // 0
+    std::cout << "(a != f) " << (a != f) << '\n'; // 1
+
+    std::cout << "-------------------------\n";
+    
+    std::cout << "{ 100, 1000, 3.14f } @ { 150, 500, NaN }\n";
+    
+    // 비교는 operator<=>를 기반으로 한다.
+    std::cout << "(a < g)  " << (a < g)  << '\n'; // 1
+    std::cout << "(a > g)  " << (a > g)  << '\n'; // 0
+    std::cout << "(a <= g) " << (a <= g) << '\n'; // 1
+    std::cout << "(a >= g) " << (a >= g) << '\n'; // 0
+
+    // 비교는 operator==를 기반으로 한다.
+    std::cout << "(a == g) " << (a == g) << '\n'; // 0
+    std::cout << "(a != g) " << (a != g) << '\n'; // 1
+
+    std::cout << "-------------------------\n";
+    
+    std::cout << "{ 100, 1000, 3.14f } @ { 50, 1500, NaN }\n";
+    
+    // 비교는 operator<=>를 기반으로 한다.
+    std::cout << "(a < h)  " << (a < h)  << '\n'; // 0
+    std::cout << "(a > h)  " << (a > h)  << '\n'; // 1
+    std::cout << "(a <= h) " << (a <= h) << '\n'; // 0
+    std::cout << "(a >= h) " << (a >= h) << '\n'; // 1
+
+    // 비교는 operator==를 기반으로 한다.
+    std::cout << "(a == h) " << (a == h) << '\n'; // 0
+    std::cout << "(a != h) " << (a != h) << '\n'; // 1
+
+    std::cout << "-------------------------\n";
+}
+--------------------------------------------------
+
+##################################################
+
+# 사용자 정의 Three-way 비교 연산자로 정렬하기
+
+operator<=>를 수동으로 작성할 때 멤버 변수를 비교하는 순서에 따라 정렬 순서를 조절할 수 있다.
+
+code)---------------------------------------------
+struct Person
+{
+    std::string name{ };
+    int  age{ };
+    char gender{ };
+
+    // default 유형으로 사용하면 Member-wise 방향에 따라 name -> age -> gender 순으로 비교한다.
+    // auto operator<=>(const Person& rhs) const = default;
+
+    // 직접 구성하는 방식을 사용하면 age -> gender -> name 순으로 비교하여 반환된 ordering을 통해 정렬 순서를 결정할 수 있다.
+    auto operator<=>(const Person& rhs) const
+    {
+        // std::strong_ordering ageOrder{ };
+        // if (age == rhs.age)
+        // {
+        //     ageOrder = std::strong_ordering::equal;
+        // }
+        // else if (age < rhs.age)
+        // {
+        //     ageOrder = std::strong_ordering::less;
+        // }
+        // else
+        // {
+        //     ageOrder = std::strong_ordering::greater;
+        // }
+        // 
+        // if (ageOrder != 0)
+        //     return ageOrder;
+
+        // 위에 주석으로 작성된 코드와 같은 기능을 수행한다.
+        auto ageOrder = age <=> rhs.age;
+        if (ageOrder != 0)
+            return ageOrder;
+
+        auto genOrder = gender <=> rhs.gender;
+        if (genOrder != 0)
+            return genOrder;
+
+        return name <=> rhs.name;
+    }
+};
+
+int main()
+{
+    std::set<Person> people{ };
+
+    people.insert({ "Daniel",  23, 'M' });
+    people.insert({ "Chloe",   16, 'F' });
+    people.insert({ "Ethan",   23, 'M' });
+    people.insert({ "Brian",   23, 'M' });
+    people.insert({ "Alex",    16, 'M' });
+    people.insert({ "Fiona",   30, 'F' });
+    people.insert({ "Bella",   23, 'F' });
+    people.insert({ "Diana",   16, 'F' });
+    people.insert({ "Alice",   30, 'F' });
+    people.insert({ "Frank",   28, 'M' });
+    people.insert({ "Ella",    28, 'F' });
+    people.insert({ "Charlie", 30, 'M' });
+
+    for (auto& [name, age, gender] : people)
+    {
+        std::cout << std::format("{:<8} {:<3} {}\n", name, age, gender);
+    }
+
+    return 0;
+}
+--------------------------------------------------
+
+##################################################
+
+https://en.cppreference.com/w/cpp/utility/compare/compare_strong_order_fallback
+https://en.cppreference.com/w/cpp/utility/compare/compare_weak_order_fallback
+https://en.cppreference.com/w/cpp/utility/compare/compare_partial_order_fallback
+
+# std::compare_strong_fallback, compare_weak_order_fallback, compare_partial_order_fallback
+
+(주의) 위 링크에 나온 건 함수가 아닌 "함수 객체"이다.
+
+compare_xxx_order_fallback 계열의 함수 객체를 쓰면 operator<와 operator==을 토대로
+
+Three-way 비교 연산자를 사용한 것 같은 결과를 받아올 수 있다.
+
+필요한 ordering 타입에 맞는 것을 사용하면 된다.
+
+code)---------------------------------------------
+struct Number // <=> 연산자를 제공하고 있지 않음.
+{
+    int num;
+
+    Number() = default;
+    Number(int num)
+        : num{ num }
+    { }
+
+    // compare_xxx_order_fallback에 적용할 operator<와 operator==은 
+    // 멤버 함수로 구성하든 전역 함수로 구성하든 상관 없다.
+    // friend bool operator==(const Number& lhs, const Number& rhs)
+    // {
+    //     return lhs.num == rhs.num;
+    // }
+    // 
+    // friend bool operator<(const Number& lhs, const Number& rhs)
+    // {
+    //     return lhs.num < rhs.num;
+    // }
+
+    bool operator==(const Number& rhs) const
+    {
+        return num == rhs.num;
+    }
+    
+    bool operator<(const Number& rhs) const
+    {
+        return num < rhs.num;
+    }
+};
+
+struct Person
+{
+    std::string name{ };
+    Number age{ };
+    char   gender{ };
+
+    auto operator<=>(const Person& rhs) const
+    {
+        // Number 차원에서 operator<=>를 제공하지 않기 때문에 사용할 수 없다.
+        // auto ageOrder = age <=> rhs.age;
+        // if (ageOrder != 0)
+        //     return ageOrder;
+
+        // 함수 객체가 Number의 operator<와 operator==를 적절히 사용하여 std::strong_ordering을 반환한다.
+        auto ageOrder = std::compare_strong_order_fallback(age, rhs.age);
+        if (ageOrder != 0)
+            return ageOrder;
+
+        auto genOrder = gender <=> rhs.gender;
+        if (genOrder != 0)
+            return genOrder;
+
+        return name <=> rhs.name;
+    }
+};
+--------------------------------------------------
+
+##################################################
+
+https://en.cppreference.com/w/cpp/algorithm/lexicographical_compare_three_way
+
+# std::lexicographical_compare_three_way()
+
+해당 함수는 std::string이 아닌 일반 문자 배열(char*, char[])을 대상으로 사전 순서 비교를 진행하고 싶을 경우 사용하면 된다.
+
+해당 함수가 반환하는 결과는 다음과 동등(equivalent)하다고 되어 있다.
+
+return std::lexicographical_compare_three_way(
+    first1, last1, first2, last2, std::compare_three_way());
+
+여기서 std::compare_three_way는 operator<=>를 사용하는 함수 객체이다.
+
+즉, ordering 타입을 반환하는 람다식이나 함수 객체를 직접 구성할 수 있다면
+
+std::lexicographical_compare_three_way()의 동작 방식을 사용자가 제어할 수 있다는 뜻이다.
+
+code)---------------------------------------------
+struct Person
+{
+    char name[16];
+    int  age{ };
+    char gender{ };
+
+    // gender -> name -> age 순으로 비교한다.
+    auto operator<=>(const Person& rhs) const
+    {
+        auto genOrder = gender <=> rhs.gender;
+        if (genOrder != 0)
+            return genOrder;
+            
+        // 정적 배열을 대상으로 사용할 때는 std::begin()과 std::end()를 쓰도록 한다.
+        // std::lexicographical_compare_three_way()는 std::strong_ordering를 반환한다.
+        auto nameOrder = std::lexicographical_compare_three_way(std::begin(name), std::end(name),
+                                                                std::begin(rhs.name), std::end(rhs.name));
+        if (nameOrder != 0)
+            return nameOrder;
+
+        return age <=> rhs.age;
+    }
+};
+--------------------------------------------------
