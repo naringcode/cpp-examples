@@ -52,6 +52,7 @@ private:
     {
         size_t size = std::min(_str.size(), rhs._str.size());
         
+        // 일반적으로 많이 사용하는 방법(사용자 쪽에서 최대한 구현하기)
         for (size_t idx = 0; idx < size; idx++)
         {
             auto lhsCh = std::tolower(_str[idx]);
@@ -116,6 +117,8 @@ private:
         auto lhsLowerView = this->_str | std::views::transform(tolower);
         auto rhsLowerView = rhs._str   | std::views::transform(tolower);
         
+        // 본래 일반 문자열 배열(char[])를 대상으로 사전 순서 비교를 하여 std::strong_ordering을 받기 위한 함수이다.
+        // 정적 배열을 대상으로 사용할 때는 std::begin()과 std::end()를 사용하도록 한다.
         auto threeWayCmp = std::lexicographical_compare_three_way(lhsLowerView.begin(), lhsLowerView.end(),
                                                                   rhsLowerView.begin(), rhsLowerView.end());
     
@@ -185,6 +188,8 @@ private:
         int cmp{ };
     
         // 사전순으로 비교하는 작업을 먼저 진행(lexicographical comparison)
+        // std::views::zip()을 사용하면 두 뷰를 묶어서 이터레이팅하는 것이 가능하다.
+        // 단순 조회가 아닌 묶음으로 순회하여 변형한 값을 조회할 목적이면 views::zip_transform()을 사용하는 방법도 있다.
         for (auto [ch1, ch2] : std::views::zip(lhsLowerView, rhsLowerView))
         {
             if (ch1 != ch2)
@@ -246,7 +251,8 @@ private:
         auto lhsLowerView = this->_str | std::views::transform(tolower);
         auto rhsLowerView = rhs._str   | std::views::transform(tolower);
     
-        // iterator를 통한 직접 비교나 끝에 도달한 iterator를 사용하려고 하면 프로그램이 터질 수 있다.
+        // iterator를 통한 직접 비교를 진행하면서 일치하지 않는 부분을 찾기 위해 사용하면 좋은 함수이다.
+        // (중요) 문제가 있다면 end에 도달한 iterator를 직접적으로 사용하려고 할 때 프로그램이 터질 수 있다.
         auto [lhsIter, rhsIter] = std::ranges::mismatch(lhsLowerView, rhsLowerView);
     
         size_t lhsDist = std::distance(lhsIter, lhsLowerView.end());
@@ -312,6 +318,7 @@ private:
         auto lhsIter = lhsLowerView.begin();
         auto rhsIter = rhsLowerView.begin();
     
+        // views를 통해 소문자만 조회하고 이터레이팅은 직접 하는 방식
         while (0 < size--)
         {
             if (*lhsIter != *rhsIter)
