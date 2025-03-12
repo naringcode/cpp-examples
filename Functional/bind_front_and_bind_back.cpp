@@ -1,7 +1,7 @@
 // Update Date : 2025-02-22
 // OS : Windows 10 64bit
 // Program : Visual Studio 2022
-// Version : C++20
+// Version : C++20, C++23
 // Configuration : Debug-x64, Release-x64
 
 #include <iostream>
@@ -15,7 +15,7 @@
 
 // 기존의 std::bind()를 통해 인자를 묶으면 채워지지 않은 부분은 std::placeholders로 기입해야 한다.
 // 
-// C++20은 이러한 단점을 보완한 std::bind_front()와 std::bind_back()이 추가되었다.
+// 이러한 단점을 보완하기 위해 C++20에는 std::bind_front()가, C++23에는 std::bind_back()이 추가되었다.
 // 이 함수를 사용하면 함수 바인딩 시 std::placeholders를 기입하지 않아도 된다.
 //
 // std::bind()보다 위 두 함수를 사용하는 것이 훨씬 코드를 간결하게 작성할 수 있다.
@@ -88,25 +88,25 @@ void Run()
 {
     // std::bind_front()와 std::bind_back()을 사용하면 std::placeholders를 기입하지 않아도 된다.
     {
-        // std::bind_front()
+        // std::bind_front() [C++20]
         // auto bindA1 = std::bind_front(&GlobalPrintThree, "One");
         std::function<void(std::string, std::string)> bindA1 = std::bind_front(&GlobalPrintThree, "One");
 
         bindA1("Two", "Three");
 
-        // std::bind_back();
+        // std::bind_back() [C++23]
         // auto bindA2 = std::bind_back(&GlobalPrintThree, "Three");
         std::function<void(std::string, std::string)> bindA2 = std::bind_back(&GlobalPrintThree, "Three");
 
         bindA2("One", "Two");
 
-        // std::bind_front()
+        // std::bind_front() [C++20]
         // auto bindB1 = std::bind_front(&GlobalPrintThree, "One", "Two");
         std::function<void(std::string)> bindB1 = std::bind_front(&GlobalPrintThree, "One", "Two");
 
         bindB1("Three");
 
-        // std::bind_back();
+        // std::bind_back() [C++23]
         // auto bindB2 = std::bind_back(&GlobalPrintThree, "Two", "Three");
         std::function<void(std::string)> bindB2 = std::bind_back(&GlobalPrintThree, "Two", "Three");
 
@@ -117,13 +117,13 @@ void Run()
         // 멤버 함수를 묶는 것도 가능하다.
         FooObject inst;
 
-        // std::bind_front()
+        // std::bind_front() [C++20]
         // auto bindC1 = std::bind_front(&FooObject::PrintThree, &inst, "One", "Two");
         std::function<void(std::string)> bindC1 = std::bind_front(&FooObject::PrintThree, &inst, "One", "Two");
 
         bindC1("Three");
 
-        // std::bind_back();
+        // std::bind_back() [C++23]
         // std::function<void(FooObject&, std::string)> bindC2 = std::bind_back(&FooObject::PrintThree, "Two", "Three");
         // std::function<void(FooObject*, std::string)> bindC2 = std::bind_back(&FooObject::PrintThree, "Two", "Three");
         auto bindC2 = std::bind_back(&FooObject::PrintThree, "Two", "Three");
@@ -147,7 +147,7 @@ void Run()
         // std::bind()와 마찬가지로 여러 차례에 걸쳐 결합하는 것도 가능하다.
         std::function<void(int, int, int)> lambda = [](int x, int y, int z) { std::cout << (x + y + z) << '\n'; };
 
-        // std::bind_front()
+        // std::bind_front() [C++20]
         std::function<void(int, int)> bindComplexA1 = std::bind_front(lambda, 100);
         bindComplexA1(60, 9);
 
@@ -159,7 +159,7 @@ void Run()
 
         std::cout << "\n";
 
-        // std::bind_back()
+        // std::bind_back() [C++23]
         std::function<void(int, int)> bindComplexA2 = std::bind_back(lambda, 100);
         bindComplexA2(60, 9);
 
